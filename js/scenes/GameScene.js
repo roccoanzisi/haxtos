@@ -731,16 +731,15 @@ class GameScene extends Phaser.Scene {
 
     // ── Physics helpers (Haxball) ──────────────────────────────────
     _movePlayer(player, keys, id) {
-        const d = (k) => k && (k.isDown !== undefined ? k.isDown : !!k);
+        if (!player || !player.body || !keys) return;
+        const d = (k) => k && k.isDown !== undefined ? k.isDown : !!k;
         const vx = (d(keys.right) ? 1 : 0) - (d(keys.left) ? 1 : 0);
         const vy = (d(keys.down)  ? 1 : 0) - (d(keys.up)   ? 1 : 0);
 
-        // Haxball damping every frame (multiplicative)
         const damping = player._isKicking ? PK_DAMPING : P_DAMPING;
         player.body.velocity.x *= damping;
         player.body.velocity.y *= damping;
 
-        // Haxball acceleration
         if (vx !== 0 || vy !== 0) {
             const len = Math.sqrt(vx * vx + vy * vy);
             const accel = player._isKicking ? PK_ACCEL : P_ACCEL;
