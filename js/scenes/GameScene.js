@@ -655,7 +655,12 @@ class GameScene extends Phaser.Scene {
                 player.body.velocity.x   -= (impulse * bm / total) * nx;
                 player.body.velocity.y   -= (impulse * bm / total) * ny;
 
+                // Hard cap immediately — don't rely on setMaxVelocity timing
                 const spd = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
+                if (spd > 700) {
+                    this.ball.body.velocity.x = this.ball.body.velocity.x / spd * 700;
+                    this.ball.body.velocity.y = this.ball.body.velocity.y / spd * 700;
+                }
                 if (spd > 50) soundManager.kick(spd);
             }
         }
@@ -665,18 +670,54 @@ class GameScene extends Phaser.Scene {
         this.ball.rotation += this.ball.body.velocity.x * 0.003;
     }
 
-    // Emergency clamp — prevents ball from escaping the play area
+    // Position-based boundary enforcement — works regardless of physics timing
     _clampBall() {
-        const b = this.ball, r = B_RADIUS, T = F.WALL_T;
-        const minX = F.X - F.GOAL_D - T - r;
-        const maxX = F.X + F.W + F.GOAL_D + T + r;
-        const minY = F.Y - T - r;
-        const maxY = F.Y + F.H + T + r;
+        const b = this.ball;
+        const r = B_RADIUS;
+        const inGoalY = b.y > F.GOAL_TOP && b.y < F.GOAL_BOT;
 
-        if (b.x < minX) { b.x = minX + 1; b.body.velocity.x =  Math.abs(b.body.velocity.x) * 0.6; }
-        if (b.x > maxX) { b.x = maxX - 1; b.body.velocity.x = -Math.abs(b.body.velocity.x) * 0.6; }
-        if (b.y < minY) { b.y = minY + 1; b.body.velocity.y =  Math.abs(b.body.velocity.y) * 0.6; }
-        if (b.y > maxY) { b.y = maxY - 1; b.body.velocity.y = -Math.abs(b.body.velocity.y) * 0.6; }
+        // Top / bottom walls
+        if (b.y < F.Y + r) {
+            b.y = F.Y + r;
+            if (b.body.velocity.y < 0) b.body.velocity.y *= -0.7;
+        }
+        if (b.y > F.Y + F.H - r) {
+            b.y = F.Y + F.H - r;
+            if (b.body.velocity.y > 0) b.body.velocity.y *= -0.7;
+        }
+
+        // Left side — only block if NOT in goal opening
+        if (b.x < F.X - r && !inGoalY) {
+            b.x = F.X - r;
+            if (b.body.velocity.x < 0) b.body.velocity.x *= -0.7;
+        }
+        // Right side — only block if NOT in goal opening
+        if (b.x > F.X + F.W + r && !inGoalY) {
+            b.x = F.X + F.W + r;
+            if (b.body.velocity.x > 0) b.body.velocity.x *= -0.7;
+        }
+
+        // Inside goal area: block at back wall and posts
+        if (inGoalY) {
+            const leftBack  = F.X - F.GOAL_D + r;
+            const rightBack = F.X + F.W + F.GOAL_D - r;
+            if (b.x < leftBack)  { b.x = leftBack;  if (b.body.velocity.x < 0) b.body.velocity.x *= -0.7; }
+            if (b.x > rightBack) { b.x = rightBack; if (b.body.velocity.x > 0) b.body.velocity.x *= -0.7; }
+        }
+
+        // Goal posts top/bottom — prevent ball from going through the crossbar
+        const inGoalXL = b.x < F.X - r;
+        const inGoalXR = b.x > F.X + F.W + r;
+        if (inGoalXL || inGoalXR) {
+            if (b.y < F.GOAL_TOP + r) {
+                b.y = F.GOAL_TOP + r;
+                if (b.body.velocity.y < 0) b.body.velocity.y *= -0.7;
+            }
+            if (b.y > F.GOAL_BOT - r) {
+                b.y = F.GOAL_BOT - r;
+                if (b.body.velocity.y > 0) b.body.velocity.y *= -0.7;
+            }
+        }
     }
 
     // ── Goal ───────────────────────────────────────────────────────
