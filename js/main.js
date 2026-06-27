@@ -25,7 +25,7 @@ const game = new Phaser.Game({
     input: { keyboard: true },
     physics: {
         default: 'arcade',
-        arcade: { gravity: { y: 0 }, debug: false, fps: 120 }
+        arcade: { gravity: { y: 0 }, debug: false, fps: 60 }
     },
     scene: [PreloadScene, MenuScene, ConfigScene, OnlineScene, GameScene, GoalScene, WinScene],
     scale: {
