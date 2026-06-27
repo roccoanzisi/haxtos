@@ -260,21 +260,16 @@ class GameScene extends Phaser.Scene {
 
     _createKickoffBarrier() {
         this._kickoffActive = true;
-        const bx = this.add.rectangle(F.CX, F.Y + F.H / 2, 4, F.H, 0x000000, 0);
+
+        // Ball bounces off barrier until kicked (destroy on contact)
+        const bx = this.add.rectangle(F.CX, F.Y + F.H / 2, 2, F.H, 0x000000, 0);
         this.physics.add.existing(bx, true);
         this._kickoffBarrier = bx;
 
-        // Block ALL players from crossing center line
-        Object.values(this.players).forEach(p => {
-            this.physics.add.collider(p, bx);
-        });
-
-        // Destroy when ball touches it
         this.physics.add.overlap(this.ball, bx, () => {
             if (!this._kickoffActive) return;
             this._kickoffActive = false;
             if (this._kickoffBarrier) {
-                // Remove all player↔barrier colliders
                 this._kickoffBarrier.destroy();
                 this._kickoffBarrier = null;
             }
