@@ -90,7 +90,9 @@ class OnlineScene extends Phaser.Scene {
         this.status.setText('Conectando...');
 
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.ws = new WebSocket(`${proto}//${location.host}`);
+        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        const host = isLocal ? location.host : 'haxtos-server-production.up.railway.app';
+        this.ws = new WebSocket(`${proto}//${host}`);
 
         this.ws.onopen = () => {
             this.ws.send(JSON.stringify({ type: 'join', room: this.roomCode }));

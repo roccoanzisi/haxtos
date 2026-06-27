@@ -24,7 +24,7 @@ const game = new Phaser.Game({
         default: 'arcade',
         arcade: { gravity: { y: 0 }, debug: false, fps: 120 }
     },
-    scene: [PreloadScene, MenuScene, OnlineScene, GameScene, GoalScene, WinScene],
+    scene: [PreloadScene, MenuScene, ConfigScene, OnlineScene, GameScene, GoalScene, WinScene],
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH

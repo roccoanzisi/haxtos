@@ -15,7 +15,9 @@ class GameScene extends Phaser.Scene {
     init(data) {
         this.mode = (data && data.mode) || 'local1v1';
         this.score = { blue: 0, red: 0 };
-        this.timeLeft = GAME_TIME;
+        this.scoreWin = (data && data.scoreWin) ? data.scoreWin : SCORE_WIN;
+        this.timeLimit = (data && data.timeLimit !== undefined) ? data.timeLimit : GAME_TIME;
+        this.timeLeft = this.timeLimit;
         this.paused = false;
         this.goalLock = false;
         this.is2v2 = this.mode === 'local2v2';
@@ -25,12 +27,21 @@ class GameScene extends Phaser.Scene {
         this.isHost = this.playerIndex === 0;
         this.lastKickTime = { blue: 0, red: 0, blue2: 0, red2: 0 };
         this.serverState = null;
+        // stadium
+        this.stadium = (data && data.stadium) ? data.stadium : 'classic';
+        this.stadiumCfg = STADIUMS[this.stadium] || STADIUMS.classic;
         // chat
         this._chatOpen = false;
         this._chatInput = '';
         this._chatMessages = [];
         this._avatarOverrides = {};
         this._floatingMsg = null;
+        // kick-off barrier
+        this._kickoffBarrier = null;
+        this._kickoffActive = true;
+        // team colors
+        this._teamTints = { blue: null, red: null, blue2: null, red2: null };
+        this._originalTints = { blue: null, red: null, blue2: null, red2: null };
     }
 
     create() {
@@ -50,8 +61,9 @@ class GameScene extends Phaser.Scene {
 
         this.timerEvent = this.time.addEvent({
             delay: 1000,
-            repeat: GAME_TIME - 1,
+            repeat: this.timeLimit > 0 ? this.timeLimit - 1 : 99999,
             callback: () => {
+                if (this.timeLimit === 0) return; // no time limit
                 if (this.paused || (this.isOnline && !this.isHost)) return;
                 this.timeLeft = Math.max(0, this.timeLeft - 1);
                 this._updateHUD();
@@ -63,40 +75,41 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
     }
 
-    // ── Field (Haxball colors) ─────────────────────────────────────
+    // ── Field (stadium-aware) ──────────────────────────────────────
     _drawField() {
         const g = this.add.graphics();
+        const s = this.stadiumCfg;
 
-        // Grass stripes — Haxball exact colors
+        // Grass stripes
         for (let i = 0; i < 8; i++) {
-            g.fillStyle(i % 2 === 0 ? 0x718C5A : 0x7A9660, 1);
+            g.fillStyle(i % 2 === 0 ? s.grass1 : s.grass2, 1);
             g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
         }
 
         // Goal box background
-        g.fillStyle(0x5C7548, 1);
+        g.fillStyle(0x3a5530, 1);
         g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
         g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
-        // Field border & lines — Haxball light green
-        g.lineStyle(3, 0xC7E6BD, 1);
+        // Field border & lines
+        g.lineStyle(3, s.lineColor, 1);
         g.strokeRect(F.X, F.Y, F.W, F.H);
 
-        g.lineStyle(2, 0xC7E6BD, 0.9);
+        g.lineStyle(2, s.lineColor, 0.9);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
         g.strokeCircle(F.CX, F.CY, 70);
 
-        g.fillStyle(0xC7E6BD, 1);
+        g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        g.lineStyle(2, 0xC7E6BD, 0.45);
+        g.lineStyle(2, s.lineColor, 0.45);
         g.strokeCircle(F.X + 85,         F.CY, 55);
         g.strokeCircle(F.X + F.W - 85,   F.CY, 55);
 
-        // Left goal — blue posts + net (red attacks this goal)
-        g.lineStyle(3, 0xCCCCFF, 1);
+        // Left goal — blue posts + net
+        g.lineStyle(3, s.goalColor1, 1);
         g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.lineStyle(1, 0xCCCCFF, 0.28);
+        g.lineStyle(1, s.goalColor1, 0.28);
         for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14) {
             g.lineBetween(F.X - F.GOAL_D, y, F.X, y);
         }
@@ -104,10 +117,10 @@ class GameScene extends Phaser.Scene {
             g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
         }
 
-        // Right goal — red posts + net (blue attacks this goal)
-        g.lineStyle(3, 0xFFCCCC, 1);
+        // Right goal — red posts + net
+        g.lineStyle(3, s.goalColor2, 1);
         g.strokeRect(F.X + F.W, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.lineStyle(1, 0xFFCCCC, 0.28);
+        g.lineStyle(1, s.goalColor2, 0.28);
         for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14) {
             g.lineBetween(F.X + F.W, y, F.X + F.W + F.GOAL_D, y);
         }
@@ -214,6 +227,23 @@ class GameScene extends Phaser.Scene {
         for (let i = 0; i < all.length; i++)
             for (let j = i + 1; j < all.length; j++)
                 this.physics.add.collider(all[i], all[j]);
+
+        this._createKickoffBarrier();
+    }
+
+    _createKickoffBarrier() {
+        this._kickoffActive = true;
+        const bx = this.add.rectangle(F.CX, F.Y, 4, F.H, 0x000000, 0);
+        this.physics.add.existing(bx, true);
+        this._kickoffBarrier = bx;
+
+        this.physics.add.overlap(this.ball, bx, () => {
+            this._kickoffActive = false;
+            if (this._kickoffBarrier) {
+                this._kickoffBarrier.destroy();
+                this._kickoffBarrier = null;
+            }
+        });
     }
 
     _wallBounce() {
@@ -291,6 +321,7 @@ class GameScene extends Phaser.Scene {
     }
 
     _fmt(secs) {
+        if (secs <= 0 && this.timeLimit === 0) return '\u221E';
         const m = Math.floor(secs / 60).toString().padStart(2, '0');
         const s = (secs % 60).toString().padStart(2, '0');
         return `${m}:${s}`;
@@ -440,8 +471,37 @@ class GameScene extends Phaser.Scene {
             case 'fps':
                 this._addChatMessage(`FPS: ${Math.round(this.game.loop.actualFps)}`, '#aaffff');
                 break;
+            case 'colors': {
+                const action = (args[0] || '').toLowerCase();
+                if (action === 'reset') {
+                    Object.keys(this.players).forEach(k => {
+                        this.players[k].clearTint();
+                        this._teamTints[k] = null;
+                    });
+                    this._addChatMessage('Colores restaurados', '#aaffaa');
+                } else if (action === 'blue' || action === 'red') {
+                    const hex = args[1] || '';
+                    const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
+                    if (!match) {
+                        this._addChatMessage('Uso: /colors <blue|red> #RRGGBB o /colors reset', '#ffaaaa');
+                    } else {
+                        const color = parseInt(match[1], 16);
+                        const keys = action === 'blue' ? ['blue', 'blue2'] : ['red', 'red2'];
+                        keys.forEach(k => {
+                            if (this.players[k]) {
+                                this.players[k].setTint(color);
+                                this._teamTints[k] = color;
+                            }
+                        });
+                        this._addChatMessage(`Color ${action}: #${match[1].toUpperCase()}`, '#aaffaa');
+                    }
+                } else {
+                    this._addChatMessage('Uso: /colors <blue|red> #RRGGBB o /colors reset', '#ffaaaa');
+                }
+                break;
+            }
             case 'help':
-                this._addChatMessage('/extrapolation /avatar /zoom /handicap /fps', '#ffff88');
+                this._addChatMessage('/extrapolation /avatar /zoom /handicap /fps /colors', '#ffff88');
                 break;
             default:
                 this._addChatMessage(`Desconocido: /${name} — prueba /help`, '#ffaaaa');
@@ -737,7 +797,7 @@ class GameScene extends Phaser.Scene {
         this._updateHUD();
         soundManager.goal();
 
-        if (this.score[team] >= SCORE_WIN) {
+        if (this.scoreWin > 0 && this.score[team] >= this.scoreWin) {
             this.time.delayedCall(600, () => this._endGame());
             return;
         }
@@ -760,6 +820,7 @@ class GameScene extends Phaser.Scene {
             place(this.players.blue2, F.X + 70,         F.CY - 80);
             place(this.players.red2,  F.X + F.W - 70,   F.CY + 80);
         }
+        this._createKickoffBarrier();
     }
 
     _endGame() {

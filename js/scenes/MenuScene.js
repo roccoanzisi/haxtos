@@ -20,13 +20,11 @@ class MenuScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
         this._button(W / 2, 230, '⚽  LOCAL 1 vs 1', '#2255ee', () => {
-            soundManager.whistle();
-            this.scene.start('GameScene', { mode: 'local1v1' });
+            this.scene.start('ConfigScene', { mode: 'local1v1' });
         });
 
         this._button(W / 2, 300, '⚽⚽  LOCAL 2 vs 2', '#1a4499', () => {
-            soundManager.whistle();
-            this.scene.start('GameScene', { mode: 'local2v2' });
+            this.scene.start('ConfigScene', { mode: 'local2v2' });
         });
 
         this._button(W / 2, 370, '🌐  ONLINE', '#338833', () => {
