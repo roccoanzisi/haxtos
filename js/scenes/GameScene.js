@@ -215,7 +215,7 @@ class GameScene extends Phaser.Scene {
         p.setCircle(P_RADIUS, 1, 1);
         p.setBounce(P_BOUNCE);
         p.setDrag(0);       // manual damping (Haxball style)
-        p.setMaxVelocity(0); // no Phaser cap
+        // No velocity cap — manual damping in _movePlayer
         p.setDepth(5);
         p._kickTexture = key.replace('player_', 'kick_');
         return p;
@@ -743,6 +743,11 @@ class GameScene extends Phaser.Scene {
             const accel = player._isKicking ? PK_ACCEL : P_ACCEL;
             player.body.velocity.x += (vx / len) * accel;
             player.body.velocity.y += (vy / len) * accel;
+        }
+
+        // DEBUG
+        if (id === 'blue') {
+            console.log(`W: ${d(keys.right)} blue.x: ${player.x.toFixed(1)} blue.vx: ${player.body.velocity.x.toFixed(1)}`);
         }
     }
 
