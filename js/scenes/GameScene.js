@@ -1,7 +1,7 @@
 const P_RADIUS = 22;
 const B_RADIUS = 14;
-const P_SPEED  = 380;
-const P_DRAG   = 450;
+const P_SPEED  = 260;
+const P_DRAG   = 600;
 const SCORE_WIN = 7;
 const GAME_TIME = 3 * 60;
 const KICK_COOLDOWN = 400;
@@ -32,6 +32,8 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
+        this._forceKick = false;
+        this._forceKickRed = false;
         soundManager.startAmbient();
         soundManager.whistle();
 
@@ -234,15 +236,27 @@ class GameScene extends Phaser.Scene {
             fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#ff8888', stroke: '#000', strokeThickness: 3
         }).setOrigin(1, 0).setDepth(20);
 
+        this.shootBlueBtn = this.add.text(15, GAME_H - 35, '⚡SHOOT (ESPACIO)', {
+            fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#88aaff', backgroundColor: '#1a2244', padding: { x: 6, y: 3 }
+        }).setDepth(20).setInteractive({ useHandCursor: true });
+        this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
+        this.shootBlueBtn.on('pointerup', () => { this._forceKick = false; });
+
+        this.shootRedBtn = this.add.text(GAME_W - 15 - 105, GAME_H - 35, '⚡SHOOT (SHIFT)', {
+            fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#ff8888', backgroundColor: '#2a1a1a', padding: { x: 6, y: 3 }
+        }).setDepth(20).setInteractive({ useHandCursor: true });
+        this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
+        this.shootRedBtn.on('pointerup', () => { this._forceKickRed = false; });
+
         let hint = 'ESC: Menú';
-        if (this.is2v2) hint = 'A/D: Az1 | F/H: Az2 | ←→: Rj1 | J/L: Rj2 | SPACE/SHIFT: Patada';
-        this.add.text(GAME_W - 8, GAME_H - 35, hint, {
+        if (this.is2v2) hint = 'A/D: Az1 | F/H: Az2 | ←→: Rj1 | J/L: Rj2 | ESPACIO/SHIFT: Patada';
+        this.add.text(GAME_W - 8, 8, hint, {
             fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#888888'
         }).setOrigin(1, 0).setDepth(20);
 
         if (this.isOnline) {
             const roomLabel = 'Sala: ' + (this.scene.get('OnlineScene') && this.scene.get('OnlineScene').roomCode ? this.scene.get('OnlineScene').roomCode : '—');
-            this.add.text(8, GAME_H - 35, roomLabel, {
+            this.add.text(8, GAME_H - 55, roomLabel, {
                 fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#66aa66'
             }).setOrigin(0, 0).setDepth(20);
         }
@@ -252,6 +266,13 @@ class GameScene extends Phaser.Scene {
         this.hudBlue.setText(String(this.score.blue));
         this.hudRed.setText(String(this.score.red));
         this.hudTime.setText(this._fmt(this.timeLeft));
+
+        if (this.shootBlueBtn) {
+            this.shootBlueBtn.setAlpha(this.players && this.players.blue && this.players.blue._isKicking ? 0.5 : 1);
+        }
+        if (this.shootRedBtn) {
+            this.shootRedBtn.setAlpha(this.players && this.players.red && this.players.red._isKicking ? 0.5 : 1);
+        }
     }
 
     _fmt(secs) {
@@ -292,20 +313,20 @@ class GameScene extends Phaser.Scene {
         }
 
         this._movePlayer(this.players.blue, this.keys1, 'blue');
-        this.players.blue._isKicking = this.kick1.isDown;
+        this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
         this._handleBallContact(this.players.blue, 'blue');
 
         this._movePlayer(this.players.red, this.keys2, 'red');
-        this.players.red._isKicking = this.kick2.isDown;
+        this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
         this._handleBallContact(this.players.red, 'red');
 
         if (this.is2v2) {
             this._movePlayer(this.players.blue2, this.keys3, 'blue2');
-            this.players.blue2._isKicking = this.kick1.isDown;
+            this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
             this._handleBallContact(this.players.blue2, 'blue2');
 
             this._movePlayer(this.players.red2, this.keys4, 'red2');
-            this.players.red2._isKicking = this.kick2.isDown;
+            this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
             this._handleBallContact(this.players.red2, 'red2');
         }
 
