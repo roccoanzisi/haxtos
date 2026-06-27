@@ -683,11 +683,10 @@ class GameScene extends Phaser.Scene {
     _checkGoal() {
         if (this.goalLock) return;
         const bx = this.ball.x, by = this.ball.y;
-        const inY      = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
-        const leftBack  = F.X - F.GOAL_D + B_RADIUS;
-        const rightBack = F.X + F.W + F.GOAL_D - B_RADIUS;
-        if (bx <= leftBack  && inY) this._goal('red');
-        else if (bx >= rightBack && inY) this._goal('blue');
+        const inY = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
+        // Goal when ball center crosses the field edge (not the back wall)
+        if (bx < F.X - B_RADIUS && inY) this._goal('red');
+        else if (bx > F.X + F.W + B_RADIUS && inY) this._goal('blue');
     }
 
     _goal(team) {
