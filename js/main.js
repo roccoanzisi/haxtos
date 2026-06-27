@@ -20,6 +20,7 @@ const game = new Phaser.Game({
     width: GAME_W,
     height: GAME_H,
     backgroundColor: '#111111',
+    input: { keyboard: true },
     physics: {
         default: 'arcade',
         arcade: { gravity: { y: 0 }, debug: false, fps: 120 }

@@ -669,6 +669,11 @@ class GameScene extends Phaser.Scene {
         this._clampBall();
         this._checkGoal();
         this._updatePlayerLabels();
+
+        // DEBUG
+        if (this.keys1 && this.keys1.right) {
+            console.log('W:', this.keys1.right.isDown, 'blue.x:', this.players.blue.x, 'blue.vx:', this.players.blue.body.velocity.x.toFixed(1));
+        }
     }
 
     _updateHost() {
