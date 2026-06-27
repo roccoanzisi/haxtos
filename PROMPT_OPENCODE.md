@@ -32,8 +32,13 @@ El proyecto NO usa `import`/`export`. Todos los archivos se cargan con `<script 
 | `F` (objeto de campo) | `js/main.js` | ningún otro archivo |
 | `soundManager` | `js/main.js` | ningún otro archivo |
 | `STADIUMS` | `js/scenes/ConfigScene.js` | ningún otro archivo |
-| `P_RADIUS`, `B_RADIUS`, `P_SPEED`, `P_DRAG` | `js/scenes/GameScene.js` | ningún otro archivo |
-| `SCORE_WIN`, `GAME_TIME`, `KICK_COOLDOWN`, `KICK_POWER` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `P_RADIUS`, `B_RADIUS` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `P_ACCEL`, `P_DAMPING` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `P_MASS`, `P_BOUNCE` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `PK_ACCEL`, `PK_DAMPING` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `KICK_POWER`, `KICK_BACK`, `KICK_COOLDOWN` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `B_DAMPING`, `B_MASS`, `B_BOUNCE`, `B_MAX_SPEED` | `js/scenes/GameScene.js` | ningún otro archivo |
+| `SCORE_WIN`, `GAME_TIME` | `js/scenes/GameScene.js` | ningún otro archivo |
 | `WALL_BOUNCE`, `POST_BOUNCE` | `js/scenes/GameScene.js` | ningún otro archivo |
 
 ### 3. Orden de carga de scripts en `index.html` (NO cambiar el orden)
@@ -126,33 +131,50 @@ const F = {
 
 ## Constantes de física (en `GameScene.js`)
 
+Física basada en Haxball .hbs — multiplicativa (damping × velocidad cada frame), no drag de Phaser:
+
 ```javascript
-const P_RADIUS = 22;       // radio jugador
-const B_RADIUS = 14;       // radio pelota
-const P_SPEED  = 260;      // velocidad máxima jugador
-const P_DRAG   = 600;      // fricción jugador
-const SCORE_WIN = 7;       // goles para ganar
-const GAME_TIME = 3 * 60;  // duración en segundos
-const KICK_COOLDOWN = 400; // ms entre patadas
-const KICK_POWER = 650;    // impulso de patada
-const WALL_BOUNCE = 0.55;  // coef rebote pared
-const POST_BOUNCE = 0.82;  // coef rebote poste
+// Jugador
+const P_ACCEL   = 0.0403;  // px/frame a 120fps → terminal ~240 px/s
+const P_DAMPING = 0.9798;  // × vel cada frame (0.96^(60/120))
+const P_MASS    = 2;       // invMass=0.5 en Haxball
+const P_BOUNCE  = 0.5;     // bCoef
+
+// Jugador pateando
+const PK_ACCEL   = 0.0283; // menos aceleración al patear
+const PK_DAMPING = 0.9798; // igual
+const KICK_POWER = 480;    // impulso (kickStrength=5 convertido)
+const KICK_BACK  = 0.1;    // retroceso del jugador
+
+// Pelota
+const B_DAMPING   = 0.995; // × vel cada frame (0.99^(60/120))
+const B_MASS      = 1;     // invMass=1 en Haxball
+const B_BOUNCE    = 0.5;   // bCoef
+const B_MAX_SPEED = 700;   // cap anti-tunneling
+
+// Rebotes
+const WALL_BOUNCE = 0.5;   // ballArea bCoef
+const POST_BOUNCE = 0.5;   // goalPost bCoef
+const SCORE_WIN = 7;
+const GAME_TIME = 3 * 60;
+const KICK_COOLDOWN = 400;
 ```
 
 ---
 
 ## Física Haxball real (de los stadiums .hbs — para referenciar)
 
-Valores del **Classic stadium** de Haxball oficial:
+Valores del **Classic stadium** de Haxball oficial (de issue #480 + wiki):
 ```json
 "playerPhysics": {
   "bCoef": 0.5,
   "invMass": 0.5,
   "damping": 0.96,
-  "acceleration": 0.11,
-  "kickingAcceleration": 0.083,
+  "acceleration": 0.1,
+  "kickingAcceleration": 0.07,
   "kickingDamping": 0.96,
-  "kickStrength": 5
+  "kickStrength": 5,
+  "kickback": 0
 }
 "ballPhysics": {
   "radius": 10,
@@ -162,7 +184,12 @@ Valores del **Classic stadium** de Haxball oficial:
 }
 ```
 
-Haxball usa una unidad de distancia interna (no pixels), pero los ratios son los correctos para replicar el feel.
+Haxball corre a **60fps** y usa unidades internas (1 unidad ≈ 1.6px en Haxtos Classic). La conversión es:
+- **Damping**: `damping^(60/fps_haxtos)` → a 120fps: `0.96^0.5 = 0.9798`, `0.99^0.5 = 0.995`
+- **Aceleración**: se aplica por frame en Haxball. Terminal speed = `accel/(1-damping)`. Jugador normal: 2.5 u/f ≈ 240 px/s
+- **Kick**: `kickStrength` se suma directo a la velocidad del balón en la dirección del contacto
+- **Masa**: `invMass` es masa inversa. Jugador = 2 (1/0.5), Pelota = 1 (1/1.0)
+- **Colisión**: impulso basado en masa, no rebote elástico simple
 
 ---
 
