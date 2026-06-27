@@ -3,7 +3,7 @@
 // Reference: github.com/haxball/haxball-issues wiki + issue #480
 
 const P_RADIUS = 22;
-const B_RADIUS = 14;
+const B_RADIUS = 16;
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
 // Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → ~240 px/s
@@ -18,13 +18,14 @@ const P_BOUNCE  = 0.5;      // bCoef
 // Player kicking — terminal 168 px/s: 168 × 0.0202 = 3.40 px/s
 const PK_ACCEL   = 3.40;    // px/s per frame → terminal 168 px/s
 const PK_DAMPING = 0.9798;  // same as normal
-const KICK_POWER = 325;     // ~1.3x player terminal speed (scaled from 650 for 120fps)
+const KICK_POWER = 900;     // ~650 * 1.6 scale (Haxball kick strength)
 const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
 // Damping per frame at 120fps: 0.99^(60/120) = 0.995
+// Mass reduced to 0.5 for lighter feel (player=2, ball=0.5 → 4x lighter)
 const B_DAMPING   = 0.995;  // per frame at 120fps
-const B_MASS      = 1;      // invMass=1 → mass=1
+const B_MASS      = 0.5;    // invMass=2 → mass=0.5 (lighter than player)
 const B_BOUNCE    = 0.5;    // bCoef
 const B_MAX_SPEED = 700;    // cap to prevent tunneling at 120fps
 
