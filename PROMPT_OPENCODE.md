@@ -31,6 +31,7 @@ El proyecto NO usa `import`/`export`. Todos los archivos se cargan con `<script 
 | `GAME_W`, `GAME_H` | `js/main.js` | ningún otro archivo |
 | `F` (objeto de campo) | `js/main.js` | ningún otro archivo |
 | `soundManager` | `js/main.js` | ningún otro archivo |
+| `STADIUMS` | `js/scenes/ConfigScene.js` | ningún otro archivo |
 | `P_RADIUS`, `B_RADIUS`, `P_SPEED`, `P_DRAG` | `js/scenes/GameScene.js` | ningún otro archivo |
 | `SCORE_WIN`, `GAME_TIME`, `KICK_COOLDOWN`, `KICK_POWER` | `js/scenes/GameScene.js` | ningún otro archivo |
 | `WALL_BOUNCE`, `POST_BOUNCE` | `js/scenes/GameScene.js` | ningún otro archivo |
@@ -40,6 +41,7 @@ El proyecto NO usa `import`/`export`. Todos los archivos se cargan con `<script 
 <script src="js/utils/SoundManager.js"></script>
 <script src="js/scenes/PreloadScene.js"></script>
 <script src="js/scenes/MenuScene.js"></script>
+<script src="js/scenes/ConfigScene.js"></script>
 <script src="js/scenes/OnlineScene.js"></script>
 <script src="js/scenes/GameScene.js"></script>
 <script src="js/scenes/GoalScene.js"></script>
@@ -65,6 +67,8 @@ haxtos/
 ├── package.json
 ├── server.js              ← WebSocket server (solo local/Railway)
 ├── vercel.json            ← sirve estáticos, ignora server.js
+├── Procfile               ← para deploy en Railway
+├── railway.json           ← config Railway
 ├── CLAUDE.md              ← reglas del proyecto (este resumen)
 └── js/
     ├── main.js            ← config Phaser + constantes globales F, GAME_W, GAME_H
@@ -72,7 +76,8 @@ haxtos/
     │   └── SoundManager.js
     └── scenes/
         ├── PreloadScene.js   ← genera texturas programáticamente
-        ├── MenuScene.js      ← menú principal
+        ├── MenuScene.js      ← menú principal → va a ConfigScene
+        ├── ConfigScene.js    ← selector de estadio/goles/tiempo + const STADIUMS
         ├── OnlineScene.js    ← sala online con código de 4 letras
         ├── GameScene.js      ← lógica principal del juego
         ├── GoalScene.js      ← overlay de gol
@@ -192,26 +197,21 @@ Haxball usa una unidad de distancia interna (no pixels), pero los ratios son los
 ## Lo que falta implementar (backlog)
 
 ### Alta prioridad
-1. **Estadios múltiples** — Classic (actual), Big (campo más grande), Hockey
-   - Agregar selector en el menú antes de jugar
-   - Usar dimensiones reales de los .hbs de Haxball
-   - Solo afecta las constantes en `F` del `main.js`
+1. ~~**Estadios múltiples**~~ ✅ — Classic, Big, Hockey con ConfigScene
 
-2. **Sistema de colores de equipo** — comando `/colors red 60 FFFFFF 0080FF`
-   - Cambia el color del equipo en tiempo de juego
-   - Actualizar las texturas de `PreloadScene` dinámicamente o usar tint de Phaser
+2. ~~**Sistema de colores de equipo**~~ ✅ — comando `/colors` con setTint()
 
-3. **Barrera de kick-off** — línea invisible al centro que bloquea al equipo contrario hasta que se toque la pelota por primera vez
+3. ~~**Selección de límite de goles y tiempo**~~ ✅ — ConfigScene
+
+4. **Barrera de kick-off mejorada** — la barrera actual se destruye al primer toque de pelota (OK), pero no bloquea a los jugadores del lado contrario antes del toque. Requiere collider activo contra los jugadores del equipo contrario.
 
 ### Media prioridad
-4. **Online funcional con servidor persistente** — deployar `server.js` en Railway o Render (Vercel no soporta WebSockets)
+5. **Online funcional con servidor persistente** — deployar `server.js` en Railway o Render (Vercel no soporta WebSockets)
 
-5. **Más comandos de chat:**
+6. **Más comandos de chat:**
    - `/set_password <clave>` — sala con contraseña
    - `/clear_bans`
    - `/colors <team> clear` — restaurar colores
-
-6. **Selección de límite de goles y tiempo** — antes de iniciar partida
 
 ### Baja prioridad
 7. **Efectos visuales:** partículas en el gol, animación de la pelota al entrar

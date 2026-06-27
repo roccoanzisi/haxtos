@@ -27,9 +27,9 @@ class ConfigScene extends Phaser.Scene {
 
     init(data) {
         this.mode = (data && data.mode) || 'local1v1';
-        this.selectedStadium = 'classic';
-        this.selectedGoals = 7;
-        this.selectedTime = 3 * 60;
+        this.selectedStadium = (data && data.stadium) || 'classic';
+        this.selectedGoals = (data && data.goals !== undefined) ? data.goals : 7;
+        this.selectedTime = (data && data.time !== undefined) ? data.time : 3 * 60;
         this.goalOptions = [
             { label: '3', value: 3 },
             { label: '5', value: 5 },

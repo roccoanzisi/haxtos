@@ -13,6 +13,7 @@ js/
   scenes/
     PreloadScene.js
     MenuScene.js
+    ConfigScene.js  ← define STADIUMS global, selector de estadio/goles/tiempo
     OnlineScene.js
     GameScene.js    ← define sus propias constantes (P_RADIUS, B_RADIUS, etc.)
     GoalScene.js
@@ -34,6 +35,7 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 | `GAME_W`, `GAME_H` | `main.js` | Resolución del canvas |
 | `F` | `main.js` | Dimensiones del campo (objeto) |
 | `soundManager` | `main.js` | Instancia única del SoundManager |
+| `STADIUMS` | `ConfigScene.js` | Objeto con configuraciones de estadios |
 | `P_RADIUS`, `B_RADIUS`, `P_SPEED`, `P_DRAG`, `SCORE_WIN`, `GAME_TIME` | `GameScene.js` | Física del juego |
 | `KICK_COOLDOWN`, `KICK_POWER`, `WALL_BOUNCE`, `POST_BOUNCE` | `GameScene.js` | Física de patada y rebote |
 
@@ -44,6 +46,7 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 SoundManager.js     ← primero, soundManager se instancia en main.js
 PreloadScene.js
 MenuScene.js
+ConfigScene.js      ← define STADIUMS, debe ir antes de OnlineScene y GameScene
 OnlineScene.js
 GameScene.js
 GoalScene.js
