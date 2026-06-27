@@ -620,10 +620,10 @@ class GameScene extends Phaser.Scene {
         const dvy = a._vy - b._vy;
         const relVn = dvx * nx + dvy * ny;
 
-        if (relVn > 0) return; // moving apart
+        if (relVn <= 0) return; // moving apart — no impulse needed
 
-        const bounce = bCoefA * bCoefB; // Haxball: combined bounce = product
-        const impulse = -(1 + bounce) * relVn / totalInvMass;
+        const bounce = bCoefA * bCoefB;
+        const impulse = (1 + bounce) * relVn / totalInvMass;
 
         a._vx -= impulse * invMA * nx;
         a._vy -= impulse * invMA * ny;
