@@ -230,22 +230,11 @@ class GameScene extends Phaser.Scene {
         kb.on('keydown', (ev) => this._handleChatKey(ev));
     }
 
-    // ── Collisions (Phaser only for player-wall, sounds) ───────────
+    // ── Collisions (Phaser only for ball-wall overlap sounds) ──────
     _setupCollisions() {
-        // Players collide with walls via Phaser (no bounce, just blocking)
-        const all = Object.values(this.players);
-        all.forEach(p => {
-            this.physics.add.collider(p, this.walls);
-            this.physics.add.collider(p, this.postWalls);
-        });
-        for (let i = 0; i < all.length; i++)
-            for (let j = i + 1; j < all.length; j++)
-                this.physics.add.collider(all[i], all[j]);
-
-        // Ball-wall sounds only (we handle ball physics manually)
+        // Ball-wall sounds only (physics handled manually)
         this.physics.add.overlap(this.ball, this.walls, () => this._wallBounce());
         this.physics.add.overlap(this.ball, this.postWalls, () => this._postBounce());
-
         this._createKickoffBarrier();
     }
 
@@ -708,6 +697,29 @@ class GameScene extends Phaser.Scene {
         ball.x += ball._vx;
         ball.y += ball._vy;
 
+        // Move players
+        for (const p of players) {
+            p.x += p._vx;
+            p.y += p._vy;
+        }
+
+        // Player-wall collisions (custom, same as Haxball planes)
+        for (const p of players) {
+            this._resolvePlayerWall(p);
+        }
+
+        // Player-player collisions
+        for (let i = 0; i < players.length; i++) {
+            for (let j = i + 1; j < players.length; j++) {
+                this._resolveDiscDisc(
+                    players[i], players[j],
+                    P_RADIUS, P_RADIUS,
+                    P_INV_M, P_INV_M,
+                    P_BOUNCE, P_BOUNCE
+                );
+            }
+        }
+
         // Damp ball
         ball._vx *= B_DAMPING;
         ball._vy *= B_DAMPING;
@@ -724,6 +736,18 @@ class GameScene extends Phaser.Scene {
                 P_BOUNCE, B_BOUNCE
             );
         }
+    }
+
+    _resolvePlayerWall(p) {
+        const r = P_RADIUS;
+        // Top wall
+        if (p.y < F.Y + r) { p.y = F.Y + r; if (p._vy < 0) p._vy *= -0.5; }
+        // Bottom wall
+        if (p.y > F.Y + F.H - r) { p.y = F.Y + F.H - r; if (p._vy > 0) p._vy *= -0.5; }
+        // Left wall
+        if (p.x < F.X + r) { p.x = F.X + r; if (p._vx < 0) p._vx *= -0.5; }
+        // Right wall
+        if (p.x > F.X + F.W - r) { p.x = F.X + F.W - r; if (p._vx > 0) p._vx *= -0.5; }
     }
 
     // Per-frame physics update
@@ -747,11 +771,9 @@ class GameScene extends Phaser.Scene {
                             this.lastKickTime[id] = now;
                             const nx = dx / dist;
                             const ny = dy / dist;
-                            // Haxball: kick impulse = direction × kickStrength × ballInvMass
                             const kick = KICK_POWER * B_INV_M;
                             this.ball._vx += nx * kick;
                             this.ball._vy += ny * kick;
-                            // Kickback
                             p._vx -= nx * kick * KICK_BACK * P_INV_M;
                             p._vy -= ny * kick * KICK_BACK * P_INV_M;
 
@@ -767,15 +789,13 @@ class GameScene extends Phaser.Scene {
             this._physicsSubStep();
         }
 
-        // Sync Phaser bodies for rendering
+        // Sync Phaser bodies for rendering only
         this.ball.body.reset(this.ball.x, this.ball.y);
         this.ball.body.velocity.set(this.ball._vx, this.ball._vy);
 
         for (const p of all) {
-            if (p.body) {
-                p.body.reset(p.x, p.y);
-                p.body.velocity.set(p._vx, p._vy);
-            }
+            p.body.reset(p.x, p.y);
+            p.body.velocity.set(p._vx, p._vy);
         }
     }
 

@@ -15,9 +15,14 @@
       overflow: hidden;
     }
     canvas { display: block; }
+    #game-container {
+      transform-origin: center center;
+      transition: transform 0.1s ease-out;
+    }
   </style>
 </head>
 <body>
+  <div id="game-container"></div>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <script src="js/utils/SoundManager.js"></script>
   <script src="js/scenes/PreloadScene.js"></script>
