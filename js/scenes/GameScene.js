@@ -69,6 +69,10 @@ class GameScene extends Phaser.Scene {
         soundManager.startAmbient();
         soundManager.whistle();
 
+        // Camera setup — center on field, include goals
+        this.cameras.main.setBounds(0, 0, GAME_W, GAME_H);
+        this.cameras.main.centerOn(F.CX, F.CY);
+
         this._drawField();
         this._buildWalls();
         this._spawnEntities();
@@ -820,6 +824,11 @@ class GameScene extends Phaser.Scene {
 
     // ── Update ─────────────────────────────────────────────────────
     update() {
+        // Apply mouse wheel zoom
+        if (window._gameZoom !== this.cameras.main.zoom) {
+            this.cameras.main.setZoom(window._gameZoom);
+        }
+
         if (this.paused) return;
 
         if (this.isOnline) {

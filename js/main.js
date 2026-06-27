@@ -19,7 +19,6 @@ const soundManager = new SoundManager();
 
 const game = new Phaser.Game({
     type: Phaser.AUTO,
-    parent: 'game-container',
     width: GAME_W,
     height: GAME_H,
     backgroundColor: '#111111',
@@ -35,16 +34,10 @@ const game = new Phaser.Game({
     }
 });
 
-// Mouse wheel zoom via Phaser camera (set as global)
+// Mouse wheel zoom via Phaser camera
 window._gameZoom = 1;
 window.addEventListener('wheel', function(e) {
     e.preventDefault();
     window._gameZoom -= e.deltaY * 0.001;
     window._gameZoom = Math.max(0.5, Math.min(3, window._gameZoom));
-    if (game) {
-        const scene = game.scene.getScene('GameScene');
-        if (scene && scene.cameras) {
-            scene.cameras.main.setZoom(window._gameZoom);
-        }
-    }
 }, { passive: false });
