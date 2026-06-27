@@ -98,11 +98,15 @@ haxtos/
 - ✅ Patada: ESPACIO (azul) / SHIFT (rojo) + botones clickeables en pantalla
 - ✅ Visuals Haxball: campo verde `#718C5A`, rayas, pelota blanca/negra, porterías coloreadas por equipo con red dibujada
 - ✅ Números de jugador encima de cada círculo
-- ✅ Chat en juego (Enter para abrir): `/extrapolation`, `/avatar`, `/zoom`, `/handicap`, `/fps`, `/help`
+- ✅ Chat en juego (Enter para abrir): `/extrapolation`, `/avatar`, `/zoom`, `/handicap`, `/fps`, `/colors`, `/help`
 - ✅ Detección de gol correcta (trigger al cruzar la línea, no el fondo)
 - ✅ Pelota no escapa del mapa (clamp de posición + cap de velocidad manual)
-- ✅ Física a 120fps
+- ✅ Física a 120fps — damping multiplicativo Haxball-style (`vel *= damping`)
+- ✅ Física de colisión basada en masa (player=2, ball=1) con kickback
 - ✅ Sonidos procedurales (silbato, gol, patada, rebote)
+- ✅ Selector de estadios (Classic / Big / Hockey) en ConfigScene
+- ✅ Selección de goles para ganar y duración de partida
+- ✅ Barrera de kick-off: bloquea jugadores al centro, se destruye al toque de pelota
 - ✅ Modo online scaffoldeado (WebSocket, salas con código)
 - ✅ Deploy en Vercel con CI/CD (cada push redeploya automáticamente)
 
@@ -217,6 +221,8 @@ Haxball corre a **60fps** y usa unidades internas (1 unidad ≈ 1.6px en Haxtos 
 | `/zoom <valor>` | Zoom de cámara (0.5-4) |
 | `/handicap <ms>` | Delay de input propio (0-500ms) |
 | `/fps` | Muestra FPS actual |
+| `/colors <blue|red> #RRGGBB` | Cambia color del equipo con setTint |
+| `/colors reset` | Restaura colores originales |
 | `/help` | Lista los comandos |
 
 ---
@@ -230,7 +236,7 @@ Haxball corre a **60fps** y usa unidades internas (1 unidad ≈ 1.6px en Haxtos 
 
 3. ~~**Selección de límite de goles y tiempo**~~ ✅ — ConfigScene
 
-4. **Barrera de kick-off mejorada** — la barrera actual se destruye al primer toque de pelota (OK), pero no bloquea a los jugadores del lado contrario antes del toque. Requiere collider activo contra los jugadores del equipo contrario.
+4. ~~**Barrera de kick-off mejorada**~~ ✅ — collider con todos los jugadores, se destruye al toque de pelota
 
 ### Media prioridad
 5. **Online funcional con servidor persistente** — deployar `server.js` en Railway o Render (Vercel no soporta WebSockets)
@@ -271,3 +277,6 @@ npm start   # → http://172.17.204.178:3000 (IP de WSL)
 | Gol no detectado | Threshold en el fondo del arco — física bouncea antes | Threshold movido a la línea del arco (`F.X - B_RADIUS`) |
 | Pelota escapa mapa | `setMaxVelocity` no aplica en el mismo frame del impulso | Cap manual de 700px/s + `_clampBall()` basado en posición |
 | `Cannot GET /` en Vercel | `vercel.json` enrutaba todo a `server.js` | `vercel.json` sirve estáticos directamente |
+| Teclas no funcionan | `keys.right` en vez de `keys.right.isDown` | Usado `.isDown` en `_movePlayer` |
+| Config resetea al volver | `ConfigScene.init()` sobrescribía selección | Lee `data.stadium/goals/time` si existen |
+| Física arcade incorrecta | Drag + setMaxVelocity en vez de damping multiplicativo | Reemplazado por Haxball-style: `vel *= damping` cada frame |

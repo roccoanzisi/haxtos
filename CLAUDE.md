@@ -78,3 +78,8 @@ Si agregás un archivo nuevo, añadilo en `index.html` ANTES de `main.js`.
 1. Verificar que la constante que vas a usar/crear no está ya definida en otro archivo
 2. Si agregás una escena nueva, registrarla en el array `scene: [...]` de `main.js`
 3. Testear en local con `npm start` + `http://[IP-WSL]:3000` antes de pushear
+
+### 7. Errores comunes conocidos (no reintroducir)
+- Teclas no funcionan: usar `keys.right.isDown`, nunca `keys.right` directamente
+- Config resetea al volver: `ConfigScene.init()` debe leer `data.stadium/goals/time` si existen
+- Física arcade: usar damping multiplicativo (`vel *= damping`), no `setDrag` ni `setMaxVelocity`
