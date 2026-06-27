@@ -1,11 +1,13 @@
 const GAME_W = 1000;
 const GAME_H = 560;
 
+// Haxball Classic scaled (factor: 880/740 = 1.1892)
+// Classic: ballArea 740x340, goal 128, kickoffRadius 75
 const F = {
-    X: 60, Y: 45,
-    W: 880, H: 470,
-    GOAL_H: 140,
-    GOAL_D: 65,
+    X: 60, Y: 56,
+    W: 880, H: 404,
+    GOAL_H: 152,
+    GOAL_D: 36,
     WALL_T: 22,
 };
 F.CX = F.X + F.W / 2;

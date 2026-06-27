@@ -2,31 +2,31 @@
 // 60fps→120fps, Haxball units→pixels (scale: 880/550 = 1.6)
 // Reference: github.com/haxball/haxball-issues wiki + issue #480
 
-const P_RADIUS = 22;
-const B_RADIUS = 16;
+// Haxball exact specs (Classic stadium, scale: 880/740 = 1.1892)
+// Classic: playerRadius=14, ballRadius=10, postRadius=8, kickoffRadius=75
+const P_RADIUS = 17;        // 14 × 1.1892
+const B_RADIUS = 12;        // 10 × 1.1892
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
-// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → ~240 px/s
+// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → 2.5 × 1.1892 × 60 = 178.4 px/s
 // Damping per frame at 120fps: 0.96^(60/120) = 0.9798
-// Phaser velocity is px/s, so accel per frame must be in px/s
-// accel = v_terminal × (1 - damping) = 240 × 0.0202 = 4.85 px/s
-const P_ACCEL   = 4.85;     // px/s per frame → terminal 240 px/s
+// accel = v_terminal × (1 - damping) = 178.4 × 0.0202 = 3.60 px/s per frame
+const P_ACCEL   = 3.60;     // px/s per frame → terminal 178.4 px/s
 const P_DAMPING = 0.9798;   // × vel (px/s) per frame (0.96^0.5)
 const P_MASS    = 2;        // invMass=0.5 → mass=2
 const P_BOUNCE  = 0.5;      // bCoef
 
-// Player kicking — terminal 168 px/s: 168 × 0.0202 = 3.40 px/s
-const PK_ACCEL   = 3.40;    // px/s per frame → terminal 168 px/s
+// Player kicking — Haxball: accel=0.07 → terminal 1.75 u/f → 124.9 px/s
+const PK_ACCEL   = 2.52;    // px/s per frame → terminal 124.9 px/s
 const PK_DAMPING = 0.9798;  // same as normal
-const KICK_POWER = 900;     // ~650 * 1.6 scale (Haxball kick strength)
+const KICK_POWER = 357;     // 5 units/frame × 1.1892 × 60fps (Haxball kick strength)
 const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
 // Damping per frame at 120fps: 0.99^(60/120) = 0.995
-// Mass reduced to 0.5 for lighter feel (player=2, ball=0.5 → 4x lighter)
 const B_DAMPING   = 0.995;  // per frame at 120fps
-const B_MASS      = 0.5;    // invMass=2 → mass=0.5 (lighter than player)
-const B_BOUNCE    = 0.5;    // bCoef
+const B_MASS      = 1;      // invMass=1 → mass=1 (exact Haxball)
+const B_BOUNCE    = 0.5;    // bCoef (exact Haxball)
 const B_MAX_SPEED = 700;    // cap to prevent tunneling at 120fps
 
 const SCORE_WIN = 7;
@@ -203,11 +203,12 @@ class GameScene extends Phaser.Scene {
 
     _spawnPlayers() {
         this.players = {};
-        this.players.blue = this._makePlayer(F.X + 150,         F.CY,       'player_blue');
-        this.players.red  = this._makePlayer(F.X + F.W - 150,   F.CY,       'player_red');
+        // Haxball Classic spawn: 170 units from center × 1.1892 = 202px
+        this.players.blue = this._makePlayer(F.CX - 202,        F.CY,       'player_blue');
+        this.players.red  = this._makePlayer(F.CX + 202,        F.CY,       'player_red');
         if (this.is2v2) {
-            this.players.blue2 = this._makePlayer(F.X + 70,         F.CY - 80, 'player_blue2');
-            this.players.red2  = this._makePlayer(F.X + F.W - 70,   F.CY + 80, 'player_red2');
+            this.players.blue2 = this._makePlayer(F.CX - 280,   F.CY - 120, 'player_blue2');
+            this.players.red2  = this._makePlayer(F.CX + 280,   F.CY + 120, 'player_red2');
         }
     }
 
@@ -745,11 +746,6 @@ class GameScene extends Phaser.Scene {
             player.body.velocity.x += (vx / len) * accel;
             player.body.velocity.y += (vy / len) * accel;
         }
-
-        // DEBUG
-        if (id === 'blue') {
-            console.log(`W: ${d(keys.right)} blue.x: ${player.x.toFixed(1)} blue.vx: ${player.body.velocity.x.toFixed(1)}`);
-        }
     }
 
     _kickPlayer(player, id) {
@@ -911,11 +907,11 @@ class GameScene extends Phaser.Scene {
     _reset() {
         const place = (obj, x, y) => { obj.setPosition(x, y); obj.body.reset(x, y); };
         place(this.ball,         F.CX, F.CY);
-        place(this.players.blue, F.X + 150,       F.CY);
-        place(this.players.red,  F.X + F.W - 150, F.CY);
+        place(this.players.blue, F.CX - 202,       F.CY);
+        place(this.players.red,  F.CX + 202,       F.CY);
         if (this.is2v2) {
-            place(this.players.blue2, F.X + 70,         F.CY - 80);
-            place(this.players.red2,  F.X + F.W - 70,   F.CY + 80);
+            place(this.players.blue2, F.CX - 280,   F.CY - 120);
+            place(this.players.red2,  F.CX + 280,   F.CY + 120);
         }
         this._createKickoffBarrier();
     }
