@@ -13,13 +13,6 @@ F.CY = F.Y + F.H / 2;
 F.GOAL_TOP = F.CY - F.GOAL_H / 2;
 F.GOAL_BOT = F.CY + F.GOAL_H / 2;
 
-const P_RADIUS = 22;
-const B_RADIUS = 14;
-const P_SPEED  = 380;
-const P_DRAG   = 450;
-const SCORE_WIN = 7;
-const GAME_TIME = 3 * 60;
-
 const soundManager = new SoundManager();
 
 const game = new Phaser.Game({
