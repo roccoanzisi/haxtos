@@ -1,32 +1,28 @@
-// Haxball physics — converted from official .hbs parameters
-// 60fps→120fps, Haxball units→pixels (scale: 880/550 = 1.6)
-// Reference: github.com/haxball/haxball-issues wiki + issue #480
-
-// Haxball exact specs (Classic stadium, scale: 880/740 = 1.1892)
-// Classic: playerRadius=14, ballRadius=10, postRadius=8, kickoffRadius=75
-const P_RADIUS = 17;        // 14 × 1.1892
-const B_RADIUS = 12;        // 10 × 1.1892
+// Haxball physics — exact Classic stadium values (1 pixel = 1 Haxball unit)
+// Reference: github.com/haxball/haxball-issues wiki
+const P_RADIUS = 14;       // Haxball player radius
+const B_RADIUS = 10;       // Haxball ball radius
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
-// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → 2.5 × 1.1892 × 60 = 178.4 px/s
+// Terminal at 60fps: 0.1/(1-0.96) = 2.5 u/f → 150 px/s
 // Damping per frame at 120fps: 0.96^(60/120) = 0.9798
-// accel = v_terminal × (1 - damping) = 178.4 × 0.0202 = 3.60 px/s per frame
-const P_ACCEL   = 3.60;     // px/s per frame → terminal 178.4 px/s
-const P_DAMPING = 0.9798;   // × vel (px/s) per frame (0.96^0.5)
+// accel = v_terminal × (1 - damping) = 150 × 0.0202 = 3.03 px/s per frame
+const P_ACCEL   = 3.03;     // px/s per frame → terminal 150 px/s
+const P_DAMPING = 0.9798;   // × vel (px/s) per frame
 const P_MASS    = 2;        // invMass=0.5 → mass=2
 const P_BOUNCE  = 0.5;      // bCoef
 
-// Player kicking — Haxball: accel=0.07 → terminal 1.75 u/f → 124.9 px/s
-const PK_ACCEL   = 2.52;    // px/s per frame → terminal 124.9 px/s
+// Player kicking — Haxball: accel=0.07 → terminal 1.75 u/f → 105 px/s
+const PK_ACCEL   = 2.12;    // px/s per frame → terminal 105 px/s
 const PK_DAMPING = 0.9798;  // same as normal
-const KICK_POWER = 357;     // 5 units/frame × 1.1892 × 60fps (Haxball kick strength)
+const KICK_POWER = 300;     // 5 u/f × 60fps impulse (exact Haxball)
 const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
 // Damping per frame at 120fps: 0.99^(60/120) = 0.995
 const B_DAMPING   = 0.995;  // per frame at 120fps
-const B_MASS      = 1;      // invMass=1 → mass=1 (exact Haxball)
-const B_BOUNCE    = 0.5;    // bCoef (exact Haxball)
+const B_MASS      = 1;      // invMass=1 → mass=1
+const B_BOUNCE    = 0.5;    // bCoef
 const B_MAX_SPEED = 700;    // cap to prevent tunneling at 120fps
 
 const SCORE_WIN = 7;
@@ -123,14 +119,14 @@ class GameScene extends Phaser.Scene {
 
         g.lineStyle(2, s.lineColor, 0.9);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
-        g.strokeCircle(F.CX, F.CY, 70);
+        g.strokeCircle(F.CX, F.CY, 75);       // Haxball kickoffRadius
 
         g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
         g.lineStyle(2, s.lineColor, 0.45);
-        g.strokeCircle(F.X + 85,         F.CY, 55);
-        g.strokeCircle(F.X + F.W - 85,   F.CY, 55);
+        g.strokeCircle(F.X + 150,            F.CY, 55);   // penalty area
+        g.strokeCircle(F.X + F.W - 150,      F.CY, 55);   // penalty area
 
         // Left goal — blue posts + net
         g.lineStyle(3, s.goalColor1, 1);
@@ -203,12 +199,12 @@ class GameScene extends Phaser.Scene {
 
     _spawnPlayers() {
         this.players = {};
-        // Haxball Classic spawn: 170 units from center × 1.1892 = 202px
-        this.players.blue = this._makePlayer(F.CX - 202,        F.CY,       'player_blue');
-        this.players.red  = this._makePlayer(F.CX + 202,        F.CY,       'player_red');
+        // Haxball Classic: players at ±200 from center
+        this.players.blue = this._makePlayer(F.CX - 200,        F.CY,       'player_blue');
+        this.players.red  = this._makePlayer(F.CX + 200,        F.CY,       'player_red');
         if (this.is2v2) {
-            this.players.blue2 = this._makePlayer(F.CX - 280,   F.CY - 120, 'player_blue2');
-            this.players.red2  = this._makePlayer(F.CX + 280,   F.CY + 120, 'player_red2');
+            this.players.blue2 = this._makePlayer(F.CX - 280,   F.CY - 80,  'player_blue2');
+            this.players.red2  = this._makePlayer(F.CX + 280,   F.CY + 80,  'player_red2');
         }
     }
 
@@ -907,11 +903,11 @@ class GameScene extends Phaser.Scene {
     _reset() {
         const place = (obj, x, y) => { obj.setPosition(x, y); obj.body.reset(x, y); };
         place(this.ball,         F.CX, F.CY);
-        place(this.players.blue, F.CX - 202,       F.CY);
-        place(this.players.red,  F.CX + 202,       F.CY);
+        place(this.players.blue, F.CX - 200,       F.CY);
+        place(this.players.red,  F.CX + 200,       F.CY);
         if (this.is2v2) {
-            place(this.players.blue2, F.CX - 280,   F.CY - 120);
-            place(this.players.red2,  F.CX + 280,   F.CY + 120);
+            place(this.players.blue2, F.CX - 280,   F.CY - 80);
+            place(this.players.red2,  F.CX + 280,   F.CY + 80);
         }
         this._createKickoffBarrier();
     }

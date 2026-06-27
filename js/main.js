@@ -1,13 +1,13 @@
 const GAME_W = 1000;
 const GAME_H = 560;
 
-// Haxball Classic scaled (factor: 880/740 = 1.1892)
-// Classic: ballArea 740x340, goal 128, kickoffRadius 75
+// Haxball Classic exact dimensions (pixels = Haxball units)
+// ballArea: 740x340, goal: 128, post radius: 8
 const F = {
-    X: 60, Y: 56,
-    W: 880, H: 404,
-    GOAL_H: 152,
-    GOAL_D: 36,
+    X: 130, Y: 110,
+    W: 740, H: 340,
+    GOAL_H: 128,
+    GOAL_D: 30,
     WALL_T: 22,
 };
 F.CX = F.X + F.W / 2;
