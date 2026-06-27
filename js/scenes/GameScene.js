@@ -1,13 +1,38 @@
+// Haxball physics — converted from official .hbs parameters
+// 60fps→120fps, Haxball units→pixels (scale: 880/550 = 1.6)
+// Reference: github.com/haxball/haxball-issues wiki + issue #480
+
 const P_RADIUS = 22;
 const B_RADIUS = 14;
-const P_SPEED  = 260;
-const P_DRAG   = 600;
+
+// Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
+// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → 240 px/s
+// Damping per frame at 120fps: 0.96^(60/120) = 0.9798
+// Accel per frame at 120fps: tuned so terminal = 240 px/s
+const P_ACCEL   = 0.0403;   // px/frame at 120fps
+const P_DAMPING = 0.9798;   // per frame at 120fps
+const P_MASS    = 2;        // invMass=0.5 → mass=2
+const P_BOUNCE  = 0.5;      // bCoef
+
+// Player kicking (Haxball: kickAcc=0.07, kickDamp=0.96, kickStrength=5)
+// Terminal while kicking: 0.07/0.04=1.75 u/f → 168 px/s
+const PK_ACCEL   = 0.0283;  // px/frame at 120fps (0.07 u/f converted)
+const PK_DAMPING = 0.9798;  // same as normal
+const KICK_POWER = 480;     // 5 u/f × 60fps × 1.6 = 480 px/s impulse
+const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
+
+// Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
+// Damping per frame at 120fps: 0.99^(60/120) = 0.995
+const B_DAMPING   = 0.995;  // per frame at 120fps
+const B_MASS      = 1;      // invMass=1 → mass=1
+const B_BOUNCE    = 0.5;    // bCoef
+const B_MAX_SPEED = 700;    // cap to prevent tunneling at 120fps
+
 const SCORE_WIN = 7;
 const GAME_TIME = 3 * 60;
 const KICK_COOLDOWN = 400;
-const KICK_POWER = 650;
-const WALL_BOUNCE = 0.55;
-const POST_BOUNCE = 0.82;
+const WALL_BOUNCE = 0.5;    // ballArea bCoef
+const POST_BOUNCE = 0.5;    // goalPost bCoef
 
 class GameScene extends Phaser.Scene {
     constructor() { super('GameScene'); }
@@ -169,9 +194,9 @@ class GameScene extends Phaser.Scene {
     _spawnBall() {
         this.ball = this.physics.add.image(F.CX, F.CY, 'ball');
         this.ball.setCircle(B_RADIUS, 1, 1);
-        this.ball.setBounce(0.72);
-        this.ball.setDrag(38);
-        this.ball.setMaxVelocity(700); // lower = no tunneling
+        this.ball.setBounce(B_BOUNCE);
+        this.ball.setDrag(0);      // manual damping
+        this.ball.setMaxVelocity(0); // no Phaser cap — manual clamp
         this.ball.setDepth(10);
     }
 
@@ -188,9 +213,9 @@ class GameScene extends Phaser.Scene {
     _makePlayer(x, y, key) {
         const p = this.physics.add.image(x, y, key);
         p.setCircle(P_RADIUS, 1, 1);
-        p.setBounce(0.2);
-        p.setDrag(P_DRAG);
-        p.setMaxVelocity(P_SPEED);
+        p.setBounce(P_BOUNCE);
+        p.setDrag(0);       // manual damping (Haxball style)
+        p.setMaxVelocity(0); // no Phaser cap
         p.setDepth(5);
         p._kickTexture = key.replace('player_', 'kick_');
         return p;
@@ -614,20 +639,21 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._chatOpen) {
-            this._movePlayer(this.players.blue, this.keys1, 'blue');
             this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
-            this._movePlayer(this.players.red, this.keys2, 'red');
+            this._movePlayer(this.players.blue, this.keys1, 'blue');
             this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
+            this._movePlayer(this.players.red, this.keys2, 'red');
 
             if (this.is2v2) {
-                this._movePlayer(this.players.blue2, this.keys3, 'blue2');
                 this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
-                this._movePlayer(this.players.red2, this.keys4, 'red2');
+                this._movePlayer(this.players.blue2, this.keys3, 'blue2');
                 this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
+                this._movePlayer(this.players.red2, this.keys4, 'red2');
             }
         }
 
         Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        this._applyDamping();
         this._updateBallSpin();
         this._clampBall();
         this._checkGoal();
@@ -636,13 +662,14 @@ class GameScene extends Phaser.Scene {
 
     _updateHost() {
         if (!this._chatOpen) {
-            this._movePlayer(this.players.blue, this.keys1, 'blue');
             this.players.blue._isKicking = this.kick1.isDown;
-            this._movePlayer(this.players.red, this.keys2, 'red');
+            this._movePlayer(this.players.blue, this.keys1, 'blue');
             this.players.red._isKicking = this.kick2.isDown;
+            this._movePlayer(this.players.red, this.keys2, 'red');
         }
         this._applyGuestInputs();
         Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        this._applyDamping();
         this._updateBallSpin();
         this._clampBall();
         this._checkGoal();
@@ -676,15 +703,23 @@ class GameScene extends Phaser.Scene {
         this._checkGoal();
     }
 
-    // ── Physics helpers ────────────────────────────────────────────
+    // ── Physics helpers (Haxball) ──────────────────────────────────
     _movePlayer(player, keys, id) {
         const d = (k) => k && (k.isDown !== undefined ? k.isDown : !!k);
         const vx = (d(keys.right) ? 1 : 0) - (d(keys.left) ? 1 : 0);
         const vy = (d(keys.down)  ? 1 : 0) - (d(keys.up)   ? 1 : 0);
+
+        // Haxball damping every frame (multiplicative)
+        const damping = player._isKicking ? PK_DAMPING : P_DAMPING;
+        player.body.velocity.x *= damping;
+        player.body.velocity.y *= damping;
+
+        // Haxball acceleration
         if (vx !== 0 || vy !== 0) {
             const len = Math.sqrt(vx * vx + vy * vy);
-            player.body.velocity.x += (vx / len) * P_SPEED * 0.15;
-            player.body.velocity.y += (vy / len) * P_SPEED * 0.15;
+            const accel = player._isKicking ? PK_ACCEL : P_ACCEL;
+            player.body.velocity.x += (vx / len) * accel;
+            player.body.velocity.y += (vy / len) * accel;
         }
     }
 
@@ -697,6 +732,8 @@ class GameScene extends Phaser.Scene {
         if (dist < min && dist > 0.1) {
             const nx = dx / dist;
             const ny = dy / dist;
+
+            // Separate
             this.ball.x = player.x + nx * (min + 1);
             this.ball.y = player.y + ny * (min + 1);
 
@@ -705,25 +742,33 @@ class GameScene extends Phaser.Scene {
             const relV = rvx * nx + rvy * ny;
 
             if (relV < 0) {
-                const rest      = player._isKicking ? 1.3 : 0.7;
-                const boost     = player._isKicking ? KICK_POWER : 0;
-                const impulse   = -(1 + rest) * relV + boost;
-                const bm = 0.3, pm = 1, total = bm + pm;
+                // Haxball mass-based collision (player=2, ball=1, bCoef=0.5)
+                const total = B_MASS + P_MASS;
+                const j = -(1 + B_BOUNCE) * relV / total;
 
-                this.ball.body.velocity.x += (impulse * pm / total) * nx;
-                this.ball.body.velocity.y += (impulse * pm / total) * ny;
-                player.body.velocity.x   -= (impulse * bm / total) * nx;
-                player.body.velocity.y   -= (impulse * bm / total) * ny;
-
-                // Hard cap immediately — don't rely on setMaxVelocity timing
-                const spd = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
-                if (spd > 700) {
-                    this.ball.body.velocity.x = this.ball.body.velocity.x / spd * 700;
-                    this.ball.body.velocity.y = this.ball.body.velocity.y / spd * 700;
-                }
-                if (spd > 50) soundManager.kick(spd);
+                this.ball.body.velocity.x += j * P_MASS * nx;
+                this.ball.body.velocity.y += j * P_MASS * ny;
+                player.body.velocity.x  -= j * B_MASS * nx;
+                player.body.velocity.y  -= j * B_MASS * ny;
             }
+
+            // Haxball kick impulse — applied on top of collision
+            if (player._isKicking) {
+                this.ball.body.velocity.x += nx * KICK_POWER / 60; // per-frame impulse
+                this.ball.body.velocity.y += ny * KICK_POWER / 60;
+                player.body.velocity.x   -= nx * KICK_POWER * KICK_BACK / 60 / P_MASS;
+                player.body.velocity.y   -= ny * KICK_POWER * KICK_BACK / 60 / P_MASS;
+            }
+
+            const spd = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
+            if (spd > 50) soundManager.kick(spd);
         }
+    }
+
+    _applyDamping() {
+        // Ball damping every frame (Haxball: 0.99 per frame at 60fps → 0.995 at 120fps)
+        this.ball.body.velocity.x *= B_DAMPING;
+        this.ball.body.velocity.y *= B_DAMPING;
     }
 
     _updateBallSpin() {
@@ -736,33 +781,40 @@ class GameScene extends Phaser.Scene {
         const r = B_RADIUS;
         const inGoalY = b.y > F.GOAL_TOP && b.y < F.GOAL_BOT;
 
+        // Speed cap (Haxball: no hard cap, but prevent tunneling)
+        const spd = Math.hypot(b.body.velocity.x, b.body.velocity.y);
+        if (spd > B_MAX_SPEED) {
+            b.body.velocity.x = b.body.velocity.x / spd * B_MAX_SPEED;
+            b.body.velocity.y = b.body.velocity.y / spd * B_MAX_SPEED;
+        }
+
         // Top / bottom walls
         if (b.y < F.Y + r) {
             b.y = F.Y + r;
-            if (b.body.velocity.y < 0) b.body.velocity.y *= -0.7;
+            if (b.body.velocity.y < 0) b.body.velocity.y *= -B_BOUNCE;
         }
         if (b.y > F.Y + F.H - r) {
             b.y = F.Y + F.H - r;
-            if (b.body.velocity.y > 0) b.body.velocity.y *= -0.7;
+            if (b.body.velocity.y > 0) b.body.velocity.y *= -B_BOUNCE;
         }
 
         // Left side — only block if NOT in goal opening
         if (b.x < F.X - r && !inGoalY) {
             b.x = F.X - r;
-            if (b.body.velocity.x < 0) b.body.velocity.x *= -0.7;
+            if (b.body.velocity.x < 0) b.body.velocity.x *= -B_BOUNCE;
         }
         // Right side — only block if NOT in goal opening
         if (b.x > F.X + F.W + r && !inGoalY) {
             b.x = F.X + F.W + r;
-            if (b.body.velocity.x > 0) b.body.velocity.x *= -0.7;
+            if (b.body.velocity.x > 0) b.body.velocity.x *= -B_BOUNCE;
         }
 
         // Inside goal area: block at back wall and posts
         if (inGoalY) {
             const leftBack  = F.X - F.GOAL_D + r;
             const rightBack = F.X + F.W + F.GOAL_D - r;
-            if (b.x < leftBack)  { b.x = leftBack;  if (b.body.velocity.x < 0) b.body.velocity.x *= -0.7; }
-            if (b.x > rightBack) { b.x = rightBack; if (b.body.velocity.x > 0) b.body.velocity.x *= -0.7; }
+            if (b.x < leftBack)  { b.x = leftBack;  if (b.body.velocity.x < 0) b.body.velocity.x *= -B_BOUNCE; }
+            if (b.x > rightBack) { b.x = rightBack; if (b.body.velocity.x > 0) b.body.velocity.x *= -B_BOUNCE; }
         }
 
         // Goal posts top/bottom — prevent ball from going through the crossbar
@@ -771,11 +823,11 @@ class GameScene extends Phaser.Scene {
         if (inGoalXL || inGoalXR) {
             if (b.y < F.GOAL_TOP + r) {
                 b.y = F.GOAL_TOP + r;
-                if (b.body.velocity.y < 0) b.body.velocity.y *= -0.7;
+                if (b.body.velocity.y < 0) b.body.velocity.y *= -B_BOUNCE;
             }
             if (b.y > F.GOAL_BOT - r) {
                 b.y = F.GOAL_BOT - r;
-                if (b.body.velocity.y > 0) b.body.velocity.y *= -0.7;
+                if (b.body.velocity.y > 0) b.body.velocity.y *= -B_BOUNCE;
             }
         }
     }
