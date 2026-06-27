@@ -2,39 +2,63 @@ class MenuScene extends Phaser.Scene {
     constructor() { super('MenuScene'); }
 
     create() {
+        soundManager.stopAmbient();
+
         const W = this.scale.width;
         const H = this.scale.height;
 
-        // Background field preview
         this._drawField();
 
-        // Title
-        this.add.text(W / 2, 110, 'HAXTOS', {
+        this.add.text(W / 2, 85, 'HAXTOS', {
             fontSize: '72px', fontFamily: 'Arial Black, Impact, sans-serif',
             color: '#ffffff', stroke: '#000000', strokeThickness: 8
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, 175, 'Fútbol de Mesa Online', {
+        this.add.text(W / 2, 140, 'Fútbol de Mesa Online', {
             fontSize: '20px', fontFamily: 'Arial, sans-serif',
             color: '#cccccc'
         }).setOrigin(0.5);
 
-        // Buttons
-        this._button(W / 2, 290, '⚽  LOCAL 1 vs 1', '#2255ee', () => {
-            this.scene.start('GameScene', { mode: 'local' });
+        this._button(W / 2, 230, '⚽  LOCAL 1 vs 1', '#2255ee', () => {
+            soundManager.whistle();
+            this.scene.start('GameScene', { mode: 'local1v1' });
         });
 
-        this._button(W / 2, 370, '🌐  ONLINE (próximamente)', '#555555', null);
+        this._button(W / 2, 300, '⚽⚽  LOCAL 2 vs 2', '#1a4499', () => {
+            soundManager.whistle();
+            this.scene.start('GameScene', { mode: 'local2v2' });
+        });
 
-        // Controls hint
-        this.add.text(W / 2, 480, 'Azul: WASD  |  Rojo: ↑ ↓ ← →', {
-            fontSize: '15px', fontFamily: 'Arial, sans-serif',
-            color: '#aaaaaa'
+        this._button(W / 2, 370, '🌐  ONLINE', '#338833', () => {
+            this.scene.start('OnlineScene');
+        });
+
+        this.add.text(W / 2, 450, 'Azul 1: WASD  |  Azul 2: TGFH  |  Rojo 1: ↑↓←→  |  Rojo 2: IJKL', {
+            fontSize: '13px', fontFamily: 'Arial, sans-serif',
+            color: '#999999'
         }).setOrigin(0.5);
+
+        this.add.text(W / 2, 475, 'Patada: ESPACIO (Azul) / SHIFT (Rojo)', {
+            fontSize: '13px', fontFamily: 'Arial, sans-serif',
+            color: '#777777'
+        }).setOrigin(0.5);
+
+        this.soundBtn = this._soundToggle(W - 30, 20);
+    }
+
+    _soundToggle(x, y) {
+        const txt = this.add.text(x, y, '\u{1F50A}', {
+            fontSize: '22px'
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true }).setDepth(50);
+        txt.on('pointerdown', () => {
+            const on = soundManager.toggle();
+            txt.setText(on ? '\u{1F50A}' : '\u{1F507}');
+        });
+        return txt;
     }
 
     _button(x, y, label, color, cb) {
-        const bg = this.add.rectangle(x, y, 340, 60, Phaser.Display.Color.HexStringToColor(color.replace('#', '')).color, 1)
+        const bg = this.add.rectangle(x, y, 340, 55, Phaser.Display.Color.HexStringToColor(color.replace('#', '')).color, 1)
             .setStrokeStyle(2, 0xffffff, cb ? 1 : 0.3)
             .setInteractive(cb ? {} : { useHandCursor: false });
 
@@ -53,10 +77,10 @@ class MenuScene extends Phaser.Scene {
     _drawField() {
         const g = this.add.graphics();
         g.fillStyle(0x2d7a2d, 1);
-        g.fillRect(0, 0, 900, 540);
+        g.fillRect(0, 0, GAME_W, GAME_H);
         g.fillStyle(0x287028, 1);
         for (let i = 0; i < 8; i++) {
-            if (i % 2 === 0) g.fillRect(i * 113, 0, 113, 540);
+            if (i % 2 === 0) g.fillRect(i * (GAME_W / 8), 0, GAME_W / 8, GAME_H);
         }
         g.alpha = 0.4;
     }

@@ -9,11 +9,19 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static(path.join(__dirname)));
 
-// --- Online rooms (phase 2) ---
 const rooms = new Map();
 
 function createRoom(id) {
-    return { id, players: [], state: null, ready: false };
+    return { id, players: [], state: null };
+}
+
+function broadcast(room, msg, exclude) {
+    const data = JSON.stringify(msg);
+    room.players.forEach((p) => {
+        if (p !== exclude && p.readyState === 1) {
+            p.send(data);
+        }
+    });
 }
 
 wss.on('connection', (ws) => {
@@ -22,15 +30,18 @@ wss.on('connection', (ws) => {
         try { msg = JSON.parse(raw); } catch { return; }
 
         if (msg.type === 'join') {
-            let room = rooms.get(msg.room) || createRoom(msg.room);
+            const roomCode = msg.room.toUpperCase();
+            let room = rooms.get(roomCode) || createRoom(roomCode);
+
             if (room.players.length >= 2) {
-                ws.send(JSON.stringify({ type: 'error', text: 'Room full' }));
+                ws.send(JSON.stringify({ type: 'error', text: 'Sala llena' }));
                 return;
             }
-            ws.roomId = msg.room;
+
+            ws.roomId = roomCode;
             ws.playerIndex = room.players.length;
             room.players.push(ws);
-            rooms.set(msg.room, room);
+            rooms.set(roomCode, room);
 
             ws.send(JSON.stringify({ type: 'joined', index: ws.playerIndex }));
 
@@ -44,21 +55,13 @@ wss.on('connection', (ws) => {
         if (msg.type === 'input' && ws.roomId) {
             const room = rooms.get(ws.roomId);
             if (!room) return;
-            room.players.forEach((p) => {
-                if (p !== ws && p.readyState === 1) {
-                    p.send(JSON.stringify({ type: 'input', index: ws.playerIndex, keys: msg.keys }));
-                }
-            });
+            broadcast(room, { type: 'input', index: ws.playerIndex, keys: msg.keys }, ws);
         }
 
         if (msg.type === 'state' && ws.roomId) {
             const room = rooms.get(ws.roomId);
             if (!room) return;
-            room.players.forEach((p) => {
-                if (p !== ws && p.readyState === 1) {
-                    p.send(JSON.stringify({ type: 'state', data: msg.data }));
-                }
-            });
+            broadcast(room, { type: 'state', data: msg.data }, ws);
         }
     });
 
@@ -67,10 +70,15 @@ wss.on('connection', (ws) => {
         const room = rooms.get(ws.roomId);
         if (!room) return;
         room.players = room.players.filter((p) => p !== ws);
-        if (room.players.length === 0) rooms.delete(ws.roomId);
-        else room.players.forEach((p) =>
-            p.send(JSON.stringify({ type: 'opponent_left' }))
-        );
+        if (room.players.length === 0) {
+            rooms.delete(ws.roomId);
+        } else {
+            room.players.forEach((p) => {
+                if (p.readyState === 1) {
+                    p.send(JSON.stringify({ type: 'opponent_left' }));
+                }
+            });
+        }
     });
 });
 

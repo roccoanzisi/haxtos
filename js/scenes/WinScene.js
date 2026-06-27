@@ -24,25 +24,26 @@ class WinScene extends Phaser.Scene {
             color  = '#ffffff';
         }
 
-        this.add.text(W / 2, H / 2 - 110, '🏆', {
-            fontSize: '72px'
+        this.add.text(W / 2, H / 2 - 110, 'FIN DEL PARTIDO', {
+            fontSize: '42px', fontFamily: 'Arial Black, Impact, sans-serif',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 8
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, H / 2 - 30, winner, {
+        this.add.text(W / 2, H / 2 - 40, winner, {
             fontSize: '52px', fontFamily: 'Arial Black, Impact, sans-serif',
             color, stroke: '#000000', strokeThickness: 8
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, H / 2 + 50, `${this.score.blue}  –  ${this.score.red}`, {
+        this.add.text(W / 2, H / 2 + 40, `${this.score.blue}  –  ${this.score.red}`, {
             fontSize: '42px', fontFamily: 'Arial Black, Impact, sans-serif',
             color: '#ffffff', stroke: '#000', strokeThickness: 6
         }).setOrigin(0.5);
 
-        // Buttons
-        this._btn(W / 2 - 110, H / 2 + 135, 'Revancha', 0x226622, () => {
-            this.scene.start('GameScene', { mode: 'local' });
+        this._btn(W / 2 - 110, H / 2 + 125, 'Revancha', 0x226622, () => {
+            soundManager.whistle();
+            this.scene.start('GameScene', { mode: 'local1v1' });
         });
-        this._btn(W / 2 + 110, H / 2 + 135, 'Menú', 0x444444, () => {
+        this._btn(W / 2 + 110, H / 2 + 125, 'Menú', 0x444444, () => {
             this.scene.start('MenuScene');
         });
     }

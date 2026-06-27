@@ -1,5 +1,26 @@
-const GAME_W = 900;
-const GAME_H = 540;
+const GAME_W = 1000;
+const GAME_H = 560;
+
+const F = {
+    X: 60, Y: 45,
+    W: 880, H: 470,
+    GOAL_H: 140,
+    GOAL_D: 65,
+    WALL_T: 14,
+};
+F.CX = F.X + F.W / 2;
+F.CY = F.Y + F.H / 2;
+F.GOAL_TOP = F.CY - F.GOAL_H / 2;
+F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+
+const P_RADIUS = 22;
+const B_RADIUS = 14;
+const P_SPEED  = 380;
+const P_DRAG   = 450;
+const SCORE_WIN = 7;
+const GAME_TIME = 3 * 60;
+
+const soundManager = new SoundManager();
 
 const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -10,7 +31,7 @@ const game = new Phaser.Game({
         default: 'arcade',
         arcade: { gravity: { y: 0 }, debug: false }
     },
-    scene: [PreloadScene, MenuScene, GameScene, GoalScene, WinScene],
+    scene: [PreloadScene, MenuScene, OnlineScene, GameScene, GoalScene, WinScene],
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH
