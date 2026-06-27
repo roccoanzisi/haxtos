@@ -19,16 +19,18 @@ class GameScene extends Phaser.Scene {
         this.paused = false;
         this.goalLock = false;
         this.is2v2 = this.mode === 'local2v2';
-
         this.isOnline = this.mode === 'online';
-        this.ws = data && data.ws ? data.ws : null;
-        this.playerIndex = data && data.playerIndex !== undefined ? data.playerIndex : 0;
+        this.ws = (data && data.ws) ? data.ws : null;
+        this.playerIndex = (data && data.playerIndex !== undefined) ? data.playerIndex : 0;
         this.isHost = this.playerIndex === 0;
         this.lastKickTime = { blue: 0, red: 0, blue2: 0, red2: 0 };
-        this.ballSpin = 0;
-
         this.serverState = null;
-        this.stateHistory = [];
+        // chat
+        this._chatOpen = false;
+        this._chatInput = '';
+        this._chatMessages = [];
+        this._avatarOverrides = {};
+        this._floatingMsg = null;
     }
 
     create() {
@@ -43,66 +45,83 @@ class GameScene extends Phaser.Scene {
         this._setupInput();
         this._setupCollisions();
         this._buildHUD();
+        this._buildPlayerLabels();
+        this._buildChatUI();
 
         this.timerEvent = this.time.addEvent({
             delay: 1000,
             repeat: GAME_TIME - 1,
             callback: () => {
-                if (this.paused || this.isOnline && !this.isHost) return;
+                if (this.paused || (this.isOnline && !this.isHost)) return;
                 this.timeLeft = Math.max(0, this.timeLeft - 1);
                 this._updateHUD();
                 if (this.timeLeft === 0) this._endGame();
             }
         });
 
-        if (this.isOnline && !this.isHost) {
-            this._setupOnlineGuest();
-        }
-        if (this.isOnline && this.isHost) {
-            this._setupOnlineHost();
-        }
+        if (this.isOnline && !this.isHost) this._setupOnlineGuest();
+        if (this.isOnline && this.isHost)  this._setupOnlineHost();
     }
 
+    // ── Field (Haxball colors) ─────────────────────────────────────
     _drawField() {
         const g = this.add.graphics();
 
+        // Grass stripes — Haxball exact colors
         for (let i = 0; i < 8; i++) {
-            g.fillStyle(i % 2 === 0 ? 0x2e7c2e : 0x2a722a, 1);
+            g.fillStyle(i % 2 === 0 ? 0x718C5A : 0x7A9660, 1);
             g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
         }
 
-        g.fillStyle(0x247024, 1);
+        // Goal box background
+        g.fillStyle(0x5C7548, 1);
         g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.fillRect(F.X + F.W, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
-        g.lineStyle(3, 0xffffff, 0.9);
+        // Field border & lines — Haxball light green
+        g.lineStyle(3, 0xC7E6BD, 1);
         g.strokeRect(F.X, F.Y, F.W, F.H);
 
-        g.lineStyle(2, 0xffffff, 0.7);
+        g.lineStyle(2, 0xC7E6BD, 0.9);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
-        g.strokeCircle(F.CX, F.CY, 65);
-        g.fillStyle(0xffffff, 0.8);
+        g.strokeCircle(F.CX, F.CY, 70);
+
+        g.fillStyle(0xC7E6BD, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        g.lineStyle(2, 0xffffff, 0.5);
-        g.strokeCircle(F.X + 80, F.CY, 50);
-        g.strokeCircle(F.X + F.W - 80, F.CY, 50);
+        g.lineStyle(2, 0xC7E6BD, 0.45);
+        g.strokeCircle(F.X + 85,         F.CY, 55);
+        g.strokeCircle(F.X + F.W - 85,   F.CY, 55);
 
-        g.lineStyle(4, 0x4466ff, 1);
-        g.lineBetween(F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT);
-        g.lineStyle(4, 0xff4444, 1);
-        g.lineBetween(F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT);
-
-        g.lineStyle(4, 0xffffff, 1);
+        // Left goal — blue posts + net (red attacks this goal)
+        g.lineStyle(3, 0xCCCCFF, 1);
         g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        g.lineStyle(1, 0xCCCCFF, 0.28);
+        for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14) {
+            g.lineBetween(F.X - F.GOAL_D, y, F.X, y);
+        }
+        for (let x = F.X - F.GOAL_D + 18; x < F.X; x += 18) {
+            g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
+        }
+
+        // Right goal — red posts + net (blue attacks this goal)
+        g.lineStyle(3, 0xFFCCCC, 1);
         g.strokeRect(F.X + F.W, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        g.lineStyle(1, 0xFFCCCC, 0.28);
+        for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14) {
+            g.lineBetween(F.X + F.W, y, F.X + F.W + F.GOAL_D, y);
+        }
+        for (let x = F.X + F.W + 18; x < F.X + F.W + F.GOAL_D; x += 18) {
+            g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
+        }
     }
 
+    // ── Walls ──────────────────────────────────────────────────────
     _buildWalls() {
-        this.walls = this.physics.add.staticGroup();
+        this.walls     = this.physics.add.staticGroup();
         this.postWalls = this.physics.add.staticGroup();
 
-        const addWall = (x, y, w, h, isPost) => {
+        const add = (x, y, w, h, isPost) => {
             const r = this.add.rectangle(x + w / 2, y + h / 2, w, h, 0x000000, 0);
             this.physics.add.existing(r, true);
             (isPost ? this.postWalls : this.walls).add(r);
@@ -111,24 +130,24 @@ class GameScene extends Phaser.Scene {
         const T = F.WALL_T;
         const R = F.X + F.W;
 
-        addWall(F.X - T, F.Y - T, F.W + T * 2, T, false);
-        addWall(F.X - T, F.Y + F.H, F.W + T * 2, T, false);
-        addWall(F.X - T, F.Y - T, T, F.GOAL_TOP - F.Y + T, false);
-        addWall(F.X - T, F.GOAL_BOT, T, (F.Y + F.H) - F.GOAL_BOT, false);
-        addWall(R, F.Y - T, T, F.GOAL_TOP - F.Y + T, false);
-        addWall(R, F.GOAL_BOT, T, (F.Y + F.H) - F.GOAL_BOT, false);
+        // Field walls (gap for goal openings on left/right)
+        add(F.X - T,  F.Y - T,          F.W + T * 2, T, false); // top
+        add(F.X - T,  F.Y + F.H,        F.W + T * 2, T, false); // bottom
+        add(F.X - T,  F.Y - T,          T, F.GOAL_TOP - F.Y + T,          false); // left-top
+        add(F.X - T,  F.GOAL_BOT,       T, (F.Y + F.H) - F.GOAL_BOT,     false); // left-bot
+        add(R,        F.Y - T,          T, F.GOAL_TOP - F.Y + T,          false); // right-top
+        add(R,        F.GOAL_BOT,       T, (F.Y + F.H) - F.GOAL_BOT,     false); // right-bot
 
-        addWall(F.X - F.GOAL_D - T, F.GOAL_TOP, T, F.GOAL_H, true);
-        addWall(F.X - F.GOAL_D - T, F.GOAL_TOP - T, F.GOAL_D + T, T, true);
-        addWall(F.X - F.GOAL_D - T, F.GOAL_BOT, F.GOAL_D + T, T, true);
-        addWall(R + F.GOAL_D, F.GOAL_TOP, T, F.GOAL_H, true);
-        addWall(R, F.GOAL_TOP - T, F.GOAL_D + T, T, true);
-        addWall(R, F.GOAL_BOT, F.GOAL_D + T, T, true);
-
-        this.postBodies = [];
-        this.postWalls.getChildren().forEach(w => this.postBodies.push(w.body));
+        // Goal posts (separate group → different bounce sound)
+        add(F.X - F.GOAL_D - T, F.GOAL_TOP,     T, F.GOAL_H,      true); // left back
+        add(F.X - F.GOAL_D - T, F.GOAL_TOP - T, F.GOAL_D + T, T,  true); // left top post
+        add(F.X - F.GOAL_D - T, F.GOAL_BOT,     F.GOAL_D + T, T,  true); // left bot post
+        add(R + F.GOAL_D,       F.GOAL_TOP,     T, F.GOAL_H,      true); // right back
+        add(R,                  F.GOAL_TOP - T, F.GOAL_D + T, T,  true); // right top post
+        add(R,                  F.GOAL_BOT,     F.GOAL_D + T, T,  true); // right bot post
     }
 
+    // ── Entities ───────────────────────────────────────────────────
     _spawnEntities() {
         this._spawnBall();
         this._spawnPlayers();
@@ -139,19 +158,17 @@ class GameScene extends Phaser.Scene {
         this.ball.setCircle(B_RADIUS, 1, 1);
         this.ball.setBounce(0.72);
         this.ball.setDrag(38);
-        this.ball.setMaxVelocity(950);
+        this.ball.setMaxVelocity(700); // lower = no tunneling
         this.ball.setDepth(10);
     }
 
     _spawnPlayers() {
         this.players = {};
-
-        this.players.blue = this._makePlayer(F.X + 150, F.CY, 'player_blue');
-        this.players.red = this._makePlayer(F.X + F.W - 150, F.CY, 'player_red');
-
+        this.players.blue = this._makePlayer(F.X + 150,         F.CY,       'player_blue');
+        this.players.red  = this._makePlayer(F.X + F.W - 150,   F.CY,       'player_red');
         if (this.is2v2) {
-            this.players.blue2 = this._makePlayer(F.X + 70, F.CY - 80, 'player_blue2');
-            this.players.red2 = this._makePlayer(F.X + F.W - 70, F.CY + 80, 'player_red2');
+            this.players.blue2 = this._makePlayer(F.X + 70,         F.CY - 80, 'player_blue2');
+            this.players.red2  = this._makePlayer(F.X + F.W - 70,   F.CY + 80, 'player_red2');
         }
     }
 
@@ -166,99 +183,104 @@ class GameScene extends Phaser.Scene {
         return p;
     }
 
+    // ── Input ──────────────────────────────────────────────────────
     _setupInput() {
         const kb = this.input.keyboard;
-
         this.keys1 = kb.addKeys({ up: 'W', down: 'S', left: 'A', right: 'D' });
         this.keys2 = kb.addKeys({ up: 'UP', down: 'DOWN', left: 'LEFT', right: 'RIGHT' });
         this.kick1 = kb.addKey('SPACE');
         this.kick2 = kb.addKey('SHIFT');
-
         if (this.is2v2) {
             this.keys3 = kb.addKeys({ up: 'T', down: 'G', left: 'F', right: 'H' });
             this.keys4 = kb.addKeys({ up: 'I', down: 'K', left: 'J', right: 'L' });
         }
-
         kb.on('keydown-ESCAPE', () => {
+            if (this._chatOpen) { this._closeChat(); return; }
             if (this.isOnline && this.ws) this.ws.close();
             this.scene.start('MenuScene');
         });
+        kb.on('keydown', (ev) => this._handleChatKey(ev));
     }
 
+    // ── Collisions ─────────────────────────────────────────────────
     _setupCollisions() {
-        this.physics.add.collider(this.ball, this.walls, () => this._wallBounce());
+        this.physics.add.collider(this.ball, this.walls,     () => this._wallBounce());
         this.physics.add.collider(this.ball, this.postWalls, () => this._postBounce());
-
-        const allPlayers = Object.values(this.players);
-        allPlayers.forEach(p => {
+        const all = Object.values(this.players);
+        all.forEach(p => {
             this.physics.add.collider(p, this.walls);
             this.physics.add.collider(p, this.postWalls);
         });
-
-        for (let i = 0; i < allPlayers.length; i++) {
-            for (let j = i + 1; j < allPlayers.length; j++) {
-                this.physics.add.collider(allPlayers[i], allPlayers[j]);
-            }
-        }
+        for (let i = 0; i < all.length; i++)
+            for (let j = i + 1; j < all.length; j++)
+                this.physics.add.collider(all[i], all[j]);
     }
 
     _wallBounce() {
-        const v = Math.sqrt(this.ball.body.velocity.x ** 2 + this.ball.body.velocity.y ** 2);
+        const v = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
         if (v > 30) soundManager.wallHit(v);
     }
-
     _postBounce() {
-        const v = Math.sqrt(this.ball.body.velocity.x ** 2 + this.ball.body.velocity.y ** 2);
+        const v = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
         if (v > 30) soundManager.postHit(v);
     }
 
+    // ── HUD ────────────────────────────────────────────────────────
     _buildHUD() {
-        const style = (color) => ({
-            fontSize: '34px', fontFamily: 'Arial Black, Impact, sans-serif',
+        const s = (color) => ({
+            fontSize: '34px', fontFamily: 'Verdana, Arial Black, sans-serif',
             color, stroke: '#000', strokeThickness: 5
         });
 
-        this.hudBlue = this.add.text(F.CX - 80, 8, '0', style('#88aaff')).setOrigin(0.5, 0).setDepth(20);
-        this.hudRed  = this.add.text(F.CX + 80, 8, '0', style('#ff8888')).setOrigin(0.5, 0).setDepth(20);
-
+        this.hudBlue = this.add.text(F.CX - 80, 8, '0', s('#8888ff')).setOrigin(0.5, 0).setDepth(20);
+        this.hudRed  = this.add.text(F.CX + 80, 8, '0', s('#ff4444')).setOrigin(0.5, 0).setDepth(20);
         this.add.text(F.CX, 8, '–', {
-            fontSize: '28px', fontFamily: 'Arial, sans-serif', color: '#ffffff', stroke: '#000', strokeThickness: 4
+            fontSize: '28px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#ffffff', stroke: '#000', strokeThickness: 4
         }).setOrigin(0.5, 0).setDepth(20);
 
-        this.hudTime = this.add.text(F.CX, GAME_H - 35, this._fmt(this.timeLeft), {
-            fontSize: '20px', fontFamily: 'Arial, sans-serif', color: '#eeeeee', stroke: '#000', strokeThickness: 3
+        this.hudTime = this.add.text(F.CX, GAME_H - 26, this._fmt(this.timeLeft), {
+            fontSize: '17px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#eeeeee', stroke: '#000', strokeThickness: 3
         }).setOrigin(0.5, 0).setDepth(20);
 
         this.add.text(F.X + 20, 8, 'AZUL', {
-            fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#88aaff', stroke: '#000', strokeThickness: 3
+            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#8888ff', stroke: '#000', strokeThickness: 3
         }).setDepth(20);
         this.add.text(F.X + F.W - 20, 8, 'ROJO', {
-            fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#ff8888', stroke: '#000', strokeThickness: 3
+            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#ff4444', stroke: '#000', strokeThickness: 3
         }).setOrigin(1, 0).setDepth(20);
 
-        this.shootBlueBtn = this.add.text(15, GAME_H - 35, '⚡SHOOT (ESPACIO)', {
-            fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#88aaff', backgroundColor: '#1a2244', padding: { x: 6, y: 3 }
+        // Shoot buttons
+        this.shootBlueBtn = this.add.text(12, GAME_H - 26, '⚡ SHOOT (ESPACIO)', {
+            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
         }).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
-        this.shootBlueBtn.on('pointerup', () => { this._forceKick = false; });
+        this.shootBlueBtn.on('pointerup',   () => { this._forceKick = false; });
 
-        this.shootRedBtn = this.add.text(GAME_W - 15 - 105, GAME_H - 35, '⚡SHOOT (SHIFT)', {
-            fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#ff8888', backgroundColor: '#2a1a1a', padding: { x: 6, y: 3 }
+        this.shootRedBtn = this.add.text(GAME_W - 175, GAME_H - 26, '⚡ SHOOT (SHIFT)', {
+            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
         }).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
-        this.shootRedBtn.on('pointerup', () => { this._forceKickRed = false; });
+        this.shootRedBtn.on('pointerup',   () => { this._forceKickRed = false; });
 
-        let hint = 'ESC: Menú';
-        if (this.is2v2) hint = 'A/D: Az1 | F/H: Az2 | ←→: Rj1 | J/L: Rj2 | ESPACIO/SHIFT: Patada';
-        this.add.text(GAME_W - 8, 8, hint, {
-            fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#888888'
-        }).setOrigin(1, 0).setDepth(20);
+        // Control hint
+        const hint = this.is2v2
+            ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  ENTER: chat'
+            : 'WASD: Azul   ↑↓←→: Rojo   |   ENTER: chat   ESC: Menú';
+        this.add.text(F.CX, F.Y + F.H + 5, hint, {
+            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
+        }).setOrigin(0.5, 0).setDepth(20);
 
         if (this.isOnline) {
-            const roomLabel = 'Sala: ' + (this.scene.get('OnlineScene') && this.scene.get('OnlineScene').roomCode ? this.scene.get('OnlineScene').roomCode : '—');
-            this.add.text(8, GAME_H - 55, roomLabel, {
-                fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#66aa66'
-            }).setOrigin(0, 0).setDepth(20);
+            const code = (this.scene.get('OnlineScene') || {}).roomCode || '—';
+            this.add.text(8, GAME_H - 48, 'Sala: ' + code, {
+                fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', color: '#66aa66'
+            }).setDepth(20);
         }
     }
 
@@ -266,13 +288,6 @@ class GameScene extends Phaser.Scene {
         this.hudBlue.setText(String(this.score.blue));
         this.hudRed.setText(String(this.score.red));
         this.hudTime.setText(this._fmt(this.timeLeft));
-
-        if (this.shootBlueBtn) {
-            this.shootBlueBtn.setAlpha(this.players && this.players.blue && this.players.blue._isKicking ? 0.5 : 1);
-        }
-        if (this.shootRedBtn) {
-            this.shootRedBtn.setAlpha(this.players && this.players.red && this.players.red._isKicking ? 0.5 : 1);
-        }
     }
 
     _fmt(secs) {
@@ -281,114 +296,208 @@ class GameScene extends Phaser.Scene {
         return `${m}:${s}`;
     }
 
-    _getInputKeys() {
-        const result = {};
-        const mapKeys = (keys, prefix) => {
-            result[prefix + '_up'] = keys.up.isDown;
-            result[prefix + '_down'] = keys.down.isDown;
-            result[prefix + '_left'] = keys.left.isDown;
-            result[prefix + '_right'] = keys.right.isDown;
+    // ── Player labels ──────────────────────────────────────────────
+    _buildPlayerLabels() {
+        const style = {
+            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 3
         };
-        mapKeys(this.keys1, 'k1');
-        mapKeys(this.keys2, 'k2');
-        if (this.is2v2) {
-            mapKeys(this.keys3, 'k3');
-            mapKeys(this.keys4, 'k4');
-        }
-        result.kick1 = this.kick1.isDown;
-        result.kick2 = this.kick2.isDown;
-        return result;
+        const nums = { blue: '1', red: '2', blue2: '3', red2: '4' };
+        this._playerLabels = {};
+        Object.keys(this.players).forEach(key => {
+            this._playerLabels[key] = this.add.text(0, 0, nums[key], style)
+                .setOrigin(0.5, 1).setDepth(15);
+        });
     }
 
-    update() {
-        if (this.paused) return;
+    _updatePlayerLabels() {
+        Object.keys(this.players).forEach(key => {
+            const p   = this.players[key];
+            const lbl = this._playerLabels[key];
+            if (!lbl) return;
+            lbl.x = p.x;
+            lbl.y = p.y - P_RADIUS - 2;
+            if (this._avatarOverrides[key]) lbl.setText(this._avatarOverrides[key].slice(0, 3));
+        });
+    }
 
-        if (this.isOnline) {
-            if (this.isHost) {
-                this._updateHost();
-            } else {
-                this._updateGuest();
-            }
+    // ── Chat ───────────────────────────────────────────────────────
+    _buildChatUI() {
+        const H = GAME_H;
+        const LOG = 5;
+
+        this._chatLogBg = this.add.rectangle(0, H - 130, 440, LOG * 20 + 10, 0x000000, 0.55)
+            .setOrigin(0, 0).setDepth(49).setVisible(false);
+
+        this._chatLogTexts = [];
+        for (let i = 0; i < LOG; i++) {
+            this._chatLogTexts.push(
+                this.add.text(8, H - 125 + i * 20, '', {
+                    fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffffff'
+                }).setDepth(50).setVisible(false)
+            );
+        }
+
+        this._chatInputBg = this.add.rectangle(0, H - 24, 440, 24, 0x111111, 0.92)
+            .setOrigin(0, 0).setDepth(49).setVisible(false);
+        this._chatInputText = this.add.text(8, H - 22, '', {
+            fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffff88'
+        }).setDepth(50).setVisible(false);
+    }
+
+    _handleChatKey(ev) {
+        if (ev.key === 'Enter') {
+            if (!this._chatOpen) this._openChat();
+            else this._submitChat();
             return;
         }
-
-        this._movePlayer(this.players.blue, this.keys1, 'blue');
-        this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
-        this._handleBallContact(this.players.blue, 'blue');
-
-        this._movePlayer(this.players.red, this.keys2, 'red');
-        this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
-        this._handleBallContact(this.players.red, 'red');
-
-        if (this.is2v2) {
-            this._movePlayer(this.players.blue2, this.keys3, 'blue2');
-            this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
-            this._handleBallContact(this.players.blue2, 'blue2');
-
-            this._movePlayer(this.players.red2, this.keys4, 'red2');
-            this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
-            this._handleBallContact(this.players.red2, 'red2');
+        if (!this._chatOpen) return;
+        if (ev.key === 'Backspace') {
+            this._chatInput = this._chatInput.slice(0, -1);
+        } else if (ev.key.length === 1) {
+            this._chatInput += ev.key;
         }
-
-        this._updateBallSpin();
-        this._checkGoal();
+        this._chatInputText.setText('> ' + this._chatInput + '|');
     }
 
-    _updateHost() {
-        this._movePlayer(this.players.blue, this.keys1, 'blue');
-        this.players.blue._isKicking = this.kick1.isDown;
-        this._handleBallContact(this.players.blue, 'blue');
-
-        this._movePlayer(this.players.red, this.keys2, 'red');
-        this.players.red._isKicking = this.kick2.isDown;
-        this._handleBallContact(this.players.red, 'red');
-
-        this._updateBallSpin();
-        this._checkGoal();
-
-        this._sendState();
+    _openChat() {
+        this._chatOpen = true;
+        this._chatInput = '';
+        this._chatInputText.setText('> |');
+        this._chatInputBg.setVisible(true);
+        this._chatInputText.setVisible(true);
+        if (this._chatMessages.length > 0) {
+            this._chatLogBg.setVisible(true);
+            this._chatLogTexts.forEach(t => t.setVisible(true));
+        }
     }
 
-    _updateGuest() {
-        const keys = this._getInputKeys();
-        if (this.ws && this.ws.readyState === 1) {
-            this.ws.send(JSON.stringify({ type: 'input', keys }));
-        }
+    _closeChat() {
+        this._chatOpen = false;
+        this._chatInput = '';
+        this._chatInputBg.setVisible(false);
+        this._chatInputText.setVisible(false);
+        this._chatLogBg.setVisible(false);
+        this._chatLogTexts.forEach(t => t.setVisible(false));
+    }
 
-        if (this.serverState) {
-            this.ball.x = this.serverState.ballX;
-            this.ball.y = this.serverState.ballY;
-            this.ball.body.velocity.x = this.serverState.ballVX;
-            this.ball.body.velocity.y = this.serverState.ballVY;
-            this.ball.rotation = this.serverState.ballRot || 0;
+    _submitChat() {
+        const text = this._chatInput.trim();
+        this._chatInput = '';
+        this._chatInputText.setText('> |');
+        if (!text) { this._closeChat(); return; }
 
-            const s = this.serverState.players;
-            Object.keys(s).forEach(key => {
-                if (this.players[key]) {
-                    this.players[key].x = s[key].x;
-                    this.players[key].y = s[key].y;
-                    this.players[key].body.velocity.x = s[key].vx;
-                    this.players[key].body.velocity.y = s[key].vy;
+        if (text.startsWith('/')) this._runCommand(text.slice(1));
+        else this._addChatMessage('» ' + text, '#ffffff');
+    }
+
+    _runCommand(cmd) {
+        const parts = cmd.trim().split(/\s+/);
+        const name  = parts[0].toLowerCase();
+        const args  = parts.slice(1);
+
+        switch (name) {
+            case 'extrapolation': {
+                const ms = parseInt(args[0]);
+                if (!isNaN(ms) && ms >= 0) {
+                    window.HAXTOS_EXTRAPOLATION = Math.min(200, ms);
+                    this._addChatMessage(`Extrapolation: ${window.HAXTOS_EXTRAPOLATION}ms`, '#aaffaa');
+                } else {
+                    this._addChatMessage('Uso: /extrapolation <0–200>', '#ffaaaa');
                 }
-            });
+                break;
+            }
+            case 'avatar': {
+                const av = args.join(' ').slice(0, 3);
+                if (av) {
+                    this._avatarOverrides['blue'] = av;
+                    this._addChatMessage(`Avatar: "${av}"`, '#aaffaa');
+                } else {
+                    this._addChatMessage('Uso: /avatar <texto>', '#ffaaaa');
+                }
+                break;
+            }
+            case 'zoom': {
+                const z = parseFloat(args[0]);
+                if (z > 0 && z <= 4) {
+                    this.cameras.main.setZoom(z);
+                    this._addChatMessage(`Zoom: ${z}x`, '#aaffaa');
+                } else {
+                    this._addChatMessage('Uso: /zoom <0.5–4>', '#ffaaaa');
+                }
+                break;
+            }
+            case 'handicap': {
+                const ms = parseInt(args[0]);
+                if (!isNaN(ms) && ms >= 0) {
+                    window.HAXTOS_HANDICAP = Math.min(500, ms);
+                    this._addChatMessage(`Handicap: ${window.HAXTOS_HANDICAP}ms`, '#aaffaa');
+                } else {
+                    this._addChatMessage('Uso: /handicap <ms>', '#ffaaaa');
+                }
+                break;
+            }
+            case 'fps':
+                this._addChatMessage(`FPS: ${Math.round(this.game.loop.actualFps)}`, '#aaffff');
+                break;
+            case 'help':
+                this._addChatMessage('/extrapolation /avatar /zoom /handicap /fps', '#ffff88');
+                break;
+            default:
+                this._addChatMessage(`Desconocido: /${name} — prueba /help`, '#ffaaaa');
         }
+    }
 
-        this._checkGoal();
+    _addChatMessage(text, color) {
+        this._chatMessages.push({ text, color: color || '#ffffff' });
+        if (this._chatMessages.length > 5) this._chatMessages.shift();
+        this._chatMessages.forEach((m, i) => {
+            if (this._chatLogTexts[i]) this._chatLogTexts[i].setText(m.text).setColor(m.color);
+        });
+        this._chatLogBg.setVisible(this._chatOpen);
+        this._chatLogTexts.forEach(t => t.setVisible(this._chatOpen));
+        this._showFloating(text, color);
+    }
+
+    _showFloating(text, color) {
+        if (this._floatingMsg) { this._floatingMsg.destroy(); this._floatingMsg = null; }
+        this._floatingMsg = this.add.text(F.CX, F.Y + F.H + 18, text, {
+            fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: color || '#ffffff', stroke: '#000', strokeThickness: 2,
+            backgroundColor: '#00000077', padding: { x: 6, y: 3 }
+        }).setOrigin(0.5, 0).setDepth(60);
+        this.tweens.add({
+            targets: this._floatingMsg,
+            alpha: 0, delay: 2200, duration: 700,
+            onComplete: () => { if (this._floatingMsg) { this._floatingMsg.destroy(); this._floatingMsg = null; } }
+        });
+    }
+
+    // ── Online ─────────────────────────────────────────────────────
+    _getInputKeys() {
+        const r = {};
+        const map = (keys, prefix) => {
+            r[prefix + '_up']    = keys.up.isDown;
+            r[prefix + '_down']  = keys.down.isDown;
+            r[prefix + '_left']  = keys.left.isDown;
+            r[prefix + '_right'] = keys.right.isDown;
+        };
+        map(this.keys1, 'k1');
+        map(this.keys2, 'k2');
+        if (this.is2v2) { map(this.keys3, 'k3'); map(this.keys4, 'k4'); }
+        r.kick1 = this.kick1.isDown;
+        r.kick2 = this.kick2.isDown;
+        return r;
     }
 
     _setupOnlineGuest() {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            if (msg.type === 'state') {
-                this.serverState = msg.data;
-            }
+            if (msg.type === 'state') this.serverState = msg.data;
             if (msg.type === 'opponent_left') {
-                this.status && this.status.setText('El rival se desconectó');
-                this.time.delayedCall(1500, () => {
-                    this.ws && this.ws.close();
-                    this.scene.start('MenuScene');
-                });
+                this._addChatMessage('El rival se desconectó', '#ffaaaa');
+                this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
             }
         };
     }
@@ -398,66 +507,120 @@ class GameScene extends Phaser.Scene {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            if (msg.type === 'input') {
-                this._guestInputs = msg.keys;
-            }
+            if (msg.type === 'input') this._guestInputs = msg.keys;
         };
     }
 
     _applyGuestInputs() {
-        if (!this._guestInputs || Object.keys(this._guestInputs).length === 0) return;
+        if (!this._guestInputs || !Object.keys(this._guestInputs).length) return;
         const g = this._guestInputs;
+        const gp  = this.playerIndex === 0 ? 'red'  : 'blue';
+        const gp2 = this.playerIndex === 0 ? 'red2' : 'blue2';
 
-        const guestPlayer = this.playerIndex === 0 ? 'red' : 'blue';
-        const guestPlayer2 = this.playerIndex === 0 ? 'red2' : 'blue2';
-
-        if (this.players[guestPlayer]) {
-            const gk = {
-                up: g['k2_up'] || false,
-                down: g['k2_down'] || false,
-                left: g['k2_left'] || false,
-                right: g['k2_right'] || false,
-            };
-            this._movePlayer(this.players[guestPlayer], gk, guestPlayer);
-            this.players[guestPlayer]._isKicking = g.kick2 || false;
-            this._handleBallContact(this.players[guestPlayer], guestPlayer);
+        if (this.players[gp]) {
+            this._movePlayer(this.players[gp], { up: g.k2_up, down: g.k2_down, left: g.k2_left, right: g.k2_right }, gp);
+            this.players[gp]._isKicking = g.kick2 || false;
+            this._handleBallContact(this.players[gp], gp);
         }
-
-        if (this.is2v2 && this.players[guestPlayer2]) {
-            const gk2 = {
-                up: g['k4_up'] || false,
-                down: g['k4_down'] || false,
-                left: g['k4_left'] || false,
-                right: g['k4_right'] || false,
-            };
-            this._movePlayer(this.players[guestPlayer2], gk2, guestPlayer2);
-            this.players[guestPlayer2]._isKicking = g.kick2 || false;
-            this._handleBallContact(this.players[guestPlayer2], guestPlayer2);
+        if (this.is2v2 && this.players[gp2]) {
+            this._movePlayer(this.players[gp2], { up: g.k4_up, down: g.k4_down, left: g.k4_left, right: g.k4_right }, gp2);
+            this.players[gp2]._isKicking = g.kick2 || false;
+            this._handleBallContact(this.players[gp2], gp2);
         }
     }
 
     _sendState() {
         if (!this.ws || this.ws.readyState !== 1) return;
         const state = {
-            ballX: this.ball.x,
-            ballY: this.ball.y,
-            ballVX: this.ball.body.velocity.x,
-            ballVY: this.ball.body.velocity.y,
-            ballRot: this.ball.rotation,
-            players: {}
+            ballX: this.ball.x, ballY: this.ball.y,
+            ballVX: this.ball.body.velocity.x, ballVY: this.ball.body.velocity.y,
+            ballRot: this.ball.rotation, players: {}
         };
-        Object.keys(this.players).forEach(key => {
-            const p = this.players[key];
-            state.players[key] = { x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y };
+        Object.keys(this.players).forEach(k => {
+            const p = this.players[k];
+            state.players[k] = { x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y };
         });
         this.ws.send(JSON.stringify({ type: 'state', data: state }));
     }
 
-    _movePlayer(player, keys, id) {
-        const k = (k) => k && k.isDown !== undefined ? k.isDown : !!k;
-        const vx = (k(keys.right) ? 1 : 0) - (k(keys.left) ? 1 : 0);
-        const vy = (k(keys.down) ? 1 : 0) - (k(keys.up) ? 1 : 0);
+    // ── Update ─────────────────────────────────────────────────────
+    update() {
+        if (this.paused) return;
 
+        if (this.isOnline) {
+            if (this.isHost) this._updateHost();
+            else             this._updateGuest();
+            return;
+        }
+
+        if (!this._chatOpen) {
+            this._movePlayer(this.players.blue, this.keys1, 'blue');
+            this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
+            this._movePlayer(this.players.red, this.keys2, 'red');
+            this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
+
+            if (this.is2v2) {
+                this._movePlayer(this.players.blue2, this.keys3, 'blue2');
+                this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
+                this._movePlayer(this.players.red2, this.keys4, 'red2');
+                this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
+            }
+        }
+
+        Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        this._updateBallSpin();
+        this._clampBall();
+        this._checkGoal();
+        this._updatePlayerLabels();
+    }
+
+    _updateHost() {
+        if (!this._chatOpen) {
+            this._movePlayer(this.players.blue, this.keys1, 'blue');
+            this.players.blue._isKicking = this.kick1.isDown;
+            this._movePlayer(this.players.red, this.keys2, 'red');
+            this.players.red._isKicking = this.kick2.isDown;
+        }
+        this._applyGuestInputs();
+        Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        this._updateBallSpin();
+        this._clampBall();
+        this._checkGoal();
+        this._sendState();
+        this._updatePlayerLabels();
+    }
+
+    _updateGuest() {
+        const keys = this._getInputKeys();
+        if (this.ws && this.ws.readyState === 1) {
+            this.ws.send(JSON.stringify({ type: 'input', keys }));
+        }
+        if (this.serverState) {
+            const ext = (window.HAXTOS_EXTRAPOLATION || 0) / 1000;
+            this.ball.x = this.serverState.ballX + this.serverState.ballVX * ext;
+            this.ball.y = this.serverState.ballY + this.serverState.ballVY * ext;
+            this.ball.body.velocity.x = this.serverState.ballVX;
+            this.ball.body.velocity.y = this.serverState.ballVY;
+            this.ball.rotation = this.serverState.ballRot || 0;
+
+            Object.keys(this.serverState.players || {}).forEach(k => {
+                if (this.players[k]) {
+                    this.players[k].x = this.serverState.players[k].x;
+                    this.players[k].y = this.serverState.players[k].y;
+                    this.players[k].body.velocity.x = this.serverState.players[k].vx;
+                    this.players[k].body.velocity.y = this.serverState.players[k].vy;
+                }
+            });
+        }
+        this._updatePlayerLabels();
+        this._checkGoal();
+    }
+
+    // ── Physics helpers ────────────────────────────────────────────
+    _movePlayer(player, keys, id) {
+        const d = (k) => k && (k.isDown !== undefined ? k.isDown : !!k);
+        const vx = (d(keys.right) ? 1 : 0) - (d(keys.left) ? 1 : 0);
+        const vy = (d(keys.down)  ? 1 : 0) - (d(keys.up)   ? 1 : 0);
         if (vx !== 0 || vy !== 0) {
             const len = Math.sqrt(vx * vx + vy * vy);
             player.body.velocity.x += (vx / len) * P_SPEED * 0.15;
@@ -466,61 +629,65 @@ class GameScene extends Phaser.Scene {
     }
 
     _handleBallContact(player, id) {
-        const dx = this.ball.x - player.x;
-        const dy = this.ball.y - player.y;
+        const dx   = this.ball.x - player.x;
+        const dy   = this.ball.y - player.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = P_RADIUS + B_RADIUS + 2;
+        const min  = P_RADIUS + B_RADIUS + 2;
 
-        if (dist < minDist && dist > 0.1) {
+        if (dist < min && dist > 0.1) {
             const nx = dx / dist;
             const ny = dy / dist;
-            this.ball.x = player.x + nx * (minDist + 1);
-            this.ball.y = player.y + ny * (minDist + 1);
+            this.ball.x = player.x + nx * (min + 1);
+            this.ball.y = player.y + ny * (min + 1);
 
-            const rvx = this.ball.body.velocity.x - player.body.velocity.x;
-            const rvy = this.ball.body.velocity.y - player.body.velocity.y;
+            const rvx  = this.ball.body.velocity.x - player.body.velocity.x;
+            const rvy  = this.ball.body.velocity.y - player.body.velocity.y;
             const relV = rvx * nx + rvy * ny;
 
             if (relV < 0) {
-                const restitution = player._isKicking ? 1.3 : 0.7;
-                const kickBoost = player._isKicking ? KICK_POWER : 0;
-                const impulse = -(1 + restitution) * relV + kickBoost;
-                const ballMass = 0.3, playerMass = 1;
-                const total = ballMass + playerMass;
+                const rest      = player._isKicking ? 1.3 : 0.7;
+                const boost     = player._isKicking ? KICK_POWER : 0;
+                const impulse   = -(1 + rest) * relV + boost;
+                const bm = 0.3, pm = 1, total = bm + pm;
 
-                this.ball.body.velocity.x += (impulse * playerMass / total) * nx;
-                this.ball.body.velocity.y += (impulse * playerMass / total) * ny;
-                player.body.velocity.x -= (impulse * ballMass / total) * nx;
-                player.body.velocity.y -= (impulse * ballMass / total) * ny;
+                this.ball.body.velocity.x += (impulse * pm / total) * nx;
+                this.ball.body.velocity.y += (impulse * pm / total) * ny;
+                player.body.velocity.x   -= (impulse * bm / total) * nx;
+                player.body.velocity.y   -= (impulse * bm / total) * ny;
 
-                const ballSpeed = Math.sqrt(this.ball.body.velocity.x ** 2 + this.ball.body.velocity.y ** 2);
-                if (ballSpeed > 50) soundManager.kick(ballSpeed);
+                const spd = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
+                if (spd > 50) soundManager.kick(spd);
             }
         }
     }
 
     _updateBallSpin() {
-        const vx = this.ball.body.velocity.x;
-        const vy = this.ball.body.velocity.y;
-        const speed = Math.sqrt(vx * vx + vy * vy);
-        this.ballSpin = vx * 0.003;
-        this.ball.rotation += this.ballSpin;
+        this.ball.rotation += this.ball.body.velocity.x * 0.003;
     }
 
+    // Emergency clamp — prevents ball from escaping the play area
+    _clampBall() {
+        const b = this.ball, r = B_RADIUS, T = F.WALL_T;
+        const minX = F.X - F.GOAL_D - T - r;
+        const maxX = F.X + F.W + F.GOAL_D + T + r;
+        const minY = F.Y - T - r;
+        const maxY = F.Y + F.H + T + r;
+
+        if (b.x < minX) { b.x = minX + 1; b.body.velocity.x =  Math.abs(b.body.velocity.x) * 0.6; }
+        if (b.x > maxX) { b.x = maxX - 1; b.body.velocity.x = -Math.abs(b.body.velocity.x) * 0.6; }
+        if (b.y < minY) { b.y = minY + 1; b.body.velocity.y =  Math.abs(b.body.velocity.y) * 0.6; }
+        if (b.y > maxY) { b.y = maxY - 1; b.body.velocity.y = -Math.abs(b.body.velocity.y) * 0.6; }
+    }
+
+    // ── Goal ───────────────────────────────────────────────────────
     _checkGoal() {
         if (this.goalLock) return;
-        const bx = this.ball.x;
-        const by = this.ball.y;
-        const inGoalY = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
-
+        const bx = this.ball.x, by = this.ball.y;
+        const inY      = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
         const leftBack  = F.X - F.GOAL_D + B_RADIUS;
         const rightBack = F.X + F.W + F.GOAL_D - B_RADIUS;
-
-        if (bx <= leftBack && inGoalY) {
-            this._goal('red');
-        } else if (bx >= rightBack && inGoalY) {
-            this._goal('blue');
-        }
+        if (bx <= leftBack  && inY) this._goal('red');
+        else if (bx >= rightBack && inY) this._goal('blue');
     }
 
     _goal(team) {
@@ -528,7 +695,6 @@ class GameScene extends Phaser.Scene {
         this.paused = true;
         this.score[team]++;
         this._updateHUD();
-
         soundManager.goal();
 
         if (this.score[team] >= SCORE_WIN) {
@@ -537,7 +703,6 @@ class GameScene extends Phaser.Scene {
         }
 
         this.scene.launch('GoalScene', { team, score: { ...this.score } });
-
         this.time.delayedCall(2200, () => {
             this.scene.stop('GoalScene');
             this._reset();
@@ -547,21 +712,13 @@ class GameScene extends Phaser.Scene {
     }
 
     _reset() {
-        this.ball.setPosition(F.CX, F.CY);
-        this.ball.body.reset(F.CX, F.CY);
-
-        this.players.blue.setPosition(F.X + 150, F.CY);
-        this.players.blue.body.reset(F.X + 150, F.CY);
-
-        this.players.red.setPosition(F.X + F.W - 150, F.CY);
-        this.players.red.body.reset(F.X + F.W - 150, F.CY);
-
+        const place = (obj, x, y) => { obj.setPosition(x, y); obj.body.reset(x, y); };
+        place(this.ball,         F.CX, F.CY);
+        place(this.players.blue, F.X + 150,       F.CY);
+        place(this.players.red,  F.X + F.W - 150, F.CY);
         if (this.is2v2) {
-            this.players.blue2.setPosition(F.X + 70, F.CY - 80);
-            this.players.blue2.body.reset(F.X + 70, F.CY - 80);
-
-            this.players.red2.setPosition(F.X + F.W - 70, F.CY + 80);
-            this.players.red2.body.reset(F.X + F.W - 70, F.CY + 80);
+            place(this.players.blue2, F.X + 70,         F.CY - 80);
+            place(this.players.red2,  F.X + F.W - 70,   F.CY + 80);
         }
     }
 
@@ -570,10 +727,8 @@ class GameScene extends Phaser.Scene {
         this.timerEvent.remove();
         this.scene.stop('GoalScene');
         soundManager.stopAmbient();
-
         const winner = this.score.blue > this.score.red ? 'blue' : this.score.red > this.score.blue ? 'red' : null;
         if (winner) soundManager.win();
-
         this.scene.start('WinScene', { score: { ...this.score }, time: this.timeLeft });
     }
 }

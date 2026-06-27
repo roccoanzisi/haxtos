@@ -6,7 +6,7 @@ const F = {
     W: 880, H: 470,
     GOAL_H: 140,
     GOAL_D: 65,
-    WALL_T: 14,
+    WALL_T: 22,
 };
 F.CX = F.X + F.W / 2;
 F.CY = F.Y + F.H / 2;
@@ -22,7 +22,7 @@ const game = new Phaser.Game({
     backgroundColor: '#111111',
     physics: {
         default: 'arcade',
-        arcade: { gravity: { y: 0 }, debug: false }
+        arcade: { gravity: { y: 0 }, debug: false, fps: 120 }
     },
     scene: [PreloadScene, MenuScene, OnlineScene, GameScene, GoalScene, WinScene],
     scale: {
