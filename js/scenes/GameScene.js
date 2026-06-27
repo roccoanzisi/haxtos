@@ -197,7 +197,7 @@ class GameScene extends Phaser.Scene {
         this.ball.setCircle(B_RADIUS, 1, 1);
         this.ball.setBounce(B_BOUNCE);
         this.ball.setDrag(0);      // manual damping
-        this.ball.setMaxVelocity(0); // no Phaser cap — manual clamp
+        // No Phaser velocity cap — manual damping in _applyDamping
         this.ball.setDepth(10);
     }
 
