@@ -433,8 +433,8 @@ class GameScene extends Phaser.Scene {
     }
 
     _movePlayer(player, keys, id) {
-        const vx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-        const vy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+        const vx = (keys.right.isDown ? 1 : 0) - (keys.left.isDown ? 1 : 0);
+        const vy = (keys.down.isDown ? 1 : 0) - (keys.up.isDown ? 1 : 0);
 
         if (vx !== 0 || vy !== 0) {
             const len = Math.sqrt(vx * vx + vy * vy);
