@@ -6,19 +6,21 @@ const P_RADIUS = 22;
 const B_RADIUS = 14;
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
-// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → 240 px/s
+// Terminal at 60fps: 0.1/(1-0.96)=2.5 u/f → ~240 px/s
 // Damping per frame at 120fps: 0.96^(60/120) = 0.9798
-// Accel per frame at 120fps: tuned so terminal = 240 px/s
-const P_ACCEL   = 0.0403;   // px/frame at 120fps
-const P_DAMPING = 0.9798;   // per frame at 120fps
+// Phaser velocity is px/s, so accel per frame must be in px/s
+// accel = v_terminal × (1 - damping) = 240 × 0.0202 = 4.85 px/s
+const P_ACCEL   = 4.85;     // px/s per frame at 120fps
+const P_DAMPING = 0.9798;   // × vel (px/s) cada frame
 const P_MASS    = 2;        // invMass=0.5 → mass=2
 const P_BOUNCE  = 0.5;      // bCoef
 
 // Player kicking (Haxball: kickAcc=0.07, kickDamp=0.96, kickStrength=5)
-// Terminal while kicking: 0.07/0.04=1.75 u/f → 168 px/s
-const PK_ACCEL   = 0.0283;  // px/frame at 120fps (0.07 u/f converted)
+// Terminal while kicking: 0.07/0.04=1.75 u/f → ~168 px/s
+// accel = 168 × 0.0202 = 3.40 px/s
+const PK_ACCEL   = 3.40;    // px/s per frame at 120fps
 const PK_DAMPING = 0.9798;  // same as normal
-const KICK_POWER = 480;     // 5 u/f × 60fps × 1.6 = 480 px/s impulse
+const KICK_POWER = 325;     // ~1.3x player terminal speed (scaled from 650 for 120fps)
 const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
@@ -661,6 +663,14 @@ class GameScene extends Phaser.Scene {
         }
 
         Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        if (!this._chatOpen) {
+            this._kickPlayer(this.players.blue, 'blue');
+            this._kickPlayer(this.players.red, 'red');
+            if (this.is2v2) {
+                this._kickPlayer(this.players.blue2, 'blue2');
+                this._kickPlayer(this.players.red2, 'red2');
+            }
+        }
         this._applyDamping();
         this._updateBallSpin();
         this._clampBall();
@@ -677,6 +687,14 @@ class GameScene extends Phaser.Scene {
         }
         this._applyGuestInputs();
         Object.keys(this.players).forEach(k => this._handleBallContact(this.players[k], k));
+        if (!this._chatOpen) {
+            this._kickPlayer(this.players.blue, 'blue');
+            this._kickPlayer(this.players.red, 'red');
+            if (this.is2v2) {
+                this._kickPlayer(this.players.blue2, 'blue2');
+                this._kickPlayer(this.players.red2, 'red2');
+            }
+        }
         this._applyDamping();
         this._updateBallSpin();
         this._clampBall();
@@ -731,6 +749,33 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    _kickPlayer(player, id) {
+        if (!player._isKicking) return;
+        const now = this.time.now;
+        const last = this.lastKickTime[id] || 0;
+        if (now - last < KICK_COOLDOWN) return;
+        this.lastKickTime[id] = now;
+
+        const dx = this.ball.x - player.x;
+        const dy = this.ball.y - player.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < P_RADIUS + B_RADIUS + 20) {
+            const nx = dx / (dist || 1);
+            const ny = dy / (dist || 1);
+            const impulse = KICK_POWER;
+
+            // Apply kick impulse to ball
+            this.ball.body.velocity.x += nx * impulse;
+            this.ball.body.velocity.y += ny * impulse;
+
+            // Kickback to player (Haxball: kickback × kickStrength / playerMass)
+            player.body.velocity.x -= nx * impulse * KICK_BACK / P_MASS;
+            player.body.velocity.y -= ny * impulse * KICK_BACK / P_MASS;
+
+            soundManager.kick(Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y));
+        }
+    }
+
     _handleBallContact(player, id) {
         const dx   = this.ball.x - player.x;
         const dy   = this.ball.y - player.y;
@@ -759,17 +804,6 @@ class GameScene extends Phaser.Scene {
                 player.body.velocity.x  -= j * B_MASS * nx;
                 player.body.velocity.y  -= j * B_MASS * ny;
             }
-
-            // Haxball kick impulse — applied on top of collision
-            if (player._isKicking) {
-                this.ball.body.velocity.x += nx * KICK_POWER / 60; // per-frame impulse
-                this.ball.body.velocity.y += ny * KICK_POWER / 60;
-                player.body.velocity.x   -= nx * KICK_POWER * KICK_BACK / 60 / P_MASS;
-                player.body.velocity.y   -= ny * KICK_POWER * KICK_BACK / 60 / P_MASS;
-            }
-
-            const spd = Math.hypot(this.ball.body.velocity.x, this.ball.body.velocity.y);
-            if (spd > 50) soundManager.kick(spd);
         }
     }
 
