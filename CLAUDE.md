@@ -37,7 +37,7 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 | `soundManager` | `main.js` | Instancia única del SoundManager |
 | `STADIUMS` | `ConfigScene.js` | Objeto con configuraciones de estadios |
 | `P_RADIUS`, `B_RADIUS` | `GameScene.js` | Radio jugador / pelota |
-| `P_ACCEL`, `P_DAMPING` | `GameScene.js` | Aceleración y fricción jugador (Haxball style) |
+| `P_ACCEL`, `P_DAMPING` | `GameScene.js` | Aceleración (4.848 px/s por frame) y damping jugador |
 | `P_MASS`, `P_BOUNCE` | `GameScene.js` | Masa (2) y rebote (0.5) del jugador |
 | `PK_ACCEL`, `PK_DAMPING` | `GameScene.js` | Aceleración/fricción al patear |
 | `KICK_POWER`, `KICK_BACK`, `KICK_COOLDOWN` | `GameScene.js` | Fuerza patada (480), retroceso (0.1), cooldown |

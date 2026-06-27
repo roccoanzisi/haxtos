@@ -10,15 +10,13 @@ const B_RADIUS = 14;
 // Damping per frame at 120fps: 0.96^(60/120) = 0.9798
 // Phaser velocity is px/s, so accel per frame must be in px/s
 // accel = v_terminal × (1 - damping) = 240 × 0.0202 = 4.85 px/s
-const P_ACCEL   = 4.85;     // px/s per frame at 120fps
-const P_DAMPING = 0.9798;   // × vel (px/s) cada frame
+const P_ACCEL   = 4.85;     // px/s per frame → terminal 240 px/s
+const P_DAMPING = 0.9798;   // × vel (px/s) per frame (0.96^0.5)
 const P_MASS    = 2;        // invMass=0.5 → mass=2
 const P_BOUNCE  = 0.5;      // bCoef
 
-// Player kicking (Haxball: kickAcc=0.07, kickDamp=0.96, kickStrength=5)
-// Terminal while kicking: 0.07/0.04=1.75 u/f → ~168 px/s
-// accel = 168 × 0.0202 = 3.40 px/s
-const PK_ACCEL   = 3.40;    // px/s per frame at 120fps
+// Player kicking — terminal 168 px/s: 168 × 0.0202 = 3.40 px/s
+const PK_ACCEL   = 3.40;    // px/s per frame → terminal 168 px/s
 const PK_DAMPING = 0.9798;  // same as normal
 const KICK_POWER = 325;     // ~1.3x player terminal speed (scaled from 650 for 120fps)
 const KICK_BACK  = 0.1;     // fraction of kick force reflected to player
