@@ -1,25 +1,26 @@
 // Haxball physics — exact Classic stadium values (1 pixel = 1 Haxball unit)
-// Reference: open-source Haxball physics (HaxGym, Haxball API docs)
+// Verified from Haxball game-min.js: physics runs 1 tick per frame at 60fps.
+// The "2 sub-steps" in Haxball source are for joint/spring constraints only.
 
 const P_RADIUS = 15;       // Haxball player radius (exact default)
 const B_RADIUS = 10;       // Haxball ball radius (exact default)
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
-// Terminal: 0.1/(1-0.96) = 2.5 px/sub-step × 2 sub-steps × 60fps = 300 px/s
-const P_ACCEL   = 0.1;     // px/sub-step (Haxball exact)
-const P_DAMPING = 0.96;    // per frame at 60fps
+// Terminal: (v+0.1)*0.96 = v → v = 2.4 px/frame → 2.5 px/frame moved → 150 px/s
+const P_ACCEL   = 0.1;     // px/frame (Haxball exact)
+const P_DAMPING = 0.96;    // per frame (Haxball exact)
 const P_INV_M   = 0.5;     // invMass (Haxball exact)
 const P_MASS    = 2;       // mass = 1/invMass
 const P_BOUNCE  = 0.5;     // bCoef
 
 // Player kicking — Haxball exact
-const PK_ACCEL   = 0.07;   // px/sub-step when kicking
+const PK_ACCEL   = 0.07;   // px/frame when kicking
 const PK_DAMPING = 0.96;   // same as normal
-const KICK_POWER = 5.0;    // Haxball kickStrength (px/sub-step impulse → 600 px/s inicial)
-const KICK_BACK  = 0;      // Haxball kickback = 0 (sin retroceso al patear)
+const KICK_POWER = 5.0;    // Haxball kickStrength → ball gets +5 px/frame impulse
+const KICK_BACK  = 0;      // Haxball kickback = 0
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
-const B_DAMPING = 0.99;    // per frame at 60fps
+const B_DAMPING = 0.99;    // per frame (Haxball exact)
 const B_INV_M   = 1.0;     // invMass (Haxball exact)
 const B_MASS    = 1;       // mass = 1/invMass
 const B_BOUNCE  = 0.5;     // bCoef
@@ -30,7 +31,7 @@ const WALL_BOUNCE = 1.0;   // ballArea bCoef (Haxball exact)
 const POST_BOUNCE   = 0.5;   // goalPost bCoef
 const NET_BOUNCE    = 0.1;   // goalNet bCoef (back wall + crossbars)
 const POST_RADIUS   = 8;     // goal post disc radius (Haxball exact)
-const SUB_STEPS     = 2;     // Haxball uses 2 sub-steps per frame
+const SUB_STEPS     = 1;     // 1 physics step per frame (Haxball exact, verified from source)
 
 class GameScene extends Phaser.Scene {
     constructor() { super('GameScene'); }
