@@ -901,12 +901,10 @@ class GameScene extends Phaser.Scene {
             const dx = p.x - cx, dy = p.y - cy;
             const dist = Math.hypot(dx, dy);
 
-            // Both teams: cannot cross halfway line
-            if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
-            if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
-
             if (!isKicking) {
-                // Non-kicking team: additionally cannot enter center circle
+                // Non-kicking team: own half + outside center circle
+                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
+                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
                 if (dist < CR + r && dist > 0.01) {
                     const sc = (CR + r) / dist;
                     p.x = cx + dx * sc; p.y = cy + dy * sc;
@@ -915,6 +913,7 @@ class GameScene extends Phaser.Scene {
                     if (vn < 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
                 }
             }
+            // Kicking team: no restriction — can access the full center circle
         }
     }
 
