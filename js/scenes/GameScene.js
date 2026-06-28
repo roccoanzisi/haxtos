@@ -58,12 +58,15 @@ class GameScene extends Phaser.Scene {
         this._avatarOverrides = {};
         this._floatingMsg = null;
         this._kickoffActive = true;
+        this._kickoffTeam = 'red'; // red kicks off first; after a goal = team that was scored against
         this._overtime = false;
         this._teamTints = { blue: null, red: null, blue2: null, red2: null };
         this._originalTints = { blue: null, red: null, blue2: null, red2: null };
     }
 
     create() {
+        this._forceKick = false;
+        this._forceKickRed = false;
         soundManager.startAmbient();
         soundManager.whistle();
 
@@ -84,6 +87,7 @@ class GameScene extends Phaser.Scene {
         this._buildHUD();
         this._buildPlayerLabels();
         this._buildChatUI();
+        this._reset(); // position players per kickoff team from the start
 
         this.timerEvent = this.time.addEvent({
             delay: 1000,
@@ -306,21 +310,15 @@ class GameScene extends Phaser.Scene {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
-        this.shootBlueBtn.on('pointerdown', () => {
-            const b = this.players.blue;
-            b._isKicking = !b._isKicking;
-            if (this.is2v2 && this.players.blue2) this.players.blue2._isKicking = b._isKicking;
-        });
+        this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
+        this.shootBlueBtn.on('pointerup',   () => { this._forceKick = false; });
 
         this.shootRedBtn = this.add.text(GW - 175, GH - 26, '⚡ SHOOT (SHIFT)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
-        this.shootRedBtn.on('pointerdown', () => {
-            const r = this.players.red;
-            r._isKicking = !r._isKicking;
-            if (this.is2v2 && this.players.red2) this.players.red2._isKicking = r._isKicking;
-        });
+        this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
+        this.shootRedBtn.on('pointerup',   () => { this._forceKickRed = false; });
 
         const hint = this.is2v2
             ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  1/2/3: cámara  ENTER: chat'
@@ -779,7 +777,7 @@ class GameScene extends Phaser.Scene {
             p._vy += p._inputDy * accel;
         }
 
-        // 2. Kick impulse to ball (toggle auto-disables after contact)
+        // 2. Kick impulse to ball (hold-based: fires while key held and in range)
         for (const p of players) {
             if (p._isKicking && !this._chatOpen) {
                 const dx = ball.x - p.x;
@@ -793,7 +791,6 @@ class GameScene extends Phaser.Scene {
                         soundManager.kick(Math.hypot(ball._vx, ball._vy));
                         this._kickSoundPlayed = true;
                     }
-                    p._isKicking = false; // toggle off after kick
                 }
             }
         }
@@ -850,12 +847,40 @@ class GameScene extends Phaser.Scene {
             this._kickoffActive = false;
             return;
         }
+        const cx = F.CX, cy = F.CY;
+        const CR = 75; // center circle radius (matches drawn circle)
+        const r = P_RADIUS;
+
         for (const p of players) {
             const isBlue = p._normalTexture.includes('blue');
-            if (isBlue) {
-                if (p.x > F.CX - P_RADIUS) { p.x = F.CX - P_RADIUS; if (p._vx > 0) p._vx = 0; }
+            const isKicking = this._kickoffTeam === (isBlue ? 'blue' : 'red');
+            const dx = p.x - cx, dy = p.y - cy;
+            const dist = Math.hypot(dx, dy);
+
+            if (isKicking) {
+                // Must stay within center circle
+                if (dist > CR - r && dist > 0.01) {
+                    const sc = (CR - r) / dist;
+                    p.x = cx + dx * sc; p.y = cy + dy * sc;
+                    const nx = dx / dist, ny = dy / dist;
+                    const vn = p._vx * nx + p._vy * ny;
+                    if (vn > 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
+                }
+                // Cannot cross halfway line
+                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
+                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
             } else {
-                if (p.x < F.CX + P_RADIUS) { p.x = F.CX + P_RADIUS; if (p._vx < 0) p._vx = 0; }
+                // Cannot cross halfway line
+                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
+                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
+                // Cannot enter center circle (push outward)
+                if (dist < CR + r && dist > 0.01) {
+                    const sc = (CR + r) / dist;
+                    p.x = cx + dx * sc; p.y = cy + dy * sc;
+                    const nx = dx / dist, ny = dy / dist;
+                    const vn = p._vx * nx + p._vy * ny;
+                    if (vn < 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
+                }
             }
         }
     }
@@ -908,18 +933,14 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._chatOpen) {
-            if (Phaser.Input.Keyboard.JustDown(this.kick1)) {
-                this.players.blue._isKicking = !this.players.blue._isKicking;
-                if (this.is2v2 && this.players.blue2) this.players.blue2._isKicking = this.players.blue._isKicking;
-            }
-            if (Phaser.Input.Keyboard.JustDown(this.kick2)) {
-                this.players.red._isKicking = !this.players.red._isKicking;
-                if (this.is2v2 && this.players.red2) this.players.red2._isKicking = this.players.red._isKicking;
-            }
+            this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
             this._movePlayer(this.players.blue, this.keys1, 'blue');
+            this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
             this._movePlayer(this.players.red, this.keys2, 'red');
             if (this.is2v2) {
+                this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
                 this._movePlayer(this.players.blue2, this.keys3, 'blue2');
+                this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
                 this._movePlayer(this.players.red2, this.keys4, 'red2');
             }
         }
@@ -935,9 +956,9 @@ class GameScene extends Phaser.Scene {
 
     _updateHost() {
         if (!this._chatOpen) {
-            if (Phaser.Input.Keyboard.JustDown(this.kick1)) this.players.blue._isKicking = !this.players.blue._isKicking;
-            if (Phaser.Input.Keyboard.JustDown(this.kick2)) this.players.red._isKicking = !this.players.red._isKicking;
+            this.players.blue._isKicking = this.kick1.isDown;
             this._movePlayer(this.players.blue, this.keys1, 'blue');
+            this.players.red._isKicking = this.kick2.isDown;
             this._movePlayer(this.players.red, this.keys2, 'red');
         }
         this._applyGuestInputs();
@@ -996,6 +1017,7 @@ class GameScene extends Phaser.Scene {
         this.goalLock = true;
         this.paused = true;
         this.score[team]++;
+        this._kickoffTeam = team === 'blue' ? 'red' : 'blue'; // scored-against team kicks off
         this._updateHUD();
         soundManager.goal();
 
@@ -1019,13 +1041,25 @@ class GameScene extends Phaser.Scene {
             obj._vx = 0; obj._vy = 0;
             if (obj.body) obj.body.reset(x, y);
         };
-        place(this.ball,         F.CX, F.CY);
-        place(this.players.blue, F.CX - 200, F.CY);
-        place(this.players.red,  F.CX + 200, F.CY);
-        if (this.is2v2) {
-            place(this.players.blue2, F.CX - 280, F.CY - 80);
-            place(this.players.red2,  F.CX + 280, F.CY + 80);
+        place(this.ball, F.CX, F.CY);
+
+        // Kicking team starts inside center circle; other team stays on own half outside circle
+        if (this._kickoffTeam === 'red') {
+            place(this.players.blue, F.CX - 200, F.CY);
+            place(this.players.red,  F.CX + 40,  F.CY);
+            if (this.is2v2) {
+                place(this.players.blue2, F.CX - 280, F.CY - 80);
+                place(this.players.red2,  F.CX + 30,  F.CY + 50);
+            }
+        } else { // blue kicks off
+            place(this.players.blue, F.CX - 40,  F.CY);
+            place(this.players.red,  F.CX + 200, F.CY);
+            if (this.is2v2) {
+                place(this.players.blue2, F.CX - 30,  F.CY - 50);
+                place(this.players.red2,  F.CX + 280, F.CY + 80);
+            }
         }
+
         for (const p of Object.values(this.players)) p._isKicking = false;
         this._kickoffActive = true;
     }
