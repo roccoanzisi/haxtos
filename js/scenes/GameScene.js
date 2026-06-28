@@ -24,10 +24,9 @@ const B_INV_M   = 1.0;     // invMass (Haxball exact)
 const B_MASS    = 1;       // mass = 1/invMass
 const B_BOUNCE  = 0.5;     // bCoef
 
-const SCORE_WIN     = 7;
-const GAME_TIME     = 3 * 60;
-const KICK_COOLDOWN = 400;
-const WALL_BOUNCE   = 1.0;   // ballArea bCoef (Haxball exact)
+const SCORE_WIN  = 7;
+const GAME_TIME  = 3 * 60;
+const WALL_BOUNCE = 1.0;   // ballArea bCoef (Haxball exact)
 const POST_BOUNCE   = 0.5;   // goalPost bCoef
 const NET_BOUNCE    = 0.1;   // goalNet bCoef (back wall + crossbars)
 const POST_RADIUS   = 8;     // goal post disc radius (Haxball exact)
@@ -49,7 +48,6 @@ class GameScene extends Phaser.Scene {
         this.ws = (data && data.ws) ? data.ws : null;
         this.playerIndex = (data && data.playerIndex !== undefined) ? data.playerIndex : 0;
         this.isHost = this.playerIndex === 0;
-        this.lastKickTime = { blue: 0, red: 0, blue2: 0, red2: 0 };
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.stadiumCfg = STADIUMS[this.stadium] || STADIUMS.classic;
@@ -228,6 +226,8 @@ class GameScene extends Phaser.Scene {
         p._kickTexture   = key.replace('player_', 'kick_');
         p._vx = 0;
         p._vy = 0;
+        p._inputDx = 0;
+        p._inputDy = 0;
         p._isKicking = false;
         return p;
     }
@@ -763,64 +763,57 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    // Main physics sub-step (Haxball-style: move → damp → collide)
+    // Physics sub-step — Haxball exact order: accel→damp→kick→move→collide
     _physicsSubStep() {
         const ball = this.ball;
         const players = Object.values(this.players);
 
-        // Move ball
+        // Per-sub-step: acceleration (accel first) then damping, then kick impulse
+        for (const p of players) {
+            const accel = p._isKicking ? PK_ACCEL : P_ACCEL;
+            const damp  = p._isKicking ? PK_DAMPING : P_DAMPING;
+            p._vx = (p._vx + p._inputDx * accel) * damp;
+            p._vy = (p._vy + p._inputDy * accel) * damp;
+
+            // Kick impulse — applied every sub-step while in range (no cooldown)
+            if (p._isKicking && !this._chatOpen) {
+                const dx = ball.x - p.x;
+                const dy = ball.y - p.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist - P_RADIUS - B_RADIUS < 4 && dist > 0.1) {
+                    const nx = dx / dist, ny = dy / dist;
+                    ball._vx += nx * KICK_POWER * B_INV_M;
+                    ball._vy += ny * KICK_POWER * B_INV_M;
+                    if (!this._kickSoundPlayed) {
+                        soundManager.kick(Math.hypot(ball._vx, ball._vy));
+                        this._kickSoundPlayed = true;
+                    }
+                }
+            }
+        }
+
+        // Ball damping (per sub-step)
+        ball._vx *= B_DAMPING;
+        ball._vy *= B_DAMPING;
+
+        // Move
         ball.x += ball._vx;
         ball.y += ball._vy;
-
-        // Move players
         for (const p of players) {
             p.x += p._vx;
             p.y += p._vy;
         }
 
-        // Player-wall collisions (custom, same as Haxball planes)
-        for (const p of players) {
-            this._resolvePlayerWall(p);
-        }
-
-        // Player-player collisions
-        for (let i = 0; i < players.length; i++) {
-            for (let j = i + 1; j < players.length; j++) {
-                this._resolveDiscDisc(
-                    players[i], players[j],
-                    P_RADIUS, P_RADIUS,
-                    P_INV_M, P_INV_M,
-                    P_BOUNCE, P_BOUNCE
-                );
-            }
-        }
-
-        // Damp ball
-        ball._vx *= B_DAMPING;
-        ball._vy *= B_DAMPING;
-
-        // Ball-wall collisions
+        // Collisions
+        for (const p of players) this._resolvePlayerWall(p);
+        for (let i = 0; i < players.length; i++)
+            for (let j = i + 1; j < players.length; j++)
+                this._resolveDiscDisc(players[i], players[j], P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
         this._resolveBallWall(ball, B_RADIUS);
-
-        // Ball-goalpost collisions (Haxball: 4 static discs, invMass=0, bCoef=0.5)
-        for (const post of this._goalPosts) {
-            this._resolveDiscDisc(
-                ball, post,
-                B_RADIUS, POST_RADIUS,
-                B_INV_M, 0,
-                B_BOUNCE, POST_BOUNCE
-            );
-        }
-
-        // Player-ball collisions
-        for (const p of players) {
-            this._resolveDiscDisc(
-                p, ball,
-                P_RADIUS, B_RADIUS,
-                P_INV_M, B_INV_M,
-                P_BOUNCE, B_BOUNCE
-            );
-        }
+        for (const post of this._goalPosts)
+            this._resolveDiscDisc(ball, post, B_RADIUS, POST_RADIUS, B_INV_M, 0, B_BOUNCE, POST_BOUNCE);
+        for (const p of players)
+            this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
     }
 
     _resolvePlayerWall(p) {
@@ -838,68 +831,31 @@ class GameScene extends Phaser.Scene {
     // Per-frame physics update
     _physicsStep() {
         const all = Object.values(this.players);
-
-        // Apply kick impulses (Haxball: kick is applied before sub-stepping)
-        if (!this._chatOpen) {
-            for (const id of Object.keys(this.players)) {
-                const p = this.players[id];
-                if (p._isKicking) {
-                    const now = this.time.now;
-                    const last = this.lastKickTime[id] || 0;
-                    if (now - last >= KICK_COOLDOWN) {
-                        const dx = this.ball.x - p.x;
-                        const dy = this.ball.y - p.y;
-                        const dist = Math.hypot(dx, dy);
-                        const surfDist = dist - P_RADIUS - B_RADIUS;
-
-                        if (surfDist < 4 && dist > 0.1) {
-                            this.lastKickTime[id] = now;
-                            const nx = dx / dist;
-                            const ny = dy / dist;
-                            const kick = KICK_POWER * B_INV_M;
-                            this.ball._vx += nx * kick;
-                            this.ball._vy += ny * kick;
-                            p._vx -= nx * kick * KICK_BACK * P_INV_M;
-                            p._vy -= ny * kick * KICK_BACK * P_INV_M;
-
-                            soundManager.kick(Math.hypot(this.ball._vx, this.ball._vy));
-                        }
-                    }
-                }
-            }
-        }
-
-        // Sub-stepping (Haxball uses 2 sub-steps)
+        this._kickSoundPlayed = false;
         for (let i = 0; i < SUB_STEPS; i++) {
             this._physicsSubStep();
         }
-
-        // Sync Phaser bodies for rendering only
         this.ball.body.reset(this.ball.x, this.ball.y);
         this.ball.body.velocity.set(this.ball._vx, this.ball._vy);
-
         for (const p of all) {
             p.body.reset(p.x, p.y);
             p.body.velocity.set(p._vx, p._vy);
         }
     }
 
-    // Player input → velocity (Haxball exact: accel + damping per frame)
+    // Player input → stores normalized direction (physics applied per sub-step)
     _movePlayer(player, keys, id) {
         if (!player) return;
         const isDown = (k) => k && k.isDown !== undefined ? k.isDown : !!k;
         const dx = (isDown(keys.right) ? 1 : 0) - (isDown(keys.left) ? 1 : 0);
         const dy = (isDown(keys.down)  ? 1 : 0) - (isDown(keys.up)   ? 1 : 0);
-
-        const damping = player._isKicking ? PK_DAMPING : P_DAMPING;
-        player._vx *= damping;
-        player._vy *= damping;
-
         if (dx !== 0 || dy !== 0) {
             const len = Math.sqrt(dx * dx + dy * dy);
-            const accel = player._isKicking ? PK_ACCEL : P_ACCEL;
-            player._vx += (dx / len) * accel;
-            player._vy += (dy / len) * accel;
+            player._inputDx = dx / len;
+            player._inputDy = dy / len;
+        } else {
+            player._inputDx = 0;
+            player._inputDy = 0;
         }
     }
 
