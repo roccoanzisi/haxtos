@@ -119,12 +119,35 @@ class GameScene extends Phaser.Scene {
             g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
         }
 
+        // Rounded stadium: mask sharp corners with bgColor notch shapes
+        if (s.cornerRadius) {
+            const cr = s.cornerRadius;
+            g.fillStyle(s.bgColor, 1);
+            // Top-left notch
+            g.beginPath(); g.moveTo(F.X, F.Y); g.lineTo(F.X + cr, F.Y);
+            g.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
+            g.closePath(); g.fillPath();
+            // Top-right notch
+            g.beginPath(); g.moveTo(F.X + F.W, F.Y); g.lineTo(F.X + F.W, F.Y + cr);
+            g.arc(F.X + F.W - cr, F.Y + cr, cr, 0, -Math.PI / 2, true);
+            g.closePath(); g.fillPath();
+            // Bottom-right notch
+            g.beginPath(); g.moveTo(F.X + F.W, F.Y + F.H); g.lineTo(F.X + F.W - cr, F.Y + F.H);
+            g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, Math.PI / 2, 0, true);
+            g.closePath(); g.fillPath();
+            // Bottom-left notch
+            g.beginPath(); g.moveTo(F.X, F.Y + F.H); g.lineTo(F.X, F.Y + F.H - cr);
+            g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI, Math.PI / 2, true);
+            g.closePath(); g.fillPath();
+        }
+
         g.fillStyle(s.goalBgColor, 1);
         g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
         g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
         g.lineStyle(3, s.lineColor, 1);
-        g.strokeRect(F.X, F.Y, F.W, F.H);
+        if (s.cornerRadius) g.strokeRoundedRect(F.X, F.Y, F.W, F.H, s.cornerRadius);
+        else g.strokeRect(F.X, F.Y, F.W, F.H);
 
         g.lineStyle(2, s.lineColor, 0.9);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);

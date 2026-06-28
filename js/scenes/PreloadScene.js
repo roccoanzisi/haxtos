@@ -3,7 +3,7 @@ class PreloadScene extends Phaser.Scene {
 
     create() {
         // Haxball colors: blue 0x0000F8, red 0xF00000, ball white
-        this._makeCircle('ball',        10, 0xFFFFFF, 0x000000, 2);
+        this._makeBall('ball', 10, 2);
         // Normal: borde negro (Haxball default)
         this._makeCircle('player_blue', 15, 0x0000F8, 0x000000, 2);
         this._makeCircle('player_red',  15, 0xF00000, 0x000000, 2);
@@ -15,6 +15,24 @@ class PreloadScene extends Phaser.Scene {
         this._makeCircle('kick_blue2',  15, 0x0000C0, 0xFFFFFF, 4);
         this._makeCircle('kick_red2',   15, 0xC00000, 0xFFFFFF, 4);
         this.scene.start('MenuScene');
+    }
+
+    _makeBall(key, r, lineW) {
+        const size = (r + lineW) * 2 + 2;
+        const cx = size / 2;
+        const g = this.make.graphics({ add: false });
+        g.fillStyle(0xFFFFFF, 1);
+        g.fillCircle(cx, cx, r);
+        // Depth shadow — bottom-right (makes it look 3D like Haxball)
+        g.fillStyle(0x444444, 0.18);
+        g.fillCircle(cx + r * 0.22, cx + r * 0.22, r * 0.68);
+        // Inner highlight — top-left
+        g.fillStyle(0xFFFFFF, 0.55);
+        g.fillCircle(cx - r * 0.27, cx - r * 0.3, r * 0.35);
+        g.lineStyle(lineW, 0x000000, 1);
+        g.strokeCircle(cx, cx, r);
+        g.generateTexture(key, size, size);
+        g.destroy();
     }
 
     _makeCircle(key, r, fill, stroke, lineW) {

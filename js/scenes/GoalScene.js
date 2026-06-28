@@ -9,31 +9,41 @@ class GoalScene extends Phaser.Scene {
     create() {
         const W = this.scale.width;
         const H = this.scale.height;
+        const isBlue = this.team === 'blue';
 
-        this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.45);
+        const overlayColor = isBlue ? 0x001155 : 0x550000;
+        const teamHex      = isBlue ? '#88aaff' : '#ff8888';
+        const label        = isBlue ? 'Equipo AZUL' : 'Equipo ROJO';
 
-        const color  = this.team === 'blue' ? '#5588ff' : '#ff5555';
-        const label  = this.team === 'blue' ? 'AZUL' : 'ROJO';
+        // Team-colored overlay (fades in)
+        const overlay = this.add.rectangle(W / 2, H / 2, W, H, overlayColor, 0)
+            .setScrollFactor(0).setDepth(40);
+        this.tweens.add({ targets: overlay, alpha: 0.72, duration: 180, ease: 'Sine.easeOut' });
 
-        const goalText = this.add.text(W / 2, H / 2 - 60, '¡GOL!', {
-            fontSize: '90px', fontFamily: 'Arial Black, Impact, sans-serif',
-            color, stroke: '#000000', strokeThickness: 10
-        }).setOrigin(0.5);
+        // "¡GOL!" — scales in from center
+        const goalText = this.add.text(W / 2, H / 2 - 58, '¡GOL!', {
+            fontSize: '92px', fontFamily: 'Arial Black, Impact, sans-serif',
+            color: '#ffffff', stroke: '#000000', strokeThickness: 11
+        }).setOrigin(0.5).setScale(0.15).setAlpha(0).setScrollFactor(0).setDepth(41);
 
         this.tweens.add({
-            targets: goalText,
-            scaleX: 1.3, scaleY: 1.3,
-            duration: 200, yoyo: true, ease: 'Sine.easeInOut'
+            targets: goalText, scaleX: 1, scaleY: 1, alpha: 1,
+            duration: 300, ease: 'Back.easeOut'
         });
 
-        this.add.text(W / 2, H / 2 + 30, `Equipo ${label}`, {
-            fontSize: '30px', fontFamily: 'Arial, sans-serif',
-            color: '#ffffff', stroke: '#000000', strokeThickness: 5
-        }).setOrigin(0.5);
+        // Team name fades in
+        const teamText = this.add.text(W / 2, H / 2 + 26, label, {
+            fontSize: '26px', fontFamily: 'Arial, sans-serif',
+            color: teamHex, stroke: '#000', strokeThickness: 4
+        }).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(41);
+        this.tweens.add({ targets: teamText, alpha: 1, duration: 280, delay: 120 });
 
-        this.add.text(W / 2, H / 2 + 80, `${this.score.blue}  –  ${this.score.red}`, {
-            fontSize: '36px', fontFamily: 'Arial Black, Impact, sans-serif',
-            color: '#ffffff', stroke: '#000000', strokeThickness: 6
-        }).setOrigin(0.5);
+        // Score
+        const scoreText = this.add.text(W / 2, H / 2 + 72,
+            `${this.score.blue}  –  ${this.score.red}`, {
+            fontSize: '40px', fontFamily: 'Arial Black, Impact, sans-serif',
+            color: '#ffffff', stroke: '#000', strokeThickness: 6
+        }).setOrigin(0.5).setAlpha(0).setScrollFactor(0).setDepth(41);
+        this.tweens.add({ targets: scoreText, alpha: 1, duration: 280, delay: 220 });
     }
 }
