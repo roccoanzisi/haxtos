@@ -60,7 +60,7 @@ class GameScene extends Phaser.Scene {
         this._avatarOverrides = {};
         this._floatingMsg = null;
         this._kickoffActive = true;
-        this._kickoffTeam = 'red'; // red kicks off first; after a goal = team that was scored against
+        this._kickoffTeam = 'blue'; // blue always kicks off first
         this._overtime = false;
         this._teamTints = { blue: null, red: null, blue2: null, red2: null };
         this._originalTints = { blue: null, red: null, blue2: null, red2: null };
@@ -1076,21 +1076,15 @@ class GameScene extends Phaser.Scene {
         };
         place(this.ball, F.CX, F.CY);
 
-        // Kicking team starts near center (free in own half); non-kicking team stays further back
-        if (this._kickoffTeam === 'red') {
-            place(this.players.blue, F.CX - 200, F.CY);
-            place(this.players.red,  F.CX + 40,  F.CY);
-            if (this.is2v2) {
-                place(this.players.blue2, F.CX - 280, F.CY - 80);
-                place(this.players.red2,  F.CX + 30,  F.CY + 50);
-            }
-        } else { // blue kicks off
-            place(this.players.blue, F.CX - 40,  F.CY);
-            place(this.players.red,  F.CX + 200, F.CY);
-            if (this.is2v2) {
-                place(this.players.blue2, F.CX - 30,  F.CY - 50);
-                place(this.players.red2,  F.CX + 280, F.CY + 80);
-            }
+        // Fixed symmetric spawn positions — kickoff barrier handles who can approach the ball
+        if (this.is2v2) {
+            place(this.players.blue,  F.CX - 150, F.CY - 75);
+            place(this.players.blue2, F.CX - 150, F.CY + 75);
+            place(this.players.red,   F.CX + 150, F.CY - 75);
+            place(this.players.red2,  F.CX + 150, F.CY + 75);
+        } else {
+            place(this.players.blue, F.CX - 150, F.CY);
+            place(this.players.red,  F.CX + 150, F.CY);
         }
 
         for (const p of Object.values(this.players)) p._isKicking = false;
