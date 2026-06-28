@@ -901,23 +901,12 @@ class GameScene extends Phaser.Scene {
             const dx = p.x - cx, dy = p.y - cy;
             const dist = Math.hypot(dx, dy);
 
-            if (isKicking) {
-                // Must stay within center circle
-                if (dist > CR - r && dist > 0.01) {
-                    const sc = (CR - r) / dist;
-                    p.x = cx + dx * sc; p.y = cy + dy * sc;
-                    const nx = dx / dist, ny = dy / dist;
-                    const vn = p._vx * nx + p._vy * ny;
-                    if (vn > 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
-                }
-                // Cannot cross halfway line
-                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
-                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
-            } else {
-                // Cannot cross halfway line
-                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
-                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
-                // Cannot enter center circle (push outward)
+            // Both teams: cannot cross halfway line
+            if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
+            if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
+
+            if (!isKicking) {
+                // Non-kicking team: additionally cannot enter center circle
                 if (dist < CR + r && dist > 0.01) {
                     const sc = (CR + r) / dist;
                     p.x = cx + dx * sc; p.y = cy + dy * sc;
@@ -1087,7 +1076,7 @@ class GameScene extends Phaser.Scene {
         };
         place(this.ball, F.CX, F.CY);
 
-        // Kicking team starts inside center circle; other team stays on own half outside circle
+        // Kicking team starts near center (free in own half); non-kicking team stays further back
         if (this._kickoffTeam === 'red') {
             place(this.players.blue, F.CX - 200, F.CY);
             place(this.players.red,  F.CX + 40,  F.CY);
