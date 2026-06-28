@@ -5,19 +5,18 @@ const P_RADIUS = 15;       // Haxball player radius (exact default)
 const B_RADIUS = 10;       // Haxball ball radius (exact default)
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
-// Terminal at 60fps: 0.1/(1-0.96) = 2.5 px/frame → 150 px/s
-// Damping per frame at 60fps: 0.96
-const P_ACCEL   = 0.1;     // px/frame (Haxball exact)
+// Terminal: 0.1/(1-0.96) = 2.5 px/sub-step × 2 sub-steps × 60fps = 300 px/s
+const P_ACCEL   = 0.1;     // px/sub-step (Haxball exact)
 const P_DAMPING = 0.96;    // per frame at 60fps
 const P_INV_M   = 0.5;     // invMass (Haxball exact)
 const P_MASS    = 2;       // mass = 1/invMass
 const P_BOUNCE  = 0.5;     // bCoef
 
 // Player kicking — Haxball exact
-const PK_ACCEL   = 0.07;   // px/frame when kicking
+const PK_ACCEL   = 0.07;   // px/sub-step when kicking
 const PK_DAMPING = 0.96;   // same as normal
-const KICK_POWER = 5.0;    // Haxball kick strength (px/frame impulse)
-const KICK_BACK  = 0.1;    // Haxball kickback
+const KICK_POWER = 5.0;    // Haxball kickStrength (px/sub-step impulse → 600 px/s inicial)
+const KICK_BACK  = 0;      // Haxball kickback = 0 (sin retroceso al patear)
 
 // Ball (Haxball: damping=0.99, bCoef=0.5, invMass=1, radius=10)
 const B_DAMPING = 0.99;    // per frame at 60fps
@@ -225,7 +224,8 @@ class GameScene extends Phaser.Scene {
         p.setCollideWorldBounds(false);
         p.body.setAllowGravity(false);
         p.setDepth(5);
-        p._kickTexture = key.replace('player_', 'kick_');
+        p._normalTexture = key;
+        p._kickTexture   = key.replace('player_', 'kick_');
         p._vx = 0;
         p._vy = 0;
         p._isKicking = false;
@@ -383,6 +383,14 @@ class GameScene extends Phaser.Scene {
             lbl.x = p.x;
             lbl.y = p.y - P_RADIUS - 2;
             if (this._avatarOverrides[key]) lbl.setText(this._avatarOverrides[key].slice(0, 3));
+        });
+    }
+
+    _updatePlayerTextures() {
+        Object.keys(this.players).forEach(key => {
+            const p = this.players[key];
+            const target = p._isKicking ? p._kickTexture : p._normalTexture;
+            if (p.texture.key !== target) p.setTexture(target);
         });
     }
 
@@ -931,6 +939,7 @@ class GameScene extends Phaser.Scene {
         this._updateBallSpin();
         this._checkGoal();
         this._updatePlayerLabels();
+        this._updatePlayerTextures();
     }
 
     _updateHost() {
@@ -946,6 +955,7 @@ class GameScene extends Phaser.Scene {
         this._checkGoal();
         this._sendState();
         this._updatePlayerLabels();
+        this._updatePlayerTextures();
     }
 
     _updateGuest() {
