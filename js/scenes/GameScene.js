@@ -107,12 +107,16 @@ class GameScene extends Phaser.Scene {
         const g = this.add.graphics();
         const s = this.stadiumCfg;
 
+        // Outer background (color of the area outside the field, like in Haxball)
+        g.fillStyle(s.bgColor, 1);
+        g.fillRect(0, 0, this.scale.width, this.scale.height);
+
         for (let i = 0; i < 8; i++) {
             g.fillStyle(i % 2 === 0 ? s.grass1 : s.grass2, 1);
             g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
         }
 
-        g.fillStyle(0x3a5530, 1);
+        g.fillStyle(s.goalBgColor, 1);
         g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
         g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
@@ -818,14 +822,11 @@ class GameScene extends Phaser.Scene {
 
     _resolvePlayerWall(p) {
         const r = P_RADIUS;
-        // Top wall
-        if (p.y < F.Y + r) { p.y = F.Y + r; if (p._vy < 0) p._vy *= -0.5; }
-        // Bottom wall
-        if (p.y > F.Y + F.H - r) { p.y = F.Y + F.H - r; if (p._vy > 0) p._vy *= -0.5; }
-        // Left wall
-        if (p.x < F.X + r) { p.x = F.X + r; if (p._vx < 0) p._vx *= -0.5; }
-        // Right wall
-        if (p.x > F.X + F.W - r) { p.x = F.X + F.W - r; if (p._vx > 0) p._vx *= -0.5; }
+        const b = P_BOUNCE * 0.1; // outer plane bCoef=0.1 → combined = 0.5×0.1 = 0.05
+        if (p.y < F.OUTER_Y_MIN + r) { p.y = F.OUTER_Y_MIN + r; if (p._vy < 0) p._vy *= -b; }
+        if (p.y > F.OUTER_Y_MAX - r) { p.y = F.OUTER_Y_MAX - r; if (p._vy > 0) p._vy *= -b; }
+        if (p.x < F.OUTER_X_MIN + r) { p.x = F.OUTER_X_MIN + r; if (p._vx < 0) p._vx *= -b; }
+        if (p.x > F.OUTER_X_MAX - r) { p.x = F.OUTER_X_MAX - r; if (p._vx > 0) p._vx *= -b; }
     }
 
     // Per-frame physics update

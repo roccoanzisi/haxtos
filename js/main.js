@@ -14,6 +14,11 @@ F.CX = F.X + F.W / 2;
 F.CY = F.Y + F.H / 2;
 F.GOAL_TOP = F.CY - F.GOAL_H / 2;
 F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+// Outer planes (camW=420, camH=200 for Classic)
+F.OUTER_X_MIN = F.CX - 420;
+F.OUTER_X_MAX = F.CX + 420;
+F.OUTER_Y_MIN = F.CY - 200;
+F.OUTER_Y_MAX = F.CY + 200;
 
 const soundManager = new SoundManager();
 

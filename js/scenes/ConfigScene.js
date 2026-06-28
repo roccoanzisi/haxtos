@@ -2,7 +2,9 @@ const STADIUMS = {
     classic: {
         name: 'Classic',
         canvasW: 1000, canvasH: 560,
-        W: 740, H: 340, GOAL_H: 128, GOAL_D: 25,
+        W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
         goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
@@ -11,6 +13,8 @@ const STADIUMS = {
         name: 'Big',
         canvasW: 1200, canvasH: 600,
         W: 1100, H: 480, GOAL_H: 180, GOAL_D: 30,
+        camW: 600, camH: 300,
+        bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
         goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
@@ -18,7 +22,9 @@ const STADIUMS = {
     hockey: {
         name: 'Hockey',
         canvasW: 1000, canvasH: 560,
-        W: 740, H: 340, GOAL_H: 136, GOAL_D: 25,
+        W: 740, H: 340, GOAL_H: 136, GOAL_D: 30,
+        camW: 420, camH: 204,
+        bgColor: 0x1a1a1a, goalBgColor: 0x222222,
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
         goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
@@ -27,6 +33,8 @@ const STADIUMS = {
         name: 'Big Hockey',
         canvasW: 1200, canvasH: 600,
         W: 1100, H: 480, GOAL_H: 180, GOAL_D: 60,
+        camW: 600, camH: 300,
+        bgColor: 0x1a1a1a, goalBgColor: 0x222222,
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
         goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
@@ -34,7 +42,9 @@ const STADIUMS = {
     rounded: {
         name: 'Rounded',
         canvasW: 1000, canvasH: 560,
-        W: 740, H: 340, GOAL_H: 128, GOAL_D: 25,
+        W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
         goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
@@ -252,6 +262,10 @@ class ConfigScene extends Phaser.Scene {
         F.CY = F.Y + F.H / 2;
         F.GOAL_TOP = F.CY - F.GOAL_H / 2;
         F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+        F.OUTER_X_MIN = F.CX - s.camW;
+        F.OUTER_X_MAX = F.CX + s.camW;
+        F.OUTER_Y_MIN = F.CY - s.camH;
+        F.OUTER_Y_MAX = F.CY + s.camH;
 
         soundManager.whistle();
         this.scene.start('GameScene', {
