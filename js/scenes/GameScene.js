@@ -1,8 +1,8 @@
 // Haxball physics — exact Classic stadium values (1 pixel = 1 Haxball unit)
 // Reference: open-source Haxball physics (HaxGym, Haxball API docs)
 
-const P_RADIUS = 14;       // Haxball player radius (default)
-const B_RADIUS = 10;       // Haxball ball radius (default)
+const P_RADIUS = 15;       // Haxball player radius (exact default)
+const B_RADIUS = 10;       // Haxball ball radius (exact default)
 
 // Player (Haxball: acceleration=0.1, damping=0.96, bCoef=0.5, invMass=0.5)
 // Terminal at 60fps: 0.1/(1-0.96) = 2.5 px/frame → 150 px/s

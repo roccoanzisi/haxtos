@@ -3,15 +3,15 @@ class PreloadScene extends Phaser.Scene {
 
     create() {
         // Haxball colors: blue 0x0000F8, red 0xF00000, ball white
-        this._makeCircle('ball',        14, 0xFFFFFF, 0x000000, 2);
-        this._makeCircle('player_blue', 22, 0x0000F8, 0xFFFFFF, 3);
-        this._makeCircle('player_red',  22, 0xF00000, 0xFFFFFF, 3);
-        this._makeCircle('player_blue2',22, 0x0000C0, 0xCCCCFF, 3);
-        this._makeCircle('player_red2', 22, 0xC00000, 0xFFCCCC, 3);
-        this._makeCircle('kick_blue',   24, 0x3333FF, 0xFFFFFF, 2);
-        this._makeCircle('kick_red',    24, 0xFF2222, 0xFFFFFF, 2);
-        this._makeCircle('kick_blue2',  24, 0x2222DD, 0xCCCCFF, 2);
-        this._makeCircle('kick_red2',   24, 0xDD2222, 0xFFCCCC, 2);
+        this._makeCircle('ball',        10, 0xFFFFFF, 0x000000, 2);
+        this._makeCircle('player_blue', 15, 0x0000F8, 0xFFFFFF, 3);
+        this._makeCircle('player_red',  15, 0xF00000, 0xFFFFFF, 3);
+        this._makeCircle('player_blue2',15, 0x0000C0, 0xCCCCFF, 3);
+        this._makeCircle('player_red2', 15, 0xC00000, 0xFFCCCC, 3);
+        this._makeCircle('kick_blue',   17, 0x3333FF, 0xFFFFFF, 2);
+        this._makeCircle('kick_red',    17, 0xFF2222, 0xFFFFFF, 2);
+        this._makeCircle('kick_blue2',  17, 0x2222DD, 0xCCCCFF, 2);
+        this._makeCircle('kick_red2',   17, 0xDD2222, 0xFFCCCC, 2);
         this.scene.start('MenuScene');
     }
 
