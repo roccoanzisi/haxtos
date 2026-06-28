@@ -772,234 +772,135 @@ class GameScene extends Phaser.Scene {
         });
     }
 
-    // ── ESC Panel (room view, like Haxball) ───────────────────────
+    // ── ESC Panel (room view, like Haxball) — DOM overlay ─────────
     _buildEscPanel() {
-        const GW = window.innerWidth;
-        const GH = window.innerHeight;
-        const PW = 870;
-        const PH = 478;
-        const PX = Math.floor(GW / 2 - PW / 2);
-        const PY = Math.floor(GH / 2 - PH / 2);
         this._escVisible = false;
-        this._escObjs = [];
+        // Remove any leftover panel from a previous scene restart
+        const old = document.getElementById('_haxEscPanel');
+        if (old) old.remove();
 
-        const reg = (o) => { o.setScrollFactor(0).setDepth(200).setVisible(false); this._escObjs.push(o); return o; };
+        const redPlayers  = this.is2v2 ? ['Rojo 1', 'Rojo 2'] : ['Rojo'];
+        const bluePlayers = this.is2v2 ? ['Azul 1', 'Azul 2'] : ['Azul'];
 
-        // Dark overlay — click outside to close
-        const ov = this.add.graphics();
-        ov.fillStyle(0x000000, 0.55);
-        ov.fillRect(0, 0, GW, GH);
-        reg(ov).setInteractive(new Phaser.Geom.Rectangle(0, 0, GW, GH), Phaser.Geom.Rectangle.Contains);
-        ov.on('pointerdown', (p) => {
-            const inside = p.x > PX && p.x < PX + PW && p.y > PY && p.y < PY + PH;
-            if (!inside) this._hideEscPanel();
-        });
+        const mkRow = (name, color) =>
+            `<div style="background:#1e2230;margin:3px 4px;padding:7px 10px;font-size:13px;color:${color}">${name}</div>`;
 
-        // Panel background
-        const bg = this.add.graphics();
-        bg.fillStyle(0x1e2030, 1);
-        bg.fillRect(PX, PY, PW, PH);
-        bg.lineStyle(1, 0x44455a, 1);
-        bg.strokeRect(PX, PY, PW, PH);
-        reg(bg);
+        const div = document.createElement('div');
+        div.id = '_haxEscPanel';
+        div.style.cssText = `
+            position:fixed;top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,0.55);
+            display:none;align-items:center;justify-content:center;
+            z-index:9999;font-family:Arial,sans-serif;
+        `;
+        div.innerHTML = `
+        <div style="background:#1e2030;border:1px solid #44455a;width:870px;user-select:none;">
+          <!-- Header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 0;">
+            <span style="color:#fff;font-size:21px;font-weight:bold;">Haxtos</span>
+            <div style="display:flex;gap:8px;">
+              <button id="_escLeave" style="background:#2a5280;border:none;color:#fff;padding:5px 14px;cursor:pointer;font-size:13px;font-weight:bold;">→ Leave</button>
+            </div>
+          </div>
+          <div style="height:2px;background:#cc2222;margin-top:8px;"></div>
 
-        // Title
-        reg(this.add.text(PX + 18, PY + 13, 'Haxtos', {
-            fontSize: '21px', fontFamily: 'Arial, sans-serif',
-            color: '#ffffff', fontStyle: 'bold'
-        }));
+          <!-- Teams -->
+          <div style="display:flex;">
+            <!-- Left sidebar -->
+            <div style="width:108px;padding:8px 6px;display:flex;flex-direction:column;gap:6px;">
+              <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:6px 0;cursor:pointer;font-size:13px;font-weight:bold;width:94px;">Reset</button>
+            </div>
+            <!-- Red column -->
+            <div style="width:200px;">
+              <div style="background:#7a1a1a;padding:7px 10px;font-size:15px;font-weight:bold;color:#ff9999;display:flex;align-items:center;justify-content:space-between;">
+                <span>Red</span>
+                <span style="background:#224466;padding:2px 8px;font-size:12px;color:#aaccff;">▶</span>
+              </div>
+              <div id="_escRedPlayers" style="background:#12141e;min-height:150px;">
+                ${redPlayers.map(n => mkRow(n, '#ffaaaa')).join('')}
+              </div>
+            </div>
+            <!-- Spectators -->
+            <div style="flex:1;">
+              <div style="background:#141622;padding:7px;font-size:14px;color:#888899;text-align:center;">Spectators</div>
+              <div style="background:#12141e;min-height:150px;display:flex;align-items:center;justify-content:center;">
+                <span id="_escScore" style="font-size:30px;font-weight:bold;color:#fff;font-family:'Arial Black',Arial;">0 - 0</span>
+              </div>
+            </div>
+            <!-- Blue column -->
+            <div style="width:200px;">
+              <div style="background:#1a2a7a;padding:7px 10px;font-size:15px;font-weight:bold;color:#99bbff;display:flex;align-items:center;justify-content:space-between;">
+                <span style="background:#224466;padding:2px 8px;font-size:12px;color:#aaccff;">◀</span>
+                <span>Blue</span>
+              </div>
+              <div id="_escBluePlayers" style="background:#12141e;min-height:150px;">
+                ${bluePlayers.map(n => mkRow(n, '#aabbff')).join('')}
+              </div>
+            </div>
+          </div>
+          <div style="height:1px;background:#333344;margin:0 108px;"></div>
 
-        // Top-right buttons: Leave
-        this._escMkBtn(PX + PW - 128, PY + 9, 118, 28, '→ Leave', 0x2a5280, reg, () => {
+          <!-- Settings -->
+          <div style="padding:12px 20px 0 148px;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="color:#ccc;width:110px;">Time limit</span>
+              <span id="_escTimeVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="color:#ccc;width:110px;">Score limit</span>
+              <span id="_escScoreVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <span style="color:#ccc;width:110px;">Stadium</span>
+              <span id="_escStadVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+            </div>
+          </div>
+
+          <!-- Resume button -->
+          <div style="padding:16px;text-align:center;">
+            <button id="_escResume" style="background:#228833;border:none;color:#fff;padding:10px 40px;font-size:15px;font-weight:bold;cursor:pointer;">▶ Reanudar</button>
+          </div>
+        </div>`;
+
+        document.body.appendChild(div);
+        this._escPanel = div;
+
+        // Wire up buttons
+        div.addEventListener('click', (e) => { if (e.target === div) this._hideEscPanel(); });
+        document.getElementById('_escLeave').onclick  = () => {
             this._hideEscPanel();
             if (this.isOnline && this.ws) this.ws.close();
             this.scene.start('MenuScene');
-        });
-
-        // Red separator line
-        const sep = this.add.graphics();
-        sep.lineStyle(2, 0xcc2222, 1);
-        sep.lineBetween(PX, PY + 46, PX + PW, PY + 46);
-        reg(sep);
-
-        // ── Teams section ──────────────────────────────────
-        const TS = PY + 50;   // teams section top
-        const TH = 220;       // teams section height
-        const LBWID = 108;    // left button sidebar width
-        const COLWID = 200;   // each team column width
-        const CTRWID = PW - LBWID - COLWID * 2;  // center (spectators) width
-
-        const redX  = PX + LBWID;
-        const ctrX  = redX + COLWID;
-        const bluX  = ctrX + CTRWID;
-
-        // Left sidebar: Reset button
-        this._escMkBtn(PX + 6, TS + 4,  94, 28, 'Reset', 0x2a5280, reg, () => {
+        };
+        document.getElementById('_escReset').onclick  = () => {
             this._hideEscPanel();
             this._reset();
             this.paused = false;
             this.goalLock = false;
-        });
-
-        // Red team header
-        const redHdr = this.add.graphics();
-        redHdr.fillStyle(0x7a1a1a, 1);
-        redHdr.fillRect(redX, TS, COLWID, 34);
-        reg(redHdr);
-        reg(this.add.text(redX + COLWID / 2 - 26, TS + 8, 'Red', {
-            fontSize: '15px', fontFamily: 'Arial, sans-serif',
-            color: '#ff9999', fontStyle: 'bold'
-        }));
-        // Arrow button ▶
-        const arrR = this.add.graphics();
-        arrR.fillStyle(0x224466, 1);
-        arrR.fillRect(redX + COLWID - 32, TS + 4, 28, 26);
-        reg(arrR);
-        reg(this.add.text(redX + COLWID - 22, TS + 8, '▶', { fontSize: '13px', color: '#aaccff' }));
-
-        // Blue team header
-        const bluHdr = this.add.graphics();
-        bluHdr.fillStyle(0x1a2a7a, 1);
-        bluHdr.fillRect(bluX, TS, COLWID, 34);
-        reg(bluHdr);
-        reg(this.add.text(bluX + COLWID / 2 - 24, TS + 8, 'Blue', {
-            fontSize: '15px', fontFamily: 'Arial, sans-serif',
-            color: '#99bbff', fontStyle: 'bold'
-        }));
-        // Arrow button ◀
-        const arrB = this.add.graphics();
-        arrB.fillStyle(0x224466, 1);
-        arrB.fillRect(bluX + 4, TS + 4, 28, 26);
-        reg(arrB);
-        reg(this.add.text(bluX + 8, TS + 8, '◀', { fontSize: '13px', color: '#aaccff' }));
-
-        // Spectators header
-        const ctrHdr = this.add.graphics();
-        ctrHdr.fillStyle(0x141622, 1);
-        ctrHdr.fillRect(ctrX, TS, CTRWID, 34);
-        reg(ctrHdr);
-        reg(this.add.text(ctrX + CTRWID / 2, TS + 9, 'Spectators', {
-            fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#888899'
-        }).setOrigin(0.5, 0));
-
-        // Team body areas
-        const bodyBg = this.add.graphics();
-        bodyBg.fillStyle(0x12141e, 1);
-        bodyBg.fillRect(redX, TS + 34, COLWID * 2 + CTRWID, TH - 34);
-        reg(bodyBg);
-
-        // Player rows — Red
-        const redPlayers = this.is2v2 ? ['Rojo 1', 'Rojo 2'] : ['Rojo'];
-        redPlayers.forEach((name, i) => {
-            const ry = TS + 38 + i * 36;
-            const rb = this.add.graphics();
-            rb.fillStyle(0x1e2230, 1);
-            rb.fillRect(redX + 4, ry, COLWID - 8, 30);
-            reg(rb);
-            reg(this.add.text(redX + 14, ry + 7, name, {
-                fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#ffaaaa'
-            }));
-        });
-
-        // Player rows — Blue
-        const bluePlayers = this.is2v2 ? ['Azul 1', 'Azul 2'] : ['Azul'];
-        bluePlayers.forEach((name, i) => {
-            const ry = TS + 38 + i * 36;
-            const bb = this.add.graphics();
-            bb.fillStyle(0x1e2230, 1);
-            bb.fillRect(bluX + 4, ry, COLWID - 8, 30);
-            reg(bb);
-            reg(this.add.text(bluX + 14, ry + 7, name, {
-                fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#aabbff'
-            }));
-        });
-
-        // Score display in spectators center
-        this._escScoreTxt = this.add.text(ctrX + CTRWID / 2, TS + 80, '0 - 0', {
-            fontSize: '28px', fontFamily: 'Arial Black, Arial, sans-serif',
-            color: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(200).setVisible(false);
-        this._escObjs.push(this._escScoreTxt);
-
-        // ── Settings section ───────────────────────────────
-        const SS = PY + TH + 60;   // settings top
-
-        const settingsSep = this.add.graphics();
-        settingsSep.lineStyle(1, 0x333344, 1);
-        settingsSep.lineBetween(PX + LBWID, SS - 8, PX + PW, SS - 8);
-        reg(settingsSep);
-
-        const LCOLX = PX + LBWID + 40;
-        const VCOLX = LCOLX + 140;
-
-        const rows = [
-            ['Time limit',  () => this.timeLimit  > 0 ? (this.timeLimit / 60) + ' min' : '∞'],
-            ['Score limit', () => this.scoreWin   > 0 ? String(this.scoreWin) : '∞'],
-            ['Stadium',     () => this.hbsData ? (this.hbsData._fileName || 'HBS Map') : (STADIUMS[this.stadium] || STADIUMS.classic).name],
-        ];
-
-        rows.forEach(([label, valFn], i) => {
-            const ry = SS + i * 38;
-            reg(this.add.text(LCOLX, ry, label, {
-                fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#cccccc'
-            }));
-            // Value box
-            const vbox = this.add.graphics();
-            vbox.fillStyle(0x2a2c3e, 1);
-            vbox.fillRect(VCOLX, ry - 3, 120, 24);
-            reg(vbox);
-            // Use a stored text ref so we can update it each open
-            const vtxt = this.add.text(VCOLX + 8, ry + 1, valFn(), {
-                fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
-            }).setScrollFactor(0).setDepth(200).setVisible(false);
-            this._escObjs.push(vtxt);
-            // Keep reference so we can refresh
-            vtxt._valFn = valFn;
-            this._escSettingTexts = this._escSettingTexts || [];
-            this._escSettingTexts.push(vtxt);
-        });
-
-        // ── Resume button ──────────────────────────────────
-        const btnY = PY + PH - 58;
-        this._escMkBtn(PX + PW / 2 - 95, btnY, 190, 38, '▶ Reanudar', 0x228833, reg, () => {
-            this._hideEscPanel();
-        });
-    }
-
-    _escMkBtn(x, y, w, h, label, color, reg, cb) {
-        const bg = this.add.graphics();
-        bg.fillStyle(color, 1);
-        bg.fillRect(x, y, w, h);
-        bg.lineStyle(1, 0xffffff, 0.3);
-        bg.strokeRect(x, y, w, h);
-        reg(bg).setInteractive(new Phaser.Geom.Rectangle(x, y, w, h), Phaser.Geom.Rectangle.Contains);
-        bg.on('pointerdown', cb);
-        bg.on('pointerover',  () => { bg.clear(); bg.fillStyle(color + 0x222222, 1); bg.fillRect(x, y, w, h); });
-        bg.on('pointerout',   () => { bg.clear(); bg.fillStyle(color, 1); bg.fillRect(x, y, w, h); bg.lineStyle(1, 0xffffff, 0.3); bg.strokeRect(x, y, w, h); });
-        const txt = this.add.text(x + w / 2, y + h / 2, label, {
-            fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#ffffff', fontStyle: 'bold'
-        }).setOrigin(0.5);
-        reg(txt);
+        };
+        document.getElementById('_escResume').onclick = () => this._hideEscPanel();
     }
 
     _showEscPanel() {
+        if (!this._escPanel) return;
         this._escVisible = true;
         this._wasPaused = this.paused;
         this.paused = true;
         // Refresh dynamic values
-        if (this._escSettingTexts) {
-            this._escSettingTexts.forEach(t => t.setText(t._valFn()));
-        }
-        if (this._escScoreTxt) {
-            this._escScoreTxt.setText(this.score.blue + ' - ' + this.score.red);
-        }
-        this._escObjs.forEach(o => o.setVisible(true));
+        document.getElementById('_escScore').textContent    = this.score.blue + ' - ' + this.score.red;
+        document.getElementById('_escTimeVal').textContent  = this.timeLimit  > 0 ? (this.timeLimit / 60) + ' min' : '∞';
+        document.getElementById('_escScoreVal').textContent = this.scoreWin   > 0 ? String(this.scoreWin) : '∞';
+        document.getElementById('_escStadVal').textContent  = this.hbsData
+            ? (this.hbsData._fileName || 'HBS Map')
+            : (STADIUMS[this.stadium] || STADIUMS.classic).name;
+        this._escPanel.style.display = 'flex';
     }
 
     _hideEscPanel() {
+        if (!this._escPanel) return;
         this._escVisible = false;
         if (!this._wasPaused) this.paused = false;
-        this._escObjs.forEach(o => o.setVisible(false));
+        this._escPanel.style.display = 'none';
     }
 
     // ── Online ─────────────────────────────────────────────────────
@@ -1379,6 +1280,11 @@ class GameScene extends Phaser.Scene {
     }
 
     // ── Update ─────────────────────────────────────────────────────
+    shutdown() {
+        const p = document.getElementById('_haxEscPanel');
+        if (p) p.remove();
+    }
+
     update() {
         // Apply mouse wheel zoom
         if (window._gameZoom !== this.cameras.main.zoom) {
