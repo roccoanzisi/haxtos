@@ -550,6 +550,15 @@ class GameScene extends Phaser.Scene {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
         }).setOrigin(1, 0));
 
+        // Menu button (fallback for ESC key)
+        const menuBtn = sf(this.add.text(GW - 6, 24, '≡ menú', {
+            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#aaaacc', backgroundColor: '#111122', padding: { x: 4, y: 2 }
+        }).setOrigin(1, 0).setInteractive({ useHandCursor: true }));
+        menuBtn.on('pointerdown', () => {
+            this._escVisible ? this._hideEscPanel() : this._showEscPanel();
+        });
+
         if (this.isOnline) {
             const code = (this.scene.get('OnlineScene') || {}).roomCode || '—';
             sf(this.add.text(8, GH - 48, 'Sala: ' + code, {
@@ -780,7 +789,7 @@ class GameScene extends Phaser.Scene {
         this._escVisible = false;
         this._escPanel = null;
         try { this._buildEscPanelInner(); }
-        catch(e) { console.error('[ESC Panel]', e); }
+        catch(e) { console.error('[ESC Panel]', e); alert('[ESC Panel] Error: ' + e.message); }
     }
 
     _buildEscPanelInner() {
