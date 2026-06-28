@@ -767,19 +767,21 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    // Physics sub-step — Haxball exact order: accel→damp→kick→move→collide
+    // Physics sub-step — Haxball exact order (verified from game-min.js):
+    // 1. accel  2. kick  3. move (pre-damp)  4. damp  5. collide
     _physicsSubStep() {
         const ball = this.ball;
         const players = Object.values(this.players);
 
-        // Per-sub-step: acceleration (accel first) then damping, then kick impulse
+        // 1. Acceleration only (damping applied AFTER move, like Haxball)
         for (const p of players) {
             const accel = p._isKicking ? PK_ACCEL : P_ACCEL;
-            const damp  = p._isKicking ? PK_DAMPING : P_DAMPING;
-            p._vx = (p._vx + p._inputDx * accel) * damp;
-            p._vy = (p._vy + p._inputDy * accel) * damp;
+            p._vx += p._inputDx * accel;
+            p._vy += p._inputDy * accel;
+        }
 
-            // Kick impulse — applied every sub-step while in range (no cooldown)
+        // 2. Kick impulse to ball
+        for (const p of players) {
             if (p._isKicking && !this._chatOpen) {
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
@@ -796,11 +798,7 @@ class GameScene extends Phaser.Scene {
             }
         }
 
-        // Ball damping (per sub-step)
-        ball._vx *= B_DAMPING;
-        ball._vy *= B_DAMPING;
-
-        // Move
+        // 3. Move with pre-damp velocity (Haxball moves BEFORE applying damping)
         ball.x += ball._vx;
         ball.y += ball._vy;
         for (const p of players) {
@@ -808,7 +806,16 @@ class GameScene extends Phaser.Scene {
             p.y += p._vy;
         }
 
-        // Collisions
+        // 4. Damping applied after move (Haxball: vel = (vel + grav) * damp, grav=0)
+        ball._vx *= B_DAMPING;
+        ball._vy *= B_DAMPING;
+        for (const p of players) {
+            const damp = p._isKicking ? PK_DAMPING : P_DAMPING;
+            p._vx *= damp;
+            p._vy *= damp;
+        }
+
+        // 5. Collisions
         for (const p of players) this._resolvePlayerWall(p);
         for (let i = 0; i < players.length; i++)
             for (let j = i + 1; j < players.length; j++)
