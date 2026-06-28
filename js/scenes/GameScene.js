@@ -57,15 +57,13 @@ class GameScene extends Phaser.Scene {
         this._chatMessages = [];
         this._avatarOverrides = {};
         this._floatingMsg = null;
-        this._kickoffBarrier = null;
         this._kickoffActive = true;
+        this._overtime = false;
         this._teamTints = { blue: null, red: null, blue2: null, red2: null };
         this._originalTints = { blue: null, red: null, blue2: null, red2: null };
     }
 
     create() {
-        this._forceKick = false;
-        this._forceKickRed = false;
         soundManager.startAmbient();
         soundManager.whistle();
 
@@ -261,22 +259,7 @@ class GameScene extends Phaser.Scene {
         // Ball-wall sounds only (physics handled manually)
         this.physics.add.overlap(this.ball, this.walls, () => this._wallBounce());
         this.physics.add.overlap(this.ball, this.postWalls, () => this._postBounce());
-        this._createKickoffBarrier();
-    }
-
-    _createKickoffBarrier() {
         this._kickoffActive = true;
-        const bx = this.add.rectangle(F.CX, F.CY, 2, F.H, 0x000000, 0);
-        this.physics.add.existing(bx, true);
-        this._kickoffBarrier = bx;
-        this.physics.add.overlap(this.ball, bx, () => {
-            if (!this._kickoffActive) return;
-            this._kickoffActive = false;
-            if (this._kickoffBarrier) {
-                this._kickoffBarrier.destroy();
-                this._kickoffBarrier = null;
-            }
-        });
     }
 
     _wallBounce() {
@@ -323,15 +306,21 @@ class GameScene extends Phaser.Scene {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
-        this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
-        this.shootBlueBtn.on('pointerup',   () => { this._forceKick = false; });
+        this.shootBlueBtn.on('pointerdown', () => {
+            const b = this.players.blue;
+            b._isKicking = !b._isKicking;
+            if (this.is2v2 && this.players.blue2) this.players.blue2._isKicking = b._isKicking;
+        });
 
         this.shootRedBtn = this.add.text(GW - 175, GH - 26, '⚡ SHOOT (SHIFT)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
-        this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
-        this.shootRedBtn.on('pointerup',   () => { this._forceKickRed = false; });
+        this.shootRedBtn.on('pointerdown', () => {
+            const r = this.players.red;
+            r._isKicking = !r._isKicking;
+            if (this.is2v2 && this.players.red2) this.players.red2._isKicking = r._isKicking;
+        });
 
         const hint = this.is2v2
             ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  1/2/3: cámara  ENTER: chat'
@@ -368,15 +357,14 @@ class GameScene extends Phaser.Scene {
 
     // ── Player labels ──────────────────────────────────────────────
     _buildPlayerLabels() {
-        const style = {
-            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#ffffff', stroke: '#000000', strokeThickness: 3
-        };
+        const colors = { blue: '#8888ff', red: '#ff5555', blue2: '#6666dd', red2: '#dd3333' };
         const nums = { blue: '1', red: '2', blue2: '3', red2: '4' };
         this._playerLabels = {};
         Object.keys(this.players).forEach(key => {
-            this._playerLabels[key] = this.add.text(0, 0, nums[key], style)
-                .setOrigin(0.5, 1).setDepth(15);
+            this._playerLabels[key] = this.add.text(0, 0, nums[key], {
+                fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
+                color: colors[key] || '#ffffff', stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0.5, 1).setDepth(15);
         });
     }
 
@@ -667,6 +655,16 @@ class GameScene extends Phaser.Scene {
             { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0 },
             { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0 },
         ];
+        this._cornerDiscs = [];
+        const cr = this.stadiumCfg.cornerRadius;
+        if (cr) {
+            this._cornerDiscs = [
+                { x: F.X + cr,       y: F.Y + cr,       _vx: 0, _vy: 0, r: cr },
+                { x: F.X + F.W - cr, y: F.Y + cr,       _vx: 0, _vy: 0, r: cr },
+                { x: F.X + cr,       y: F.Y + F.H - cr, _vx: 0, _vy: 0, r: cr },
+                { x: F.X + F.W - cr, y: F.Y + F.H - cr, _vx: 0, _vy: 0, r: cr },
+            ];
+        }
     }
 
     // ── Custom Haxball Physics Engine ──────────────────────────────
@@ -781,7 +779,7 @@ class GameScene extends Phaser.Scene {
             p._vy += p._inputDy * accel;
         }
 
-        // 2. Kick impulse to ball
+        // 2. Kick impulse to ball (toggle auto-disables after contact)
         for (const p of players) {
             if (p._isKicking && !this._chatOpen) {
                 const dx = ball.x - p.x;
@@ -795,6 +793,7 @@ class GameScene extends Phaser.Scene {
                         soundManager.kick(Math.hypot(ball._vx, ball._vy));
                         this._kickSoundPlayed = true;
                     }
+                    p._isKicking = false; // toggle off after kick
                 }
             }
         }
@@ -817,6 +816,7 @@ class GameScene extends Phaser.Scene {
         }
 
         // 5. Collisions
+        this._resolveKickoffBarrier(players);
         for (const p of players) this._resolvePlayerWall(p);
         for (let i = 0; i < players.length; i++)
             for (let j = i + 1; j < players.length; j++)
@@ -824,6 +824,11 @@ class GameScene extends Phaser.Scene {
         this._resolveBallWall(ball, B_RADIUS);
         for (const post of this._goalPosts)
             this._resolveDiscDisc(ball, post, B_RADIUS, POST_RADIUS, B_INV_M, 0, B_BOUNCE, POST_BOUNCE);
+        for (const cd of this._cornerDiscs) {
+            this._resolveDiscDisc(ball, cd, B_RADIUS, cd.r, B_INV_M, 0, B_BOUNCE, WALL_BOUNCE);
+            for (const p of players)
+                this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
+        }
         for (const p of players)
             this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
     }
@@ -835,6 +840,22 @@ class GameScene extends Phaser.Scene {
         if (p.y > F.OUTER_Y_MAX - r) { p.y = F.OUTER_Y_MAX - r; if (p._vy > 0) p._vy *= -b; }
         if (p.x < F.OUTER_X_MIN + r) { p.x = F.OUTER_X_MIN + r; if (p._vx < 0) p._vx *= -b; }
         if (p.x > F.OUTER_X_MAX - r) { p.x = F.OUTER_X_MAX - r; if (p._vx > 0) p._vx *= -b; }
+    }
+
+    _resolveKickoffBarrier(players) {
+        if (!this._kickoffActive) return;
+        if (Math.hypot(this.ball._vx, this.ball._vy) > 0.5) {
+            this._kickoffActive = false;
+            return;
+        }
+        for (const p of players) {
+            const isBlue = p._normalTexture.includes('blue');
+            if (isBlue) {
+                if (p.x > F.CX - P_RADIUS) { p.x = F.CX - P_RADIUS; if (p._vx > 0) p._vx = 0; }
+            } else {
+                if (p.x < F.CX + P_RADIUS) { p.x = F.CX + P_RADIUS; if (p._vx < 0) p._vx = 0; }
+            }
+        }
     }
 
     // Per-frame physics update
@@ -885,15 +906,18 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._chatOpen) {
-            this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
+            if (Phaser.Input.Keyboard.JustDown(this.kick1)) {
+                this.players.blue._isKicking = !this.players.blue._isKicking;
+                if (this.is2v2 && this.players.blue2) this.players.blue2._isKicking = this.players.blue._isKicking;
+            }
+            if (Phaser.Input.Keyboard.JustDown(this.kick2)) {
+                this.players.red._isKicking = !this.players.red._isKicking;
+                if (this.is2v2 && this.players.red2) this.players.red2._isKicking = this.players.red._isKicking;
+            }
             this._movePlayer(this.players.blue, this.keys1, 'blue');
-            this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
             this._movePlayer(this.players.red, this.keys2, 'red');
-
             if (this.is2v2) {
-                this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
                 this._movePlayer(this.players.blue2, this.keys3, 'blue2');
-                this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
                 this._movePlayer(this.players.red2, this.keys4, 'red2');
             }
         }
@@ -909,9 +933,9 @@ class GameScene extends Phaser.Scene {
 
     _updateHost() {
         if (!this._chatOpen) {
-            this.players.blue._isKicking = this.kick1.isDown;
+            if (Phaser.Input.Keyboard.JustDown(this.kick1)) this.players.blue._isKicking = !this.players.blue._isKicking;
+            if (Phaser.Input.Keyboard.JustDown(this.kick2)) this.players.red._isKicking = !this.players.red._isKicking;
             this._movePlayer(this.players.blue, this.keys1, 'blue');
-            this.players.red._isKicking = this.kick2.isDown;
             this._movePlayer(this.players.red, this.keys2, 'red');
         }
         this._applyGuestInputs();
@@ -973,7 +997,7 @@ class GameScene extends Phaser.Scene {
         this._updateHUD();
         soundManager.goal();
 
-        if (this.scoreWin > 0 && this.score[team] >= this.scoreWin) {
+        if ((this.scoreWin > 0 && this.score[team] >= this.scoreWin) || this._overtime) {
             this.time.delayedCall(600, () => this._endGame());
             return;
         }
@@ -1000,17 +1024,39 @@ class GameScene extends Phaser.Scene {
             place(this.players.blue2, F.CX - 280, F.CY - 80);
             place(this.players.red2,  F.CX + 280, F.CY + 80);
         }
-        this._createKickoffBarrier();
+        this._kickoffActive = true;
     }
 
     _endGame() {
         this.paused = true;
         this.timerEvent.remove();
         this.scene.stop('GoalScene');
+
+        if (this.timeLimit > 0 && this.score.blue === this.score.red && !this._overtime) {
+            this._startOvertime();
+            return;
+        }
+
         soundManager.stopAmbient();
         const winner = this.score.blue > this.score.red ? 'blue'
                      : this.score.red > this.score.blue ? 'red' : null;
         if (winner) soundManager.win();
         this.scene.start('WinScene', { score: { ...this.score }, time: this.timeLeft });
+    }
+
+    _startOvertime() {
+        this._overtime = true;
+        this.paused = false;
+        this.goalLock = false;
+        this._reset();
+        const GW = this.scale.width;
+        const GH = this.scale.height;
+        const txt = this.add.text(GW / 2, GH / 2 - 50, '¡PRÓRROGA!\nMuerte súbita', {
+            fontSize: '36px', fontFamily: 'Verdana, Arial Black, sans-serif',
+            color: '#ffff00', stroke: '#000', strokeThickness: 6, align: 'center'
+        }).setOrigin(0.5).setDepth(30).setScrollFactor(0);
+        this.time.delayedCall(3500, () => { if (txt && txt.active) txt.destroy(); });
+        this.hudTime.setText('∞');
+        soundManager.whistle();
     }
 }
