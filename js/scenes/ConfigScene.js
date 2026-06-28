@@ -75,8 +75,8 @@ class ConfigScene extends Phaser.Scene {
     }
 
     create() {
-        const W = this.scale.width;
-        const H = this.scale.height;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
 
         this.add.rectangle(W / 2, H / 2, W, H, 0x111111, 0.92);
 

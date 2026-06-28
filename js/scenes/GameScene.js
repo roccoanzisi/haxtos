@@ -72,10 +72,9 @@ class GameScene extends Phaser.Scene {
         soundManager.startAmbient();
         soundManager.whistle();
 
+        this._recalcF();
         this._cameraMode = 3;
-        this._baseZoom = 1;
         this._setupCamera();
-        this.scale.on('resize', this._setupCamera, this);
 
         this._drawField();
         this._createGoalPosts();
@@ -104,26 +103,36 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
     }
 
-    // ── Camera (RESIZE mode: native canvas, zoom-to-fit field) ───────
+    // Recalculate F using actual window dimensions so field is centered
+    _recalcF() {
+        const cw = window.innerWidth;
+        const ch = window.innerHeight;
+        const s = this.stadiumCfg;
+        F.W = s.W; F.H = s.H;
+        F.X = Math.floor((cw - s.W) / 2);
+        F.Y = Math.floor((ch - s.H) / 2);
+        F.GOAL_H = s.GOAL_H; F.GOAL_D = s.GOAL_D; F.WALL_T = 22;
+        F.CX = F.X + F.W / 2;
+        F.CY = F.Y + F.H / 2;
+        F.GOAL_TOP = F.CY - F.GOAL_H / 2;
+        F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+        F.OUTER_X_MIN = F.CX - s.camW;
+        F.OUTER_X_MAX = F.CX + s.camW;
+        F.OUTER_Y_MIN = F.CY - s.camH;
+        F.OUTER_Y_MAX = F.CY + s.camH;
+    }
+
     _setupCamera() {
-        const cw = this.scale.width;
-        const ch = this.scale.height;
-        this._baseZoom = Math.min(cw / this._stadCanvasW, ch / this._stadCanvasH);
-        window._baseZoom = this._baseZoom;
+        const cw = window.innerWidth;
+        const ch = window.innerHeight;
         const cam = this.cameras.main;
-        cam.setBounds(0, 0, this._stadCanvasW, this._stadCanvasH);
-        if (this._cameraMode === 3) {
-            cam.stopFollow();
-            cam.setZoom(this._baseZoom);
-            cam.centerOn(F.CX, F.CY);
-            window._gameZoom = this._baseZoom;
-        } else if (this._cameraMode === 2) {
-            cam.setZoom(this._baseZoom * 1.35);
-            window._gameZoom = this._baseZoom * 1.35;
-        } else {
-            cam.setZoom(this._baseZoom * 1.9);
-            window._gameZoom = this._baseZoom * 1.9;
-        }
+        cam.setBounds(0, 0, cw, ch);
+        cam.stopFollow();
+        cam.setZoom(1);
+        cam.centerOn(F.CX, F.CY);
+        window._gameZoom = 1;
+        window._baseZoom = 1;
+        this._baseZoom = 1;
     }
 
     // ── Field (stadium-aware) ──────────────────────────────────────
@@ -131,9 +140,9 @@ class GameScene extends Phaser.Scene {
         const g = this.add.graphics();
         const s = this.stadiumCfg;
 
-        // Outer background — large enough to cover any camera position
+        // Outer background — full window
         g.fillStyle(s.bgColor, 1);
-        g.fillRect(0, 0, this._stadCanvasW, this._stadCanvasH);
+        g.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
         for (let i = 0; i < 8; i++) {
             g.fillStyle(i % 2 === 0 ? s.grass1 : s.grass2, 1);
@@ -321,8 +330,8 @@ class GameScene extends Phaser.Scene {
 
     // ── HUD ────────────────────────────────────────────────────────
     _buildHUD() {
-        const GW = this.scale.width;
-        const GH = this.scale.height;
+        const GW = window.innerWidth;
+        const GH = window.innerHeight;
         const sf = (obj) => obj.setScrollFactor(0).setDepth(20);
 
         const scoreStyle = (color) => ({
@@ -674,17 +683,17 @@ class GameScene extends Phaser.Scene {
         const cam = this.cameras.main;
         if (mode === 3) {
             cam.stopFollow();
-            cam.setZoom(this._baseZoom);
+            cam.setZoom(1);
             cam.centerOn(F.CX, F.CY);
-            window._gameZoom = this._baseZoom;
+            window._gameZoom = 1;
         } else if (mode === 2) {
             cam.startFollow(this.ball, true, 0.08, 0.08);
-            cam.setZoom(this._baseZoom * 1.35);
-            window._gameZoom = this._baseZoom * 1.35;
+            cam.setZoom(1.35);
+            window._gameZoom = 1.35;
         } else {
             cam.startFollow(this.ball, true, 0.12, 0.12);
-            cam.setZoom(this._baseZoom * 1.9);
-            window._gameZoom = this._baseZoom * 1.9;
+            cam.setZoom(1.9);
+            window._gameZoom = 1.9;
         }
         if (this.hudCam) this.hudCam.setText('📷' + mode);
     }

@@ -4,8 +4,8 @@ class MenuScene extends Phaser.Scene {
     create() {
         soundManager.stopAmbient();
 
-        const W = this.scale.width;
-        const H = this.scale.height;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
 
         this._drawField();
 
@@ -73,8 +73,8 @@ class MenuScene extends Phaser.Scene {
     }
 
     _drawField() {
-        const W = this.scale.width;
-        const H = this.scale.height;
+        const W = window.innerWidth;
+        const H = window.innerHeight;
         const g = this.add.graphics();
         g.fillStyle(0x2d7a2d, 1);
         g.fillRect(0, 0, W, H);
