@@ -829,8 +829,10 @@ class GameScene extends Phaser.Scene {
             for (const p of players)
                 this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
         }
-        for (const p of players)
-            this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
+        if (!this._kickoffActive) {
+            for (const p of players)
+                this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
+        }
     }
 
     _resolvePlayerWall(p) {
@@ -1024,6 +1026,7 @@ class GameScene extends Phaser.Scene {
             place(this.players.blue2, F.CX - 280, F.CY - 80);
             place(this.players.red2,  F.CX + 280, F.CY + 80);
         }
+        for (const p of Object.values(this.players)) p._isKicking = false;
         this._kickoffActive = true;
     }
 
