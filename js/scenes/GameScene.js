@@ -28,8 +28,10 @@ const B_BOUNCE  = 0.5;     // bCoef
 const SCORE_WIN     = 7;
 const GAME_TIME     = 3 * 60;
 const KICK_COOLDOWN = 400;
-const WALL_BOUNCE   = 0.5;   // ballArea bCoef
+const WALL_BOUNCE   = 1.0;   // ballArea bCoef (Haxball exact)
 const POST_BOUNCE   = 0.5;   // goalPost bCoef
+const NET_BOUNCE    = 0.1;   // goalNet bCoef (back wall + crossbars)
+const POST_RADIUS   = 8;     // goal post disc radius (Haxball exact)
 const SUB_STEPS     = 2;     // Haxball uses 2 sub-steps per frame
 
 class GameScene extends Phaser.Scene {
@@ -69,11 +71,16 @@ class GameScene extends Phaser.Scene {
         soundManager.startAmbient();
         soundManager.whistle();
 
-        // Camera setup — center on field, include goals
-        this.cameras.main.setBounds(0, 0, GAME_W, GAME_H);
+        // Camera setup — center on field
+        const GW = this.scale.width;
+        const GH = this.scale.height;
+        this.cameras.main.setBounds(0, 0, GW, GH);
         this.cameras.main.centerOn(F.CX, F.CY);
+        this._cameraMode = 3;
+        window._gameZoom = 1;
 
         this._drawField();
+        this._createGoalPosts();
         this._buildWalls();
         this._spawnEntities();
         this._setupInput();
@@ -141,6 +148,16 @@ class GameScene extends Phaser.Scene {
             g.lineBetween(F.X + F.W, y, F.X + F.W + F.GOAL_D, y);
         for (let x = F.X + F.W + 18; x < F.X + F.W + F.GOAL_D; x += 18)
             g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
+
+        // Goal posts — circles matching Haxball physics discs (radius=8)
+        g.fillStyle(0xffffff, 1);
+        g.lineStyle(2, 0x000000, 1);
+        [F.X, F.X + F.W].forEach(px => {
+            [F.GOAL_TOP, F.GOAL_BOT].forEach(py => {
+                g.fillCircle(px, py, POST_RADIUS);
+                g.strokeCircle(px, py, POST_RADIUS);
+            });
+        });
     }
 
     // ── Walls (for player collision, not ball) ─────────────────────
@@ -268,54 +285,66 @@ class GameScene extends Phaser.Scene {
 
     // ── HUD ────────────────────────────────────────────────────────
     _buildHUD() {
-        const s = (color) => ({
+        const GW = this.scale.width;
+        const GH = this.scale.height;
+        const sf = (obj) => obj.setScrollFactor(0).setDepth(20);
+
+        const scoreStyle = (color) => ({
             fontSize: '34px', fontFamily: 'Verdana, Arial Black, sans-serif',
             color, stroke: '#000', strokeThickness: 5
         });
-        this.hudBlue = this.add.text(F.CX - 80, 8, '0', s('#8888ff')).setOrigin(0.5, 0).setDepth(20);
-        this.hudRed  = this.add.text(F.CX + 80, 8, '0', s('#ff4444')).setOrigin(0.5, 0).setDepth(20);
-        this.add.text(F.CX, 8, '–', {
+        this.hudBlue = sf(this.add.text(GW / 2 - 80, 8, '0', scoreStyle('#8888ff')).setOrigin(0.5, 0));
+        this.hudRed  = sf(this.add.text(GW / 2 + 80, 8, '0', scoreStyle('#ff4444')).setOrigin(0.5, 0));
+        sf(this.add.text(GW / 2, 8, '–', {
             fontSize: '28px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ffffff', stroke: '#000', strokeThickness: 4
-        }).setOrigin(0.5, 0).setDepth(20);
-        this.hudTime = this.add.text(F.CX, GAME_H - 26, this._fmt(this.timeLeft), {
+        }).setOrigin(0.5, 0));
+
+        this.hudTime = sf(this.add.text(GW / 2, GH - 26, this._fmt(this.timeLeft), {
             fontSize: '17px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#eeeeee', stroke: '#000', strokeThickness: 3
-        }).setOrigin(0.5, 0).setDepth(20);
-        this.add.text(F.X + 20, 8, 'AZUL', {
+        }).setOrigin(0.5, 0));
+
+        sf(this.add.text(F.X + 20, 8, 'AZUL', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#8888ff', stroke: '#000', strokeThickness: 3
-        }).setDepth(20);
-        this.add.text(F.X + F.W - 20, 8, 'ROJO', {
+        }));
+        sf(this.add.text(F.X + F.W - 20, 8, 'ROJO', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ff4444', stroke: '#000', strokeThickness: 3
-        }).setOrigin(1, 0).setDepth(20);
+        }).setOrigin(1, 0));
 
-        this.shootBlueBtn = this.add.text(12, GAME_H - 26, '⚡ SHOOT (ESPACIO)', {
+        this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
-        }).setDepth(20).setInteractive({ useHandCursor: true });
+        }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
         this.shootBlueBtn.on('pointerup',   () => { this._forceKick = false; });
-        this.shootRedBtn = this.add.text(GAME_W - 175, GAME_H - 26, '⚡ SHOOT (SHIFT)', {
+
+        this.shootRedBtn = this.add.text(GW - 175, GH - 26, '⚡ SHOOT (SHIFT)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
-        }).setDepth(20).setInteractive({ useHandCursor: true });
+        }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
         this.shootRedBtn.on('pointerup',   () => { this._forceKickRed = false; });
 
         const hint = this.is2v2
-            ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  ENTER: chat'
-            : 'WASD: Azul   ↑↓←→: Rojo   |   ENTER: chat   ESC: Menú';
-        this.add.text(F.CX, F.Y + F.H + 5, hint, {
+            ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  1/2/3: cámara  ENTER: chat'
+            : 'WASD: Azul   ↑↓←→: Rojo   |   1/2/3: cámara   ENTER: chat   ESC: Menú';
+        sf(this.add.text(GW / 2, GH - 42, hint, {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
-        }).setOrigin(0.5, 0).setDepth(20);
+        }).setOrigin(0.5, 0));
+
+        // Camera mode indicator
+        this.hudCam = sf(this.add.text(GW - 6, 8, '📷3', {
+            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
+        }).setOrigin(1, 0));
 
         if (this.isOnline) {
             const code = (this.scene.get('OnlineScene') || {}).roomCode || '—';
-            this.add.text(8, GAME_H - 48, 'Sala: ' + code, {
+            sf(this.add.text(8, GH - 48, 'Sala: ' + code, {
                 fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', color: '#66aa66'
-            }).setDepth(20);
+            }));
         }
     }
 
@@ -384,7 +413,12 @@ class GameScene extends Phaser.Scene {
             else this._submitChat();
             return;
         }
-        if (!this._chatOpen) return;
+        if (!this._chatOpen) {
+            if (ev.key === '1') { this._setCameraMode(1); return; }
+            if (ev.key === '2') { this._setCameraMode(2); return; }
+            if (ev.key === '3') { this._setCameraMode(3); return; }
+            return;
+        }
         if (ev.key === 'Backspace') {
             this._chatInput = this._chatInput.slice(0, -1);
         } else if (ev.key.length === 1) {
@@ -447,7 +481,9 @@ class GameScene extends Phaser.Scene {
             case 'zoom': {
                 const z = parseFloat(args[0]);
                 if (z > 0 && z <= 4) {
+                    window._gameZoom = z;
                     this.cameras.main.setZoom(z);
+                    if (this._cameraMode === 3) this.cameras.main.centerOn(F.CX, F.CY);
                     this._addChatMessage(`Zoom: ${z}x`, '#aaffaa');
                 } else this._addChatMessage('Uso: /zoom <0.5–4>', '#ffaaaa');
                 break;
@@ -589,6 +625,37 @@ class GameScene extends Phaser.Scene {
         this.ws.send(JSON.stringify({ type: 'state', data: state }));
     }
 
+    // ── Camera modes (1=close follow, 2=medium follow, 3=full field) ──
+    _setCameraMode(mode) {
+        this._cameraMode = mode;
+        const cam = this.cameras.main;
+        if (mode === 3) {
+            cam.stopFollow();
+            cam.setZoom(1);
+            cam.centerOn(F.CX, F.CY);
+            window._gameZoom = 1;
+        } else if (mode === 2) {
+            cam.startFollow(this.ball, true, 0.08, 0.08);
+            cam.setZoom(1.35);
+            window._gameZoom = 1.35;
+        } else {
+            cam.startFollow(this.ball, true, 0.12, 0.12);
+            cam.setZoom(1.9);
+            window._gameZoom = 1.9;
+        }
+        if (this.hudCam) this.hudCam.setText('📷' + mode);
+    }
+
+    // ── Goal posts (Haxball: 4 static discs radius=8, invMass=0) ──
+    _createGoalPosts() {
+        this._goalPosts = [
+            { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0 },
+            { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+            { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0 },
+            { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+        ];
+    }
+
     // ── Custom Haxball Physics Engine ──────────────────────────────
 
     // Haxball disc-to-disc collision (exact impulse math)
@@ -631,54 +698,50 @@ class GameScene extends Phaser.Scene {
         b._vy += impulse * invMB * ny;
     }
 
-    // Ball-to-wall collision (Haxball segment/plane math)
+    // Ball-to-wall collision with Haxball-exact bCoef per zone
     _resolveBallWall(b, radius) {
         const r = radius;
-        const bounce = B_BOUNCE;
 
-        // Top wall
+        // Field outer walls — ballArea bCoef = 1.0 (perfect bounce)
         if (b.y < F.Y + r) {
             b.y = F.Y + r;
-            if (b._vy < 0) b._vy = -b._vy * bounce;
+            if (b._vy < 0) b._vy = -b._vy * WALL_BOUNCE;
         }
-        // Bottom wall
         if (b.y > F.Y + F.H - r) {
             b.y = F.Y + F.H - r;
-            if (b._vy > 0) b._vy = -b._vy * bounce;
+            if (b._vy > 0) b._vy = -b._vy * WALL_BOUNCE;
         }
 
         const inGoalY = b.y > F.GOAL_TOP && b.y < F.GOAL_BOT;
 
-        // Left wall (outside goal)
         if (b.x < F.X - r && !inGoalY) {
             b.x = F.X - r;
-            if (b._vx < 0) b._vx = -b._vx * bounce;
+            if (b._vx < 0) b._vx = -b._vx * WALL_BOUNCE;
         }
-        // Right wall (outside goal)
         if (b.x > F.X + F.W + r && !inGoalY) {
             b.x = F.X + F.W + r;
-            if (b._vx > 0) b._vx = -b._vx * bounce;
+            if (b._vx > 0) b._vx = -b._vx * WALL_BOUNCE;
         }
 
-        // Inside goal area
+        // Goal back wall — goalNet bCoef = 0.1 (ball slows down in goal)
         if (inGoalY) {
             const leftBack  = F.X - F.GOAL_D + r;
             const rightBack = F.X + F.W + F.GOAL_D - r;
-            if (b.x < leftBack)  { b.x = leftBack;  if (b._vx < 0) b._vx = -b._vx * bounce; }
-            if (b.x > rightBack) { b.x = rightBack; if (b._vx > 0) b._vx = -b._vx * bounce; }
+            if (b.x < leftBack)  { b.x = leftBack;  if (b._vx < 0) b._vx = -b._vx * NET_BOUNCE; }
+            if (b.x > rightBack) { b.x = rightBack; if (b._vx > 0) b._vx = -b._vx * NET_BOUNCE; }
         }
 
-        // Goal post tops/bottoms (crossbar)
+        // Goal net top/bottom (inside goal X range) — net bCoef = 0.1
         const inGoalXL = b.x < F.X - r;
         const inGoalXR = b.x > F.X + F.W + r;
         if (inGoalXL || inGoalXR) {
             if (b.y < F.GOAL_TOP + r) {
                 b.y = F.GOAL_TOP + r;
-                if (b._vy < 0) b._vy = -b._vy * bounce;
+                if (b._vy < 0) b._vy = -b._vy * NET_BOUNCE;
             }
             if (b.y > F.GOAL_BOT - r) {
                 b.y = F.GOAL_BOT - r;
-                if (b._vy > 0) b._vy = -b._vy * bounce;
+                if (b._vy > 0) b._vy = -b._vy * NET_BOUNCE;
             }
         }
     }
@@ -730,6 +793,16 @@ class GameScene extends Phaser.Scene {
 
         // Ball-wall collisions
         this._resolveBallWall(ball, B_RADIUS);
+
+        // Ball-goalpost collisions (Haxball: 4 static discs, invMass=0, bCoef=0.5)
+        for (const post of this._goalPosts) {
+            this._resolveDiscDisc(
+                ball, post,
+                B_RADIUS, POST_RADIUS,
+                B_INV_M, 0,
+                B_BOUNCE, POST_BOUNCE
+            );
+        }
 
         // Player-ball collisions
         for (const p of players) {
@@ -827,6 +900,7 @@ class GameScene extends Phaser.Scene {
         // Apply mouse wheel zoom
         if (window._gameZoom !== this.cameras.main.zoom) {
             this.cameras.main.setZoom(window._gameZoom);
+            if (this._cameraMode === 3) this.cameras.main.centerOn(F.CX, F.CY);
         }
 
         if (this.paused) return;
