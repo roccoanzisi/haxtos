@@ -870,8 +870,10 @@ class GameScene extends Phaser.Scene {
             for (const p of players)
                 this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
         }
-        if (!this._kickoffActive) {
-            for (const p of players)
+        for (const p of players) {
+            const isBlue = p._normalTexture.includes('blue');
+            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
+            if (!this._kickoffActive || isKicking)
                 this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
         }
     }
