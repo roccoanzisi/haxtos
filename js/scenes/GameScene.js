@@ -52,6 +52,8 @@ class GameScene extends Phaser.Scene {
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.stadiumCfg = STADIUMS[this.stadium] || STADIUMS.classic;
+        this._stadCanvasW = (data && data.stadCanvasW) || GAME_W;
+        this._stadCanvasH = (data && data.stadCanvasH) || GAME_H;
         this._chatOpen = false;
         this._chatInput = '';
         this._chatMessages = [];
@@ -70,13 +72,10 @@ class GameScene extends Phaser.Scene {
         soundManager.startAmbient();
         soundManager.whistle();
 
-        // Camera setup — center on field
-        const GW = this.scale.width;
-        const GH = this.scale.height;
-        this.cameras.main.setBounds(0, 0, GW, GH);
-        this.cameras.main.centerOn(F.CX, F.CY);
         this._cameraMode = 3;
-        window._gameZoom = 1;
+        this._baseZoom = 1;
+        this._setupCamera();
+        this.scale.on('resize', this._setupCamera, this);
 
         this._drawField();
         this._createGoalPosts();
@@ -105,14 +104,36 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
     }
 
+    // ── Camera (RESIZE mode: native canvas, zoom-to-fit field) ───────
+    _setupCamera() {
+        const cw = this.scale.width;
+        const ch = this.scale.height;
+        this._baseZoom = Math.min(cw / this._stadCanvasW, ch / this._stadCanvasH);
+        window._baseZoom = this._baseZoom;
+        const cam = this.cameras.main;
+        cam.setBounds(0, 0, this._stadCanvasW, this._stadCanvasH);
+        if (this._cameraMode === 3) {
+            cam.stopFollow();
+            cam.setZoom(this._baseZoom);
+            cam.centerOn(F.CX, F.CY);
+            window._gameZoom = this._baseZoom;
+        } else if (this._cameraMode === 2) {
+            cam.setZoom(this._baseZoom * 1.35);
+            window._gameZoom = this._baseZoom * 1.35;
+        } else {
+            cam.setZoom(this._baseZoom * 1.9);
+            window._gameZoom = this._baseZoom * 1.9;
+        }
+    }
+
     // ── Field (stadium-aware) ──────────────────────────────────────
     _drawField() {
         const g = this.add.graphics();
         const s = this.stadiumCfg;
 
-        // Outer background (color of the area outside the field, like in Haxball)
+        // Outer background — large enough to cover any camera position
         g.fillStyle(s.bgColor, 1);
-        g.fillRect(0, 0, this.scale.width, this.scale.height);
+        g.fillRect(0, 0, this._stadCanvasW, this._stadCanvasH);
 
         for (let i = 0; i < 8; i++) {
             g.fillStyle(i % 2 === 0 ? s.grass1 : s.grass2, 1);
@@ -320,14 +341,14 @@ class GameScene extends Phaser.Scene {
             color: '#eeeeee', stroke: '#000', strokeThickness: 3
         }).setOrigin(0.5, 0));
 
-        sf(this.add.text(F.X + 20, 8, 'AZUL', {
+        this.add.text(F.X + 20, F.Y - 16, 'AZUL', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#8888ff', stroke: '#000', strokeThickness: 3
-        }));
-        sf(this.add.text(F.X + F.W - 20, 8, 'ROJO', {
+        }).setOrigin(0, 0.5).setDepth(20);
+        this.add.text(F.X + F.W - 20, F.Y - 16, 'ROJO', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ff4444', stroke: '#000', strokeThickness: 3
-        }).setOrigin(1, 0));
+        }).setOrigin(1, 0.5).setDepth(20);
 
         this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
@@ -410,7 +431,7 @@ class GameScene extends Phaser.Scene {
 
     // ── Chat ───────────────────────────────────────────────────────
     _buildChatUI() {
-        const H = GAME_H;
+        const H = this._stadCanvasH;
         const LOG = 5;
         this._chatLogBg = this.add.rectangle(0, H - 130, 440, LOG * 20 + 10, 0x000000, 0.55)
             .setOrigin(0, 0).setDepth(49).setVisible(false);
@@ -653,17 +674,17 @@ class GameScene extends Phaser.Scene {
         const cam = this.cameras.main;
         if (mode === 3) {
             cam.stopFollow();
-            cam.setZoom(1);
+            cam.setZoom(this._baseZoom);
             cam.centerOn(F.CX, F.CY);
-            window._gameZoom = 1;
+            window._gameZoom = this._baseZoom;
         } else if (mode === 2) {
             cam.startFollow(this.ball, true, 0.08, 0.08);
-            cam.setZoom(1.35);
-            window._gameZoom = 1.35;
+            cam.setZoom(this._baseZoom * 1.35);
+            window._gameZoom = this._baseZoom * 1.35;
         } else {
             cam.startFollow(this.ball, true, 0.12, 0.12);
-            cam.setZoom(1.9);
-            window._gameZoom = 1.9;
+            cam.setZoom(this._baseZoom * 1.9);
+            window._gameZoom = this._baseZoom * 1.9;
         }
         if (this.hudCam) this.hudCam.setText('📷' + mode);
     }

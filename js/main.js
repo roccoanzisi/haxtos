@@ -34,8 +34,7 @@ const game = new Phaser.Game({
     },
     scene: [PreloadScene, MenuScene, ConfigScene, OnlineScene, GameScene, GoalScene, WinScene],
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        mode: Phaser.Scale.RESIZE
     }
 });
 
@@ -43,6 +42,7 @@ const game = new Phaser.Game({
 window._gameZoom = 1;
 window.addEventListener('wheel', function(e) {
     e.preventDefault();
+    const base = window._baseZoom || 1;
     window._gameZoom -= e.deltaY * 0.001;
-    window._gameZoom = Math.max(0.5, Math.min(3, window._gameZoom));
+    window._gameZoom = Math.max(base * 0.4, Math.min(base * 4, window._gameZoom));
 }, { passive: false });

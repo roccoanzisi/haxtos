@@ -75,10 +75,10 @@ class MenuScene extends Phaser.Scene {
     _drawField() {
         const g = this.add.graphics();
         g.fillStyle(0x2d7a2d, 1);
-        g.fillRect(0, 0, GAME_W, GAME_H);
+        g.fillRect(0, 0, W, H);
         g.fillStyle(0x287028, 1);
         for (let i = 0; i < 8; i++) {
-            if (i % 2 === 0) g.fillRect(i * (GAME_W / 8), 0, GAME_W / 8, GAME_H);
+            if (i % 2 === 0) g.fillRect(i * (W / 8), 0, W / 8, H);
         }
         g.alpha = 0.4;
     }

@@ -247,10 +247,8 @@ class ConfigScene extends Phaser.Scene {
     _startGame() {
         const s = STADIUMS[this.selectedStadium];
 
-        // Resize canvas first
-        game.scale.resize(s.canvasW, s.canvasH);
-
-        // Recalculate F — margins = (canvas - field) / 2
+        // Recalculate F — margins = (stadiumCanvas - field) / 2
+        // Canvas stays at window size (Scale.RESIZE); camera zoom handles display
         F.W = s.W;
         F.H = s.H;
         F.X = Math.floor((s.canvasW - s.W) / 2);
@@ -273,6 +271,8 @@ class ConfigScene extends Phaser.Scene {
             scoreWin: this.selectedGoals,
             timeLimit: this.selectedTime,
             stadium: this.selectedStadium,
+            stadCanvasW: s.canvasW,
+            stadCanvasH: s.canvasH,
         });
     }
 }
