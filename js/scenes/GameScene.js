@@ -83,6 +83,7 @@ class GameScene extends Phaser.Scene {
         this._createGoalPosts();
         this._buildWalls();
         this._spawnEntities();
+        this._applyHBSBallPhysics();
         this._setupInput();
         this._setupCollisions();
         this._buildHUD();
@@ -177,6 +178,31 @@ class GameScene extends Phaser.Scene {
         window._gameZoom = 1;
         window._baseZoom = 1;
         this._baseZoom = 1;
+    }
+
+    _applyHBSBallPhysics() {
+        if (!this.hbsData || !this._hbsField) return;
+        let bp = this._hbsField.ballPhysics;
+        if (!bp) return;
+
+        // "disc0" → use first disc definition as ball template
+        if (bp === 'disc0') bp = (this.hbsData.discs || [])[0] || null;
+        if (!bp) return;
+
+        if (bp.radius  != null) {
+            this.ball._radius = bp.radius;
+            // Update Phaser physics circle + scale sprite to match
+            const scale = bp.radius / B_RADIUS;
+            this.ball.setCircle(bp.radius, 1, 1);
+            this.ball.setScale(scale);
+        }
+        if (bp.damping != null) this.ball._damping = bp.damping;
+        if (bp.invMass != null) this.ball._invMass  = bp.invMass;
+        if (bp.bCoef   != null) this.ball._bCoef    = bp.bCoef;
+        if (bp.color   != null) {
+            const c = HBSLoader.parseColor(bp.color);
+            if (c !== null) this.ball.setTint(c);
+        }
     }
 
     // ── Field (stadium-aware) ──────────────────────────────────────
@@ -393,6 +419,11 @@ class GameScene extends Phaser.Scene {
         this.ball.setDepth(10);
         this.ball._vx = 0;
         this.ball._vy = 0;
+        // Per-ball physics (can be overridden by HBS ballPhysics)
+        this.ball._radius  = B_RADIUS;
+        this.ball._damping = B_DAMPING;
+        this.ball._invMass = B_INV_M;
+        this.ball._bCoef   = B_BOUNCE;
     }
 
     _spawnPlayers() {
@@ -985,10 +1016,10 @@ class GameScene extends Phaser.Scene {
                 const dx = ball.x - p.x;
                 const dy = ball.y - p.y;
                 const dist = Math.hypot(dx, dy);
-                if (dist - P_RADIUS - B_RADIUS < 4 && dist > 0.1) {
+                if (dist - P_RADIUS - ball._radius < 4 && dist > 0.1) {
                     const nx = dx / dist, ny = dy / dist;
-                    ball._vx += nx * KICK_POWER * B_INV_M;
-                    ball._vy += ny * KICK_POWER * B_INV_M;
+                    ball._vx += nx * KICK_POWER * ball._invMass;
+                    ball._vy += ny * KICK_POWER * ball._invMass;
                     if (!this._kickSoundPlayed) {
                         soundManager.kick(Math.hypot(ball._vx, ball._vy));
                         this._kickSoundPlayed = true;
@@ -1006,8 +1037,8 @@ class GameScene extends Phaser.Scene {
         }
 
         // 4. Damping applied after move (Haxball: vel = (vel + grav) * damp, grav=0)
-        ball._vx *= B_DAMPING;
-        ball._vy *= B_DAMPING;
+        ball._vx *= ball._damping;
+        ball._vy *= ball._damping;
         for (const p of players) {
             const damp = p._isKicking ? PK_DAMPING : P_DAMPING;
             p._vx *= damp;
@@ -1020,11 +1051,11 @@ class GameScene extends Phaser.Scene {
         for (let i = 0; i < players.length; i++)
             for (let j = i + 1; j < players.length; j++)
                 this._resolveDiscDisc(players[i], players[j], P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
-        this._resolveBallWall(ball, B_RADIUS);
+        this._resolveBallWall(ball, ball._radius);
         for (const post of this._goalPosts)
-            this._resolveDiscDisc(ball, post, B_RADIUS, POST_RADIUS, B_INV_M, 0, B_BOUNCE, POST_BOUNCE);
+            this._resolveDiscDisc(ball, post, ball._radius, POST_RADIUS, ball._invMass, 0, ball._bCoef, POST_BOUNCE);
         for (const cd of this._cornerDiscs) {
-            this._resolveDiscDisc(ball, cd, B_RADIUS, cd.r, B_INV_M, 0, B_BOUNCE, WALL_BOUNCE);
+            this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
             for (const p of players)
                 this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
         }
@@ -1032,7 +1063,7 @@ class GameScene extends Phaser.Scene {
             const isBlue = p._normalTexture.includes('blue');
             const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
             if (!this._kickoffActive || isKicking)
-                this._resolveDiscDisc(p, ball, P_RADIUS, B_RADIUS, P_INV_M, B_INV_M, P_BOUNCE, B_BOUNCE);
+                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, P_INV_M, ball._invMass, P_BOUNCE, ball._bCoef);
         }
     }
 
@@ -1210,18 +1241,19 @@ class GameScene extends Phaser.Scene {
         if (this.goalLock) return;
         const bx = this.ball.x, by = this.ball.y;
 
+        const br = this.ball._radius;
         if (this._hbsGoals) {
             for (const g of this._hbsGoals) {
-                const inY = by > g.goalTop + B_RADIUS && by < g.goalBot - B_RADIUS;
-                if (g.isLeft  && bx < g.worldX - B_RADIUS && inY) { this._goal(g.team); return; }
-                if (!g.isLeft && bx > g.worldX + B_RADIUS && inY) { this._goal(g.team); return; }
+                const inY = by > g.goalTop + br && by < g.goalBot - br;
+                if (g.isLeft  && bx < g.worldX - br && inY) { this._goal(g.team); return; }
+                if (!g.isLeft && bx > g.worldX + br && inY) { this._goal(g.team); return; }
             }
             return;
         }
 
-        const inY = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
-        if (bx < F.X - B_RADIUS && inY) this._goal('red');
-        else if (bx > F.X + F.W + B_RADIUS && inY) this._goal('blue');
+        const inY = by > F.GOAL_TOP + br && by < F.GOAL_BOT - br;
+        if (bx < F.X - br && inY) this._goal('red');
+        else if (bx > F.X + F.W + br && inY) this._goal('blue');
     }
 
     _goal(team) {
