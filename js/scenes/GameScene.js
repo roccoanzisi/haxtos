@@ -466,10 +466,13 @@ class GameScene extends Phaser.Scene {
             this.keys3 = kb.addKeys({ up: 'T', down: 'G', left: 'F', right: 'H' });
             this.keys4 = kb.addKeys({ up: 'I', down: 'K', left: 'J', right: 'L' });
         }
-        kb.on('keydown-ESCAPE', () => {
+        // ESC via document listener (más fiable que Phaser kb para esta tecla)
+        this._escKeyHandler = (e) => {
+            if (e.key !== 'Escape') return;
             if (this._chatOpen) { this._closeChat(); return; }
             this._escVisible ? this._hideEscPanel() : this._showEscPanel();
-        });
+        };
+        document.addEventListener('keydown', this._escKeyHandler);
         kb.on('keydown', (ev) => this._handleChatKey(ev));
     }
 
@@ -775,6 +778,12 @@ class GameScene extends Phaser.Scene {
     // ── ESC Panel (room view, like Haxball) — DOM overlay ─────────
     _buildEscPanel() {
         this._escVisible = false;
+        this._escPanel = null;
+        try { this._buildEscPanelInner(); }
+        catch(e) { console.error('[ESC Panel]', e); }
+    }
+
+    _buildEscPanelInner() {
         // Remove any leftover panel from a previous scene restart
         const old = document.getElementById('_haxEscPanel');
         if (old) old.remove();
@@ -1283,6 +1292,10 @@ class GameScene extends Phaser.Scene {
     shutdown() {
         const p = document.getElementById('_haxEscPanel');
         if (p) p.remove();
+        if (this._escKeyHandler) {
+            document.removeEventListener('keydown', this._escKeyHandler);
+            this._escKeyHandler = null;
+        }
     }
 
     update() {
