@@ -57,7 +57,8 @@ class ConfigScene extends Phaser.Scene {
 
     init(data) {
         this.mode = (data && data.mode) || 'local1v1';
-        this.selectedStadium = (data && data.stadium) || 'classic';
+        this.hbsMode = !!(data && data.hbs) && !!(window._hbsData);
+        this.selectedStadium = this.hbsMode ? 'hbs' : ((data && data.stadium) || 'classic');
         this.selectedGoals = (data && data.goals !== undefined) ? data.goals : 7;
         this.selectedTime = (data && data.time !== undefined) ? data.time : 3 * 60;
         this.goalOptions = [
@@ -85,23 +86,43 @@ class ConfigScene extends Phaser.Scene {
             color: '#ffffff', stroke: '#000', strokeThickness: 5
         }).setOrigin(0.5);
 
-        // Stadium selector — row 1: Classic, Big, Hockey / row 2: Big Hockey, Rounded
+        // Stadium selector
         this.add.text(W / 2, 62, 'Estadio', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif', color: '#aaa'
         }).setOrigin(0.5);
 
-        const stadKeys = Object.keys(STADIUMS);
-        const row1 = stadKeys.slice(0, 3);
-        const row2 = stadKeys.slice(3);
+        if (this.hbsMode && window._hbsData) {
+            // HBS map selected: show map name and a "change" option
+            const mapName = window._hbsData._fileName || window._hbsData.name || 'Mapa HBS';
+            const hbsBg = this.add.rectangle(W / 2, 88, 340, 26, 0x664400, 1)
+                .setStrokeStyle(3, 0xffffff).setInteractive();
+            this.add.text(W / 2, 88, '🗺 ' + mapName, {
+                fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
+                color: '#ffffff', stroke: '#000', strokeThickness: 3
+            }).setOrigin(0.5);
+            hbsBg.on('pointerdown', () => this.scene.start('MenuScene'));
+            hbsBg.on('pointerover', () => hbsBg.setAlpha(0.7));
+            hbsBg.on('pointerout',  () => hbsBg.setAlpha(1));
 
-        row1.forEach((key, i) => {
-            const s = STADIUMS[key];
-            this._stadBtn(W / 2 - 155 + i * 155, 88, s.name, s.grass1, s.lineColor, key);
-        });
-        row2.forEach((key, i) => {
-            const s = STADIUMS[key];
-            this._stadBtn(W / 2 - 78 + i * 155, 118, s.name, s.grass1, s.lineColor, key);
-        });
+            // Normal stadiums below as alternative
+            const stadKeys = Object.keys(STADIUMS);
+            stadKeys.forEach((key, i) => {
+                const s = STADIUMS[key];
+                this._stadBtn(W / 2 - 310 + i * 130, 118, s.name, s.grass1, s.lineColor, key);
+            });
+        } else {
+            const stadKeys = Object.keys(STADIUMS);
+            const row1 = stadKeys.slice(0, 3);
+            const row2 = stadKeys.slice(3);
+            row1.forEach((key, i) => {
+                const s = STADIUMS[key];
+                this._stadBtn(W / 2 - 155 + i * 155, 88, s.name, s.grass1, s.lineColor, key);
+            });
+            row2.forEach((key, i) => {
+                const s = STADIUMS[key];
+                this._stadBtn(W / 2 - 78 + i * 155, 118, s.name, s.grass1, s.lineColor, key);
+            });
+        }
 
         // Score selector
         this.add.text(W / 2, 152, 'Goles para ganar', {
@@ -154,6 +175,7 @@ class ConfigScene extends Phaser.Scene {
         }).setOrigin(0.5);
         bg.on('pointerdown', () => {
             this.selectedStadium = key;
+            this.hbsMode = false;
             this._previewField();
         });
         bg.on('pointerover', () => bg.setAlpha(0.7));
@@ -179,7 +201,8 @@ class ConfigScene extends Phaser.Scene {
             else this.selectedTime = value;
             this.scene.restart({
                 mode: this.mode, stadium: this.selectedStadium,
-                goals: this.selectedGoals, time: this.selectedTime
+                goals: this.selectedGoals, time: this.selectedTime,
+                hbs: this.hbsMode
             });
         });
         bg.on('pointerover', () => bg.setAlpha(0.7));
@@ -188,6 +211,11 @@ class ConfigScene extends Phaser.Scene {
 
     _previewField() {
         if (this._preview) this._preview.destroy();
+
+        if (this.hbsMode && window._hbsData) {
+            this._drawHBSPreview();
+            return;
+        }
 
         const s = STADIUMS[this.selectedStadium];
         const scale = 0.33;
@@ -231,6 +259,61 @@ class ConfigScene extends Phaser.Scene {
         }
     }
 
+    _drawHBSPreview() {
+        const fd = HBSLoader.getFieldData(window._hbsData);
+        const scale = Math.min(0.33, 320 / fd.W, 160 / fd.H);
+        const pw = fd.W * scale;
+        const ph = fd.H * scale;
+        const px = this.scale.width / 2 - pw / 2;
+        const py = 298;
+
+        this._preview = this.add.graphics();
+        const isHockey = fd.bgType.includes('hockey');
+        const bg1 = isHockey ? 0x333333 : 0x4a6741;
+        const bg2 = isHockey ? 0x2e2e2e : 0x3a5530;
+        const lc  = isHockey ? 0xE9CC6E  : 0xC7E6BD;
+
+        for (let i = 0; i < 8; i++) {
+            this._preview.fillStyle(i % 2 === 0 ? bg1 : bg2, 1);
+            this._preview.fillRect(px, py + i * (ph / 8), pw, ph / 8);
+        }
+        this._preview.lineStyle(2, lc, 0.9);
+        this._preview.strokeRect(px, py, pw, ph);
+        this._preview.lineStyle(1, lc, 0.6);
+        this._preview.lineBetween(px + pw / 2, py, px + pw / 2, py + ph);
+        const cr = fd.kickOffRadius * scale;
+        this._preview.strokeCircle(px + pw / 2, py + ph / 2, cr);
+
+        // Goals
+        if (fd.goals.length >= 2) {
+            const gh = Math.abs(fd.goals[0].p1.y - fd.goals[0].p0.y) * scale;
+            const gcx = py + ph / 2;
+            const gd = fd.GOAL_D * scale;
+            this._preview.fillStyle(bg2, 1);
+            this._preview.fillRect(px - gd, gcx - gh / 2, gd, gh);
+            this._preview.fillRect(px + pw, gcx - gh / 2, gd, gh);
+            this._preview.lineStyle(2, 0xCCCCFF, 0.8);
+            this._preview.strokeRect(px - gd, gcx - gh / 2, gd, gh);
+            this._preview.lineStyle(2, 0xFFCCCC, 0.8);
+            this._preview.strokeRect(px + pw, gcx - gh / 2, gd, gh);
+        }
+
+        // Draw visible segments
+        const vtx = fd.vertexes;
+        const fcx = px + pw / 2;
+        const fcy = py + ph / 2;
+        for (const seg of fd.segments) {
+            if (seg.v0 >= vtx.length || seg.v1 >= vtx.length) continue;
+            const v0 = vtx[seg.v0];
+            const v1 = vtx[seg.v1];
+            const color = HBSLoader.parseColor(seg.color) || lc;
+            this._preview.lineStyle(1, color, 0.8);
+            const p0 = { x: fcx + v0.x * scale, y: fcy - v0.y * scale };
+            const p1 = { x: fcx + v1.x * scale, y: fcy - v1.y * scale };
+            HBSLoader.drawSegment(this._preview, p0, p1, seg.curve || 0);
+        }
+    }
+
     _btn(x, y, label, color, cb) {
         const bg = this.add.rectangle(
             x, y, 200, 36,
@@ -245,6 +328,32 @@ class ConfigScene extends Phaser.Scene {
     }
 
     _startGame() {
+        if (this.hbsMode && window._hbsData) {
+            const fd = HBSLoader.getFieldData(window._hbsData);
+            const cw = window.innerWidth;
+            const ch = window.innerHeight;
+            F.W = fd.W; F.H = fd.H;
+            F.X = Math.floor((cw - fd.W) / 2);
+            F.Y = Math.floor((ch - fd.H) / 2);
+            F.GOAL_H = fd.GOAL_H; F.GOAL_D = fd.GOAL_D; F.WALL_T = 22;
+            F.CX = F.X + F.W / 2; F.CY = F.Y + F.H / 2;
+            F.GOAL_TOP = F.CY - F.GOAL_H / 2;
+            F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+            F.OUTER_X_MIN = F.CX - fd.camW; F.OUTER_X_MAX = F.CX + fd.camW;
+            F.OUTER_Y_MIN = F.CY - fd.camH; F.OUTER_Y_MAX = F.CY + fd.camH;
+            soundManager.whistle();
+            this.scene.start('GameScene', {
+                mode: this.mode,
+                scoreWin: this.selectedGoals,
+                timeLimit: this.selectedTime,
+                stadium: 'hbs',
+                hbs: window._hbsData,
+                stadCanvasW: cw,
+                stadCanvasH: ch,
+            });
+            return;
+        }
+
         const s = STADIUMS[this.selectedStadium];
 
         // Recalculate F — margins = (stadiumCanvas - field) / 2

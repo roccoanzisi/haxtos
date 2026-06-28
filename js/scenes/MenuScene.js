@@ -31,17 +31,49 @@ class MenuScene extends Phaser.Scene {
             this.scene.start('OnlineScene');
         });
 
-        this.add.text(W / 2, 450, 'Azul 1: WASD  |  Azul 2: TGFH  |  Rojo 1: ↑↓←→  |  Rojo 2: IJKL', {
+        this._button(W / 2, 440, '🗺️  CARGAR MAPA (.hbs)', '#664400', () => this._loadHBS());
+
+        this.add.text(W / 2, 510, 'Azul 1: WASD  |  Azul 2: TGFH  |  Rojo 1: ↑↓←→  |  Rojo 2: IJKL', {
             fontSize: '13px', fontFamily: 'Arial, sans-serif',
             color: '#999999'
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, 475, 'Patada: ESPACIO (Azul) / SHIFT (Rojo)', {
+        this.add.text(W / 2, 535, 'Patada: ESPACIO (Azul) / SHIFT (Rojo)', {
             fontSize: '13px', fontFamily: 'Arial, sans-serif',
             color: '#777777'
         }).setOrigin(0.5);
 
         this.soundBtn = this._soundToggle(W - 30, 20);
+    }
+
+    _loadHBS() {
+        let input = document.getElementById('_hbsFileInput');
+        if (!input) {
+            input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.hbs';
+            input.id = '_hbsFileInput';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+        }
+        input.value = '';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    window._hbsData = HBSLoader.load(ev.target.result);
+                    window._hbsData._fileName = file.name;
+                    this.scene.start('ConfigScene', { mode: 'local1v1', hbs: true });
+                } catch (err) {
+                    console.error('Error al cargar HBS:', err);
+                    alert('Error al leer el archivo: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
     }
 
     _soundToggle(x, y) {

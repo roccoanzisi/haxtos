@@ -51,7 +51,10 @@ class GameScene extends Phaser.Scene {
         this.isHost = this.playerIndex === 0;
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
-        this.stadiumCfg = STADIUMS[this.stadium] || STADIUMS.classic;
+        this.hbsData = (data && data.hbs) || null;
+        this.stadiumCfg = this.hbsData ? STADIUMS.classic : (STADIUMS[this.stadium] || STADIUMS.classic);
+        this._hbsField = null;
+        this._hbsGoals = null;
         this._stadCanvasW = (data && data.stadCanvasW) || GAME_W;
         this._stadCanvasH = (data && data.stadCanvasH) || GAME_H;
         this._chatOpen = false;
@@ -105,6 +108,7 @@ class GameScene extends Phaser.Scene {
 
     // Recalculate F using actual window dimensions so field is centered
     _recalcF() {
+        if (this.hbsData) { this._applyHBSField(); return; }
         const cw = window.innerWidth;
         const ch = window.innerHeight;
         const s = this.stadiumCfg;
@@ -122,6 +126,46 @@ class GameScene extends Phaser.Scene {
         F.OUTER_Y_MAX = F.CY + s.camH;
     }
 
+    _applyHBSField() {
+        const fd = HBSLoader.getFieldData(this.hbsData);
+        this._hbsField = fd;
+
+        const cw = window.innerWidth;
+        const ch = window.innerHeight;
+        F.W = fd.W; F.H = fd.H;
+        F.X = Math.floor((cw - fd.W) / 2);
+        F.Y = Math.floor((ch - fd.H) / 2);
+        F.GOAL_H = fd.GOAL_H; F.GOAL_D = fd.GOAL_D; F.WALL_T = 22;
+        F.CX = F.X + F.W / 2;
+        F.CY = F.Y + F.H / 2;
+
+        // Derive GOAL_TOP/BOT from HBS goal line positions (y-up → y-down)
+        if (fd.goals.length > 0) {
+            const lg = fd.goals[0]; // left goal
+            const gyMax = Math.max(lg.p0.y, lg.p1.y);
+            const gyMin = Math.min(lg.p0.y, lg.p1.y);
+            F.GOAL_TOP = F.CY - gyMax;
+            F.GOAL_BOT = F.CY - gyMin;
+        } else {
+            F.GOAL_TOP = F.CY - fd.GOAL_H / 2;
+            F.GOAL_BOT = F.CY + fd.GOAL_H / 2;
+        }
+
+        F.OUTER_X_MIN = F.CX - fd.camW;
+        F.OUTER_X_MAX = F.CX + fd.camW;
+        F.OUTER_Y_MIN = F.CY - fd.camH;
+        F.OUTER_Y_MAX = F.CY + fd.camH;
+
+        // Store HBS goal lines for detection (world coords)
+        this._hbsGoals = fd.goals.map(g => ({
+            worldX:  F.CX + g.p0.x,
+            goalTop: F.CY - Math.max(g.p0.y, g.p1.y),
+            goalBot: F.CY - Math.min(g.p0.y, g.p1.y),
+            isLeft:  g.p0.x < 0,
+            team:    g.team
+        }));
+    }
+
     _setupCamera() {
         const cw = window.innerWidth;
         const ch = window.innerHeight;
@@ -137,6 +181,7 @@ class GameScene extends Phaser.Scene {
 
     // ── Field (stadium-aware) ──────────────────────────────────────
     _drawField() {
+        if (this.hbsData && this._hbsField) { this._drawHBSField(); return; }
         const g = this.add.graphics();
         const s = this.stadiumCfg;
 
@@ -215,6 +260,92 @@ class GameScene extends Phaser.Scene {
                 g.strokeCircle(px, py, POST_RADIUS);
             });
         });
+    }
+
+    _drawHBSField() {
+        const fd = this._hbsField;
+        const g = this.add.graphics();
+        const isHockey = fd.bgType.includes('hockey');
+
+        // Full-window background
+        const outerBg = isHockey ? 0x1a1a1a : 0x2d5a1e;
+        g.fillStyle(outerBg, 1);
+        g.fillRect(0, 0, window.innerWidth, window.innerHeight);
+
+        // Field rectangle with horizontal stripes
+        const stripe1 = isHockey ? 0x333333 : 0x4a7a3a;
+        const stripe2 = isHockey ? 0x2a2a2a : 0x3d6b30;
+        for (let i = 0; i < 8; i++) {
+            g.fillStyle(i % 2 === 0 ? stripe1 : stripe2, 1);
+            g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
+        }
+
+        // Rounded corners mask (if any)
+        if (fd.cornerRadius > 0) {
+            const cr = fd.cornerRadius;
+            g.fillStyle(outerBg, 1);
+            g.beginPath(); g.moveTo(F.X, F.Y); g.lineTo(F.X + cr, F.Y);
+            g.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
+            g.closePath(); g.fillPath();
+            g.beginPath(); g.moveTo(F.X + F.W, F.Y); g.lineTo(F.X + F.W - cr, F.Y);
+            g.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
+            g.closePath(); g.fillPath();
+            g.beginPath(); g.moveTo(F.X, F.Y + F.H); g.lineTo(F.X + cr, F.Y + F.H);
+            g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI / 2, Math.PI, false);
+            g.closePath(); g.fillPath();
+            g.beginPath(); g.moveTo(F.X + F.W, F.Y + F.H); g.lineTo(F.X + F.W - cr, F.Y + F.H);
+            g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, 0, Math.PI / 2, false);
+            g.closePath(); g.fillPath();
+        }
+
+        // Goal net backgrounds
+        g.fillStyle(isHockey ? 0x222222 : 0x2a4a20, 1);
+        g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+
+        // Draw all visible HBS segments
+        const vtx = fd.vertexes;
+        const lineColor = isHockey ? 0xE9CC6E : 0xC7E6BD;
+        for (const seg of fd.segments) {
+            if (seg.v0 >= vtx.length || seg.v1 >= vtx.length) continue;
+            const v0 = vtx[seg.v0];
+            const v1 = vtx[seg.v1];
+            // Convert HBS coords (y-up, origin=center) → world coords (y-down)
+            const p0 = { x: F.CX + v0.x, y: F.CY - v0.y };
+            const p1 = { x: F.CX + v1.x, y: F.CY - v1.y };
+            const color = HBSLoader.parseColor(seg.color);
+            g.lineStyle(2, color != null ? color : lineColor, 1);
+            HBSLoader.drawSegment(g, p0, p1, seg.curve || 0);
+        }
+
+        // Goal post outlines
+        g.lineStyle(2, 0xcccccc, 1);
+        g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        g.strokeRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+
+        // Draw static discs (goal posts, etc.)
+        for (const disc of fd.staticDiscs) {
+            const wx = F.CX + disc.pos[0];
+            const wy = F.CY - disc.pos[1];
+            const r  = disc.radius || POST_RADIUS;
+            const color = HBSLoader.parseColor(disc.color) || 0xffffff;
+            g.fillStyle(color, 1);
+            g.fillCircle(wx, wy, r);
+            g.lineStyle(1, 0x000000, 0.5);
+            g.strokeCircle(wx, wy, r);
+        }
+
+        // If no static discs from HBS, draw default goal posts
+        if (fd.staticDiscs.length === 0) {
+            g.fillStyle(0xffffff, 1);
+            g.lineStyle(2, 0x000000, 1);
+            [F.X, F.X + F.W].forEach(px => {
+                [F.GOAL_TOP, F.GOAL_BOT].forEach(py => {
+                    g.fillCircle(px, py, POST_RADIUS);
+                    g.strokeCircle(px, py, POST_RADIUS);
+                });
+            });
+        }
     }
 
     // ── Walls (for player collision, not ball) ─────────────────────
@@ -700,6 +831,24 @@ class GameScene extends Phaser.Scene {
 
     // ── Goal posts (Haxball: 4 static discs radius=8, invMass=0) ──
     _createGoalPosts() {
+        if (this.hbsData && this._hbsField) {
+            const fd = this._hbsField;
+            if (fd.staticDiscs.length > 0) {
+                this._goalPosts = fd.staticDiscs.map(d => ({
+                    x: F.CX + d.pos[0], y: F.CY - d.pos[1], _vx: 0, _vy: 0
+                }));
+            } else {
+                this._goalPosts = [
+                    { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0 },
+                    { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+                    { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0 },
+                    { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+                ];
+            }
+            this._cornerDiscs = [];
+            return;
+        }
+
         this._goalPosts = [
             { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0 },
             { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0 },
@@ -1060,6 +1209,16 @@ class GameScene extends Phaser.Scene {
     _checkGoal() {
         if (this.goalLock) return;
         const bx = this.ball.x, by = this.ball.y;
+
+        if (this._hbsGoals) {
+            for (const g of this._hbsGoals) {
+                const inY = by > g.goalTop + B_RADIUS && by < g.goalBot - B_RADIUS;
+                if (g.isLeft  && bx < g.worldX - B_RADIUS && inY) { this._goal(g.team); return; }
+                if (!g.isLeft && bx > g.worldX + B_RADIUS && inY) { this._goal(g.team); return; }
+            }
+            return;
+        }
+
         const inY = by > F.GOAL_TOP + B_RADIUS && by < F.GOAL_BOT - B_RADIUS;
         if (bx < F.X - B_RADIUS && inY) this._goal('red');
         else if (bx > F.X + F.W + B_RADIUS && inY) this._goal('blue');
@@ -1095,15 +1254,17 @@ class GameScene extends Phaser.Scene {
         };
         place(this.ball, F.CX, F.CY);
 
-        // Fixed symmetric spawn positions — kickoff barrier handles who can approach the ball
+        // Use HBS spawnDistance if available, otherwise use default 150px
+        const sd = (this._hbsField && this._hbsField.spawnDist) ? this._hbsField.spawnDist : 150;
+
         if (this.is2v2) {
-            place(this.players.blue,  F.CX - 150, F.CY - 75);
-            place(this.players.blue2, F.CX - 150, F.CY + 75);
-            place(this.players.red,   F.CX + 150, F.CY - 75);
-            place(this.players.red2,  F.CX + 150, F.CY + 75);
+            place(this.players.blue,  F.CX - sd, F.CY - 55);
+            place(this.players.blue2, F.CX - sd, F.CY + 55);
+            place(this.players.red,   F.CX + sd, F.CY - 55);
+            place(this.players.red2,  F.CX + sd, F.CY + 55);
         } else {
-            place(this.players.blue, F.CX - 150, F.CY);
-            place(this.players.red,  F.CX + 150, F.CY);
+            place(this.players.blue, F.CX - sd, F.CY);
+            place(this.players.red,  F.CX + sd, F.CY);
         }
 
         for (const p of Object.values(this.players)) p._isKicking = false;
