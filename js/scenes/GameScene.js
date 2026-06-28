@@ -901,7 +901,17 @@ class GameScene extends Phaser.Scene {
             const dx = p.x - cx, dy = p.y - cy;
             const dist = Math.hypot(dx, dy);
 
-            if (!isKicking) {
+            if (isKicking) {
+                // Own half + full center circle. If in opponent's half AND outside circle → push to circle edge
+                const inOpponentHalf = isBlue ? (p.x > cx) : (p.x < cx);
+                if (inOpponentHalf && dist > CR - r && dist > 0.01) {
+                    const sc = (CR - r) / dist;
+                    p.x = cx + dx * sc; p.y = cy + dy * sc;
+                    const nx = dx / dist, ny = dy / dist;
+                    const vn = p._vx * nx + p._vy * ny;
+                    if (vn > 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
+                }
+            } else {
                 // Non-kicking team: own half + outside center circle
                 if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
                 if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
@@ -913,7 +923,6 @@ class GameScene extends Phaser.Scene {
                     if (vn < 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
                 }
             }
-            // Kicking team: no restriction — can access the full center circle
         }
     }
 
