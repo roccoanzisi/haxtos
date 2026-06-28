@@ -789,7 +789,7 @@ class GameScene extends Phaser.Scene {
         this._escVisible = false;
         this._escPanel = null;
         try { this._buildEscPanelInner(); }
-        catch(e) { console.error('[ESC Panel]', e); alert('[ESC Panel] Error: ' + e.message); }
+        catch(e) { console.error('[ESC Panel]', e); }
     }
 
     _buildEscPanelInner() {
