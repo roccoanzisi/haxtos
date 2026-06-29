@@ -94,7 +94,6 @@ class GameScene extends Phaser.Scene {
 
         this._buildChatUI();
         this._buildEscPanel();
-        this._reset(); // position players per kickoff team from the start
 
         this.timerEvent = this.time.addEvent({
             delay: 1000,
@@ -110,6 +109,21 @@ class GameScene extends Phaser.Scene {
 
         if (this.isOnline && !this.isHost) this._setupOnlineGuest();
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
+
+        // If online mode, initialize lobby state: game not started, paused, ball hidden, players despawned, show Lobby Panel
+        if (this.isOnline) {
+            this.gameStarted = false;
+            this.paused = true;
+            this.ball.setVisible(false);
+            Object.keys(this.players).forEach(k => {
+                if (this.players[k]) this.players[k].destroy();
+            });
+            this.players = {};
+            this._showEscPanel();
+        } else {
+            this.gameStarted = true;
+            this._reset();
+        }
     }
 
     // Recalculate F using actual window dimensions so field is centered
@@ -438,11 +452,30 @@ class GameScene extends Phaser.Scene {
 
     _spawnPlayers() {
         this.players = {};
-        this.players.blue = this._makePlayer(F.CX - 200, F.CY, 'player_blue');
-        this.players.red  = this._makePlayer(F.CX + 200, F.CY, 'player_red');
-        if (this.is2v2) {
-            this.players.blue2 = this._makePlayer(F.CX - 280, F.CY - 80, 'player_blue2');
-            this.players.red2  = this._makePlayer(F.CX + 280, F.CY + 80, 'player_red2');
+        
+        let hasBlue = false;
+        let hasRed = false;
+
+        if (this.isOnline) {
+            const players = this.roomPlayers || [];
+            hasBlue = players.some(p => p.team === 'blue');
+            hasRed  = players.some(p => p.team === 'red');
+        } else {
+            hasBlue = true;
+            hasRed = true;
+        }
+
+        if (hasBlue) {
+            this.players.blue = this._makePlayer(F.CX - 200, F.CY, 'player_blue');
+            if (this.is2v2) {
+                this.players.blue2 = this._makePlayer(F.CX - 280, F.CY - 80, 'player_blue2');
+            }
+        }
+        if (hasRed) {
+            this.players.red  = this._makePlayer(F.CX + 200, F.CY, 'player_red');
+            if (this.is2v2) {
+                this.players.red2  = this._makePlayer(F.CX + 280, F.CY + 80, 'player_red2');
+            }
         }
     }
 
@@ -928,16 +961,6 @@ class GameScene extends Phaser.Scene {
         const old = document.getElementById('_haxEscPanel');
         if (old) old.remove();
 
-        const redPlayers  = this.is2v2 ? ['Rojo 1', 'Rojo 2'] : ['Rojo'];
-        const bluePlayers = this.is2v2 ? ['Azul 1', 'Azul 2'] : ['Azul'];
-
-        const mkRow = (name, flagColor) =>
-            `<div style="display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;">
-                <span style="display:inline-block;width:18px;height:12px;background:${flagColor};border:1px solid rgba(255,255,255,0.15);flex-shrink:0;margin-right:7px;"></span>
-                <span>${name}</span>
-                <span style="margin-left:auto;color:#666;font-size:12px;">0</span>
-            </div>`;
-
         const div = document.createElement('div');
         div.id = '_haxEscPanel';
         div.style.cssText = `
@@ -950,7 +973,7 @@ class GameScene extends Phaser.Scene {
         <div style="background:#111120;border:1px solid #2a2a40;width:920px;max-width:95vw;user-select:none;">
           <!-- Header -->
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;">
-            <span style="color:#ddd;font-size:16px;">Haxtos</span>
+            <span style="color:#ddd;font-size:16px;">Haxtos Lobby</span>
             <button id="_escLeave" style="background:#2a5280;border:1px solid #3a6290;color:#ddd;padding:4px 13px;cursor:pointer;font-size:13px;">&#x21B5; Leave</button>
           </div>
           <div style="height:2px;background:#cc2222;"></div>
@@ -966,23 +989,26 @@ class GameScene extends Phaser.Scene {
             </div>
             <!-- Columns area -->
             <div style="flex:1;display:flex;flex-direction:column;">
-              <!-- Single header row: Red [▶] Spectators [◄] Blue -->
-              <div style="display:flex;align-items:stretch;">
-                <div style="width:215px;background:#3a1818;padding:6px 12px;color:#ff8888;font-size:14px;font-weight:bold;display:flex;align-items:center;">Red</div>
-                <button style="background:#2a5280;border:none;border-left:1px solid #1a1a2c;border-right:1px solid #1a1a2c;color:#fff;padding:0 10px;font-size:13px;cursor:pointer;">&#9654;</button>
-                <div style="flex:1;background:#161626;padding:6px 10px;color:#888899;font-size:14px;display:flex;align-items:center;justify-content:center;">Spectators</div>
-                <button style="background:#2a5280;border:none;border-left:1px solid #1a1a2c;border-right:1px solid #1a1a2c;color:#fff;padding:0 10px;font-size:13px;cursor:pointer;">&#9664;</button>
-                <div style="width:215px;background:#182038;padding:6px 12px;color:#88aaff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:flex-end;">Blue</div>
+              <!-- Single header row: Red [Join] Spectators [Join] Blue [Join] -->
+              <div style="display:flex;align-items:stretch;border-bottom:1px solid #1a1a2c;">
+                <div style="width:215px;background:#3a1818;padding:6px 12px;color:#ff8888;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;">
+                  <span>Red</span>
+                  <button id="_joinRedBtn" style="background:#aa3333;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
+                </div>
+                <div style="flex:1;background:#161626;padding:6px 10px;color:#888899;font-size:14px;display:flex;align-items:center;justify-content:center;gap:10px;">
+                  <span>Spectators</span>
+                  <button id="_joinSpecBtn" style="background:#555;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
+                </div>
+                <div style="width:215px;background:#182038;padding:6px 12px;color:#88aaff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;">
+                  <button id="_joinBlueBtn" style="background:#3333aa;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
+                  <span>Blue</span>
+                </div>
               </div>
               <!-- Player areas -->
               <div style="display:flex;">
-                <div id="_escRedPlayers" style="width:215px;background:#0c0c14;min-height:180px;border-right:1px solid #1a1a2c;">
-                  ${redPlayers.map(n => mkRow(n, '#993333')).join('')}
-                </div>
-                <div style="flex:1;background:#0c0c14;min-height:180px;"></div>
-                <div id="_escBluePlayers" style="width:215px;background:#0c0c14;min-height:180px;border-left:1px solid #1a1a2c;">
-                  ${bluePlayers.map(n => mkRow(n, '#223399')).join('')}
-                </div>
+                <div id="_escRedPlayers" style="width:215px;background:#0c0c14;min-height:180px;border-right:1px solid #1a1a2c;"></div>
+                <div id="_escSpecPlayers" style="flex:1;background:#0c0c14;min-height:180px;padding:6px;"></div>
+                <div id="_escBluePlayers" style="width:215px;background:#0c0c14;min-height:180px;border-left:1px solid #1a1a2c;"></div>
               </div>
             </div>
           </div>
@@ -1004,33 +1030,102 @@ class GameScene extends Phaser.Scene {
           </div>
 
           <!-- Bottom buttons -->
-          <div style="padding:10px 14px 12px;display:flex;gap:8px;justify-content:center;">
-            <button id="_escStop" style="background:#cc2222;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;">&#9632; Stop game</button>
-            <button id="_escResume" style="background:#2a3a4a;border:1px solid #3a4a5a;color:#ccc;padding:7px 22px;font-size:14px;cursor:pointer;">&#9646;&#9646; Resume</button>
+          <div style="padding:10px 14px 12px;display:flex;gap:8px;justify-content:center;align-items:center;">
+            <button id="_escStop" style="background:#cc2222;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;display:none;">&#9632; Stop game</button>
+            <button id="_escStart" style="background:#228833;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;display:none;">&#9654; Start game</button>
+            <button id="_escResume" style="background:#2a3a4a;border:1px solid #3a4a5a;color:#ccc;padding:7px 22px;font-size:14px;cursor:pointer;display:none;">&#9646;&#9646; Resume</button>
+            <span id="_escWaitMsg" style="color:#888;font-size:14px;display:none;">Esperando a que el Host inicie el partido...</span>
           </div>
         </div>`;
 
         document.body.appendChild(div);
         this._escPanel = div;
 
-        div.addEventListener('click', (e) => { if (e.target === div) this._hideEscPanel(); });
+        div.addEventListener('click', (e) => { 
+            // In Lobby state, clicking outside the panel should NOT hide it!
+            if (e.target === div && this.gameStarted) this._hideEscPanel(); 
+        });
+
         document.getElementById('_escLeave').onclick = () => {
             this._hideEscPanel();
             if (this.isOnline && this.ws) this.ws.close();
             this.scene.start('MenuScene');
         };
+
         document.getElementById('_escReset').onclick = () => {
+            if (this.isOnline && !this.isAdmin) return;
             this._hideEscPanel();
             this._reset();
             this.paused = false;
             this.goalLock = false;
         };
+
         document.getElementById('_escStop').onclick = () => {
-            this._hideEscPanel();
-            if (this.isOnline && this.ws) this.ws.close();
-            this.scene.start('MenuScene');
+            if (this.isOnline) {
+                if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'stop_game' }));
+            } else {
+                this.gameStarted = false;
+                this.paused = true;
+                this._showEscPanel();
+            }
         };
-        document.getElementById('_escResume').onclick = () => this._hideEscPanel();
+
+        document.getElementById('_escStart').onclick = () => {
+            if (this.isOnline) {
+                if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'start_game' }));
+            } else {
+                this.gameStarted = true;
+                this.paused = false;
+                this._hideEscPanel();
+                this._spawnPlayers();
+                this._reset();
+            }
+        };
+
+        document.getElementById('_escResume').onclick = () => {
+            if (this.isOnline) {
+                if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'resume_game' }));
+                else this._hideEscPanel();
+            } else {
+                this._hideEscPanel();
+            }
+        };
+
+        const requestMove = (team) => {
+            if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'move_team', team }));
+            }
+        };
+
+        document.getElementById('_joinRedBtn').onclick = () => requestMove('red');
+        document.getElementById('_joinSpecBtn').onclick = () => requestMove('spec');
+        document.getElementById('_joinBlueBtn').onclick = () => requestMove('blue');
+    }
+
+    _updateLobbyPlayers() {
+        const redDiv  = document.getElementById('_escRedPlayers');
+        const specDiv = document.getElementById('_escSpecPlayers');
+        const blueDiv = document.getElementById('_escBluePlayers');
+        if (!redDiv || !specDiv || !blueDiv) return;
+
+        redDiv.innerHTML  = '';
+        specDiv.innerHTML = '';
+        blueDiv.innerHTML = '';
+
+        const mkRow = (p) => {
+            const isAdmin = p.admin ? ' <span style="color:#ffaa00;font-size:11px;font-weight:bold;">[Admin]</span>' : '';
+            return `<div style="display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;">
+                <span style="font-weight:bold;">${p.name}</span>${isAdmin}
+            </div>`;
+        };
+
+        const players = this.roomPlayers || [];
+        players.forEach(p => {
+            const rowHtml = mkRow(p);
+            if (p.team === 'red') redDiv.innerHTML += rowHtml;
+            else if (p.team === 'blue') blueDiv.innerHTML += rowHtml;
+            else specDiv.innerHTML += rowHtml;
+        });
     }
 
     _showEscPanel() {
@@ -1044,6 +1139,43 @@ class GameScene extends Phaser.Scene {
         document.getElementById('_escStadVal').textContent  = this.hbsData
             ? (this.hbsData._fileName || 'HBS Map')
             : (STADIUMS[this.stadium] || STADIUMS.classic).name;
+
+        this._updateLobbyPlayers();
+
+        const stopBtn   = document.getElementById('_escStop');
+        const startBtn  = document.getElementById('_escStart');
+        const resumeBtn = document.getElementById('_escResume');
+        const waitMsg   = document.getElementById('_escWaitMsg');
+
+        stopBtn.style.display   = 'none';
+        startBtn.style.display  = 'none';
+        resumeBtn.style.display = 'none';
+        waitMsg.style.display   = 'none';
+
+        if (this.isOnline) {
+            if (!this.gameStarted) {
+                if (this.isAdmin) {
+                    startBtn.style.display = 'block';
+                } else {
+                    waitMsg.style.display = 'block';
+                }
+            } else {
+                if (this.isAdmin) {
+                    stopBtn.style.display = 'block';
+                    resumeBtn.style.display = 'block';
+                } else {
+                    resumeBtn.style.display = 'block';
+                }
+            }
+        } else {
+            if (!this.gameStarted) {
+                startBtn.style.display = 'block';
+            } else {
+                stopBtn.style.display = 'block';
+                resumeBtn.style.display = 'block';
+            }
+        }
+
         this._escPanel.style.display = 'flex';
     }
 
@@ -1091,6 +1223,28 @@ class GameScene extends Phaser.Scene {
                 if (me) {
                     this.isAdmin = me.admin;
                 }
+                this._updateLobbyPlayers();
+            }
+            if (msg.type === 'start_game') {
+                this.gameStarted = true;
+                this.paused = false;
+                this._hideEscPanel();
+                this.ball.setVisible(true);
+                this._spawnPlayers();
+                this._reset();
+            }
+            if (msg.type === 'stop_game') {
+                this.gameStarted = false;
+                this.paused = true;
+                this.ball.setVisible(false);
+                Object.keys(this.players).forEach(k => {
+                    if (this.players[k]) this.players[k].destroy();
+                });
+                this.players = {};
+                this._showEscPanel();
+            }
+            if (msg.type === 'resume_game') {
+                this._hideEscPanel();
             }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
@@ -1120,6 +1274,28 @@ class GameScene extends Phaser.Scene {
                 if (me) {
                     this.isAdmin = me.admin;
                 }
+                this._updateLobbyPlayers();
+            }
+            if (msg.type === 'start_game') {
+                this.gameStarted = true;
+                this.paused = false;
+                this._hideEscPanel();
+                this.ball.setVisible(true);
+                this._spawnPlayers();
+                this._reset();
+            }
+            if (msg.type === 'stop_game') {
+                this.gameStarted = false;
+                this.paused = true;
+                this.ball.setVisible(false);
+                Object.keys(this.players).forEach(k => {
+                    if (this.players[k]) this.players[k].destroy();
+                });
+                this.players = {};
+                this._showEscPanel();
+            }
+            if (msg.type === 'resume_game') {
+                this._hideEscPanel();
             }
         };
     }
@@ -1757,15 +1933,23 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._chatOpen) {
-            this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
-            this._movePlayer(this.players.blue, this.keys1, 'blue');
-            this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
-            this._movePlayer(this.players.red, this.keys2, 'red');
+            if (this.players.blue) {
+                this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
+                this._movePlayer(this.players.blue, this.keys1, 'blue');
+            }
+            if (this.players.red) {
+                this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
+                this._movePlayer(this.players.red, this.keys2, 'red');
+            }
             if (this.is2v2) {
-                this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
-                this._movePlayer(this.players.blue2, this.keys3, 'blue2');
-                this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
-                this._movePlayer(this.players.red2, this.keys4, 'red2');
+                if (this.players.blue2) {
+                    this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
+                    this._movePlayer(this.players.blue2, this.keys3, 'blue2');
+                }
+                if (this.players.red2) {
+                    this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
+                    this._movePlayer(this.players.red2, this.keys4, 'red2');
+                }
             }
         }
 
@@ -1780,10 +1964,14 @@ class GameScene extends Phaser.Scene {
 
     _updateHost() {
         if (!this._chatOpen) {
-            this.players.blue._isKicking = this.kick1.isDown;
-            this._movePlayer(this.players.blue, this.keys1, 'blue');
-            this.players.red._isKicking = this.kick2.isDown;
-            this._movePlayer(this.players.red, this.keys2, 'red');
+            if (this.players.blue) {
+                this.players.blue._isKicking = this.kick1.isDown;
+                this._movePlayer(this.players.blue, this.keys1, 'blue');
+            }
+            if (this.players.red) {
+                this.players.red._isKicking = this.kick2.isDown;
+                this._movePlayer(this.players.red, this.keys2, 'red');
+            }
         }
         this._applyGuestInputs();
         this._physicsStep();
@@ -1872,6 +2060,7 @@ class GameScene extends Phaser.Scene {
 
     _reset() {
         const place = (obj, x, y) => {
+            if (!obj) return;
             obj.x = x; obj.y = y;
             obj._vx = 0; obj._vy = 0;
             if (obj.body) obj.body.reset(x, y);
@@ -1891,7 +2080,9 @@ class GameScene extends Phaser.Scene {
             place(this.players.red,  F.CX + sd, F.CY);
         }
 
-        for (const p of Object.values(this.players)) p._isKicking = false;
+        for (const p of Object.values(this.players)) {
+            if (p) p._isKicking = false;
+        }
         this._kickoffActive = true;
     }
 
