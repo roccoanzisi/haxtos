@@ -694,8 +694,14 @@ class GameScene extends Phaser.Scene {
         this._chatInput = '';
         this._chatInputText.setText('> |');
         if (!text) { this._closeChat(); return; }
-        if (text.startsWith('/')) this._runCommand(text.slice(1));
-        else this._addChatMessage('» ' + text, '#ffffff');
+        if (text.startsWith('/')) {
+            this._runCommand(text.slice(1));
+        } else {
+            this._addChatMessage('» ' + text, '#ffffff');
+            if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'chat', text: '» ' + text, color: '#ffffff' }));
+            }
+        }
     }
 
     _runCommand(cmd) {
@@ -743,27 +749,62 @@ class GameScene extends Phaser.Scene {
             case 'colors': {
                 const action = (args[0] || '').toLowerCase();
                 if (action === 'reset') {
-                    Object.keys(this.players).forEach(k => {
-                        this.players[k].clearTint();
-                        this._teamTints[k] = null;
-                    });
-                    this._addChatMessage('Colores restaurados', '#aaffaa');
-                } else if (action === 'blue' || action === 'red') {
-                    const hex = args[1] || '';
-                    const match = /^#?([0-9a-fA-F]{6})$/.exec(hex);
-                    if (!match) this._addChatMessage('Uso: /colors <blue|red> #RRGGBB o /colors reset', '#ffaaaa');
-                    else {
-                        const color = parseInt(match[1], 16);
-                        const keys = action === 'blue' ? ['blue', 'blue2'] : ['red', 'red2'];
-                        keys.forEach(k => {
-                            if (this.players[k]) {
-                                this.players[k].setTint(color);
-                                this._teamTints[k] = color;
-                            }
-                        });
-                        this._addChatMessage(`Color ${action}: #${match[1].toUpperCase()}`, '#aaffaa');
+                    this._resetTeamColors();
+                    this._addChatMessage('Colores y uniformes restaurados', '#aaffaa');
+                    if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'colors', action: 'reset' }));
                     }
-                } else this._addChatMessage('Uso: /colors <blue|red> #RRGGBB o /colors reset', '#ffaaaa');
+                } else if (action === 'blue' || action === 'red') {
+                    // /colors <team> <angle> <textColor> <color1> [color2] [color3]
+                    if (args.length < 4) {
+                        this._addChatMessage('Uso: /colors <red|blue> <ángulo> <colorTexto> <color1> [color2] [color3] (o /colors reset)', '#ffaaaa');
+                        break;
+                    }
+                    const angle = parseInt(args[1]);
+                    const textColor = args[2];
+                    const colors = args.slice(3);
+
+                    // Validate angle
+                    if (isNaN(angle)) {
+                        this._addChatMessage('Ángulo inválido. Debe ser un número.', '#ffaaaa');
+                        break;
+                    }
+
+                    // Validate hex colors
+                    const hexRegex = /^#?([0-9a-fA-F]{6})$/;
+                    if (!hexRegex.test(textColor)) {
+                        this._addChatMessage(`Color de texto inválido: ${textColor}`, '#ffaaaa');
+                        break;
+                    }
+
+                    let valid = true;
+                    for (const c of colors) {
+                        if (!hexRegex.test(c)) {
+                            this._addChatMessage(`Color de franja inválido: ${c}`, '#ffaaaa');
+                            valid = false;
+                            break;
+                        }
+                    }
+                    if (!valid) break;
+
+                    // Update textures and labels locally
+                    this._updateTeamColors(action, angle, textColor, colors);
+                    this._addChatMessage(`Uniforme ${action} personalizado aplicado!`, '#aaffaa');
+
+                    // Synchronize over network if online
+                    if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({
+                            type: 'colors',
+                            action: 'set',
+                            team: action,
+                            angle: angle,
+                            textColor: textColor,
+                            colors: colors
+                        }));
+                    }
+                } else {
+                    this._addChatMessage('Uso: /colors <red|blue> <ángulo> <colorTexto> <color1> [color2] [color3] (o /colors reset)', '#ffaaaa');
+                }
                 break;
             }
             case 'help':
@@ -772,6 +813,72 @@ class GameScene extends Phaser.Scene {
             default:
                 this._addChatMessage(`Desconocido: /${name} — prueba /help`, '#ffaaaa');
         }
+    }
+
+    _updateTeamColors(team, angle, textColor, colors) {
+        const r = P_RADIUS;
+        const keys = team === 'blue' ? ['blue', 'blue2'] : ['red', 'red2'];
+
+        keys.forEach(k => {
+            // Update normal texture canvas
+            const normKey = `player_${k}`;
+            const normTexture = this.textures.get(normKey);
+            if (normTexture && normTexture.canvas) {
+                window.TextureGenerator.drawPlayerOnCanvas(normTexture.canvas, r, angle, colors, 2, 0x000000);
+                normTexture.refresh();
+            }
+
+            // Update kick texture canvas
+            const kickKey = `kick_${k}`;
+            const kickTexture = this.textures.get(kickKey);
+            if (kickTexture && kickTexture.canvas) {
+                window.TextureGenerator.drawPlayerOnCanvas(kickTexture.canvas, r, angle, colors, 4, 0xFFFFFF);
+                kickTexture.refresh();
+            }
+
+            // Update player label text color
+            const lbl = this._playerLabels[k];
+            if (lbl) {
+                const formattedColor = textColor.startsWith('#') ? textColor : '#' + textColor;
+                lbl.setColor(formattedColor);
+            }
+        });
+    }
+
+    _resetTeamColors() {
+        const r = P_RADIUS;
+        const blueColors1 = [0x0000F8];
+        const blueColors2 = [0x0000C0];
+        const redColors1 = [0xF00000];
+        const redColors2 = [0xC00000];
+
+        // Blue 1
+        const ntB1 = this.textures.get('player_blue');
+        if (ntB1 && ntB1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntB1.canvas, r, 0, blueColors1, 2, 0x000000); ntB1.refresh(); }
+        const ktB1 = this.textures.get('kick_blue');
+        if (ktB1 && ktB1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktB1.canvas, r, 0, blueColors1, 4, 0xFFFFFF); ktB1.refresh(); }
+        if (this._playerLabels['blue']) this._playerLabels['blue'].setColor('#8888ff');
+
+        // Blue 2
+        const ntB2 = this.textures.get('player_blue2');
+        if (ntB2 && ntB2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntB2.canvas, r, 0, blueColors2, 2, 0x000000); ntB2.refresh(); }
+        const ktB2 = this.textures.get('kick_blue2');
+        if (ktB2 && ktB2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktB2.canvas, r, 0, blueColors2, 4, 0xFFFFFF); ktB2.refresh(); }
+        if (this._playerLabels['blue2']) this._playerLabels['blue2'].setColor('#6666dd');
+
+        // Red 1
+        const ntR1 = this.textures.get('player_red');
+        if (ntR1 && ntR1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntR1.canvas, r, 0, redColors1, 2, 0x000000); ntR1.refresh(); }
+        const ktR1 = this.textures.get('kick_red');
+        if (ktR1 && ktR1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktR1.canvas, r, 0, redColors1, 4, 0xFFFFFF); ktR1.refresh(); }
+        if (this._playerLabels['red']) this._playerLabels['red'].setColor('#ff5555');
+
+        // Red 2
+        const ntR2 = this.textures.get('player_red2');
+        if (ntR2 && ntR2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntR2.canvas, r, 0, redColors2, 2, 0x000000); ntR2.refresh(); }
+        const ktR2 = this.textures.get('kick_red2');
+        if (ktR2 && ktR2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktR2.canvas, r, 0, redColors2, 4, 0xFFFFFF); ktR2.refresh(); }
+        if (this._playerLabels['red2']) this._playerLabels['red2'].setColor('#dd3333');
     }
 
     _addChatMessage(text, color) {
@@ -959,6 +1066,11 @@ class GameScene extends Phaser.Scene {
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'state') this.serverState = msg.data;
+            if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
+            if (msg.type === 'colors') {
+                if (msg.action === 'reset') this._resetTeamColors();
+                else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
+            }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
@@ -972,6 +1084,11 @@ class GameScene extends Phaser.Scene {
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'input') this._guestInputs = msg.keys;
+            if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
+            if (msg.type === 'colors') {
+                if (msg.action === 'reset') this._resetTeamColors();
+                else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
+            }
         };
     }
 

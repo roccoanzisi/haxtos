@@ -1,3 +1,72 @@
+window.TextureGenerator = {
+    drawPlayerOnCanvas(canvas, r, angleDeg, colors, borderThickness, borderColor) {
+        const ctx = canvas.getContext('2d');
+        const size = canvas.width;
+        const cx = size / 2;
+
+        ctx.clearRect(0, 0, size, size);
+
+        // 1. Fill base circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cx, r, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.clip();
+
+        const toCssColor = (c) => {
+            if (typeof c === 'number') {
+                return '#' + c.toString(16).padStart(6, '0');
+            }
+            if (typeof c === 'string') {
+                if (c.startsWith('#')) return c;
+                return '#' + c;
+            }
+            return '#000000';
+        };
+
+        const cssColors = colors.map(toCssColor);
+        const cssBorderColor = toCssColor(borderColor);
+
+        if (cssColors.length === 0) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, size, size);
+        } else if (cssColors.length === 1) {
+            ctx.fillStyle = cssColors[0];
+            ctx.fillRect(0, 0, size, size);
+        } else {
+            // Draw stripes
+            ctx.save();
+            ctx.translate(cx, cx);
+            ctx.rotate((angleDeg * Math.PI) / 180);
+            ctx.translate(-cx, -cx);
+
+            const numStripes = cssColors.length;
+            const stripeW = 8; // width of each stripe in pixels
+            const totalW = numStripes * stripeW;
+            const startX = cx - r * 2;
+            const endX = cx + r * 2;
+
+            for (let x = startX; x < endX; x += totalW) {
+                for (let i = 0; i < numStripes; i++) {
+                    ctx.fillStyle = cssColors[i];
+                    ctx.fillRect(x + i * stripeW, cx - r * 2, stripeW, r * 4);
+                }
+            }
+            ctx.restore();
+        }
+
+        ctx.restore();
+
+        // 2. Draw border
+        ctx.strokeStyle = cssBorderColor;
+        ctx.lineWidth = borderThickness;
+        ctx.beginPath();
+        ctx.arc(cx, cx, r, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.stroke();
+    }
+};
+
 class PreloadScene extends Phaser.Scene {
     constructor() { super('PreloadScene'); }
 
@@ -37,13 +106,8 @@ class PreloadScene extends Phaser.Scene {
 
     _makeCircle(key, r, fill, stroke, lineW) {
         const size = (r + lineW) * 2 + 2;
-        const cx = size / 2;
-        const g = this.make.graphics({ add: false });
-        g.fillStyle(fill, 1);
-        g.fillCircle(cx, cx, r);
-        g.lineStyle(lineW, stroke, 1);
-        g.strokeCircle(cx, cx, r);
-        g.generateTexture(key, size, size);
-        g.destroy();
+        const texture = this.textures.createCanvas(key, size, size);
+        window.TextureGenerator.drawPlayerOnCanvas(texture.canvas, r, 0, [fill], lineW, stroke);
+        texture.refresh();
     }
 }

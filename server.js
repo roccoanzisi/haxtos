@@ -52,16 +52,18 @@ wss.on('connection', (ws) => {
             }
         }
 
-        if (msg.type === 'input' && ws.roomId) {
+        if (ws.roomId) {
             const room = rooms.get(ws.roomId);
             if (!room) return;
-            broadcast(room, { type: 'input', index: ws.playerIndex, keys: msg.keys }, ws);
-        }
 
-        if (msg.type === 'state' && ws.roomId) {
-            const room = rooms.get(ws.roomId);
-            if (!room) return;
-            broadcast(room, { type: 'state', data: msg.data }, ws);
+            if (msg.type === 'input') {
+                broadcast(room, { type: 'input', index: ws.playerIndex, keys: msg.keys }, ws);
+            } else if (msg.type === 'state') {
+                broadcast(room, { type: 'state', data: msg.data }, ws);
+            } else {
+                // Relay all other message types (chat, colors, etc.) to the other players
+                broadcast(room, msg, ws);
+            }
         }
     });
 
