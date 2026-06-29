@@ -660,9 +660,18 @@ class GameScene extends Phaser.Scene {
             if (ev.key === '3') { this._setCameraMode(3); return; }
             return;
         }
+        if (ev.ctrlKey && (ev.key === 'v' || ev.key === 'V')) {
+            navigator.clipboard.readText().then(clipText => {
+                this._chatInput += clipText;
+                this._chatInputText.setText('> ' + this._chatInput + '|');
+            }).catch(err => {
+                console.error('Failed to read clipboard: ', err);
+            });
+            return;
+        }
         if (ev.key === 'Backspace') {
             this._chatInput = this._chatInput.slice(0, -1);
-        } else if (ev.key.length === 1) {
+        } else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey) {
             this._chatInput += ev.key;
         }
         this._chatInputText.setText('> ' + this._chatInput + '|');
