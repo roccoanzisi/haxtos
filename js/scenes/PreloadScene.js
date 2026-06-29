@@ -66,7 +66,7 @@ window.TextureGenerator = {
 
         // 3. Draw avatar text (Haxball style inside the circle)
         if (avatarText) {
-            ctx.font = "bold 11px Arial, sans-serif";
+            ctx.font = "bold 15px Arial, sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = toCssColor(avatarColor || '#ffffff');
