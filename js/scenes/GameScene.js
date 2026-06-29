@@ -1377,10 +1377,10 @@ class GameScene extends Phaser.Scene {
 
         // Dynamically update player collision masks for kickoff barriers
         for (const p of players) {
-            const isBlue = p._normalTexture.includes('blue');
+            const isLeftTeam = p.x < F.CX;
             const baseMask = ['ball', 'red', 'blue', 'wall'];
             if (this._kickoffActive) {
-                p.cMask = baseMask.concat(isBlue ? ['blueKO'] : ['redKO']);
+                p.cMask = baseMask.concat(isLeftTeam ? ['redKO'] : ['blueKO']);
             } else {
                 p.cMask = baseMask;
             }
