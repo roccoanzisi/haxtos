@@ -37,7 +37,7 @@ window.TextureGenerator = {
             // Draw stripes
             ctx.save();
             ctx.translate(cx, cx);
-            ctx.rotate((angleDeg * Math.PI) / 180);
+            ctx.rotate((-angleDeg * Math.PI) / 180);
             ctx.translate(-cx, -cx);
 
             const numStripes = cssColors.length;
