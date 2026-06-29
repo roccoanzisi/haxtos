@@ -799,17 +799,18 @@ class GameScene extends Phaser.Scene {
         const redPlayers  = this.is2v2 ? ['Rojo 1', 'Rojo 2'] : ['Rojo'];
         const bluePlayers = this.is2v2 ? ['Azul 1', 'Azul 2'] : ['Azul'];
 
-        const mkRow = (name, color) =>
-            `<div style="display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:13px;color:${color};border-bottom:1px solid #181826;">
-                <span style="display:inline-block;width:16px;height:11px;background:#3366bb;border:1px solid #4477cc;flex-shrink:0;"></span>
+        const mkRow = (name, flagColor) =>
+            `<div style="display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;">
+                <span style="display:inline-block;width:18px;height:12px;background:${flagColor};border:1px solid rgba(255,255,255,0.15);flex-shrink:0;margin-right:7px;"></span>
                 <span>${name}</span>
+                <span style="margin-left:auto;color:#666;font-size:12px;">0</span>
             </div>`;
 
         const div = document.createElement('div');
         div.id = '_haxEscPanel';
         div.style.cssText = `
             position:fixed;top:0;left:0;right:0;bottom:0;
-            background:rgba(0,0,0,0.82);
+            background:rgba(0,0,0,0.60);
             display:none;align-items:center;justify-content:center;
             z-index:9999;font-family:Arial,Helvetica,sans-serif;
         `;
@@ -818,42 +819,38 @@ class GameScene extends Phaser.Scene {
           <!-- Header -->
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;">
             <span style="color:#ddd;font-size:16px;">Haxtos</span>
-            <button id="_escLeave" style="background:#2a5280;border:1px solid #3a6290;color:#ddd;padding:4px 13px;cursor:pointer;font-size:13px;">↵ Leave</button>
+            <button id="_escLeave" style="background:#2a5280;border:1px solid #3a6290;color:#ddd;padding:4px 13px;cursor:pointer;font-size:13px;">&#x21B5; Leave</button>
           </div>
           <div style="height:2px;background:#cc2222;"></div>
 
           <!-- Body -->
           <div style="display:flex;">
             <!-- Left sidebar -->
-            <div style="width:104px;padding:8px 6px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #1a1a2c;">
+            <div style="width:104px;border-right:1px solid #1a1a2c;padding:8px 6px;display:flex;flex-direction:column;gap:4px;">
               <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Auto</button>
               <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Rand</button>
               <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">&#128274; Lock</button>
               <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:5px 0;cursor:pointer;font-size:12px;width:90px;">Reset</button>
             </div>
-            <!-- Red column -->
-            <div style="width:215px;border-right:1px solid #1a1a2c;">
-              <div style="background:#3a1818;padding:6px 10px;font-size:14px;font-weight:bold;color:#ff8888;display:flex;align-items:center;justify-content:space-between;">
-                <span>Red</span>
-                <button style="background:#2a5280;border:none;color:#fff;padding:1px 8px;font-size:12px;cursor:pointer;">&#9654;</button>
+            <!-- Columns area -->
+            <div style="flex:1;display:flex;flex-direction:column;">
+              <!-- Single header row: Red [▶] Spectators [◄] Blue -->
+              <div style="display:flex;align-items:stretch;">
+                <div style="width:215px;background:#3a1818;padding:6px 12px;color:#ff8888;font-size:14px;font-weight:bold;display:flex;align-items:center;">Red</div>
+                <button style="background:#2a5280;border:none;border-left:1px solid #1a1a2c;border-right:1px solid #1a1a2c;color:#fff;padding:0 10px;font-size:13px;cursor:pointer;">&#9654;</button>
+                <div style="flex:1;background:#161626;padding:6px 10px;color:#888899;font-size:14px;display:flex;align-items:center;justify-content:center;">Spectators</div>
+                <button style="background:#2a5280;border:none;border-left:1px solid #1a1a2c;border-right:1px solid #1a1a2c;color:#fff;padding:0 10px;font-size:13px;cursor:pointer;">&#9664;</button>
+                <div style="width:215px;background:#182038;padding:6px 12px;color:#88aaff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:flex-end;">Blue</div>
               </div>
-              <div id="_escRedPlayers" style="background:#0c0c14;min-height:180px;">
-                ${redPlayers.map(n => mkRow(n, '#ffaaaa')).join('')}
-              </div>
-            </div>
-            <!-- Spectators -->
-            <div style="flex:1;border-right:1px solid #1a1a2c;">
-              <div style="background:#161626;padding:6px 10px;font-size:14px;color:#888899;text-align:center;">Spectators</div>
-              <div style="background:#0c0c14;min-height:180px;"></div>
-            </div>
-            <!-- Blue column -->
-            <div style="width:215px;">
-              <div style="background:#182038;padding:6px 10px;font-size:14px;font-weight:bold;color:#88aaff;display:flex;align-items:center;justify-content:space-between;">
-                <button style="background:#2a5280;border:none;color:#fff;padding:1px 8px;font-size:12px;cursor:pointer;">&#9664;</button>
-                <span>Blue</span>
-              </div>
-              <div id="_escBluePlayers" style="background:#0c0c14;min-height:180px;">
-                ${bluePlayers.map(n => mkRow(n, '#aabbff')).join('')}
+              <!-- Player areas -->
+              <div style="display:flex;">
+                <div id="_escRedPlayers" style="width:215px;background:#0c0c14;min-height:180px;border-right:1px solid #1a1a2c;">
+                  ${redPlayers.map(n => mkRow(n, '#993333')).join('')}
+                </div>
+                <div style="flex:1;background:#0c0c14;min-height:180px;"></div>
+                <div id="_escBluePlayers" style="width:215px;background:#0c0c14;min-height:180px;border-left:1px solid #1a1a2c;">
+                  ${bluePlayers.map(n => mkRow(n, '#223399')).join('')}
+                </div>
               </div>
             </div>
           </div>
@@ -862,15 +859,15 @@ class GameScene extends Phaser.Scene {
           <div style="border-top:1px solid #1a1a2c;padding:10px 14px 4px 116px;">
             <div style="display:flex;align-items:center;margin-bottom:6px;">
               <span style="color:#aaa;width:90px;font-size:13px;">Time limit</span>
-              <span id="_escTimeVal" style="color:#fff;font-size:13px;"></span>
+              <span id="_escTimeVal" style="background:#2a2c3e;padding:2px 10px;color:#fff;font-size:13px;display:inline-block;min-width:50px;"></span>
             </div>
             <div style="display:flex;align-items:center;margin-bottom:6px;">
               <span style="color:#aaa;width:90px;font-size:13px;">Score limit</span>
-              <span id="_escScoreVal" style="color:#fff;font-size:13px;"></span>
+              <span id="_escScoreVal" style="background:#2a2c3e;padding:2px 10px;color:#fff;font-size:13px;display:inline-block;min-width:50px;"></span>
             </div>
             <div style="display:flex;align-items:center;margin-bottom:6px;">
               <span style="color:#aaa;width:90px;font-size:13px;">Stadium</span>
-              <span id="_escStadVal" style="color:#daa520;font-size:13px;"></span>
+              <span id="_escStadVal" style="background:#2a2c3e;padding:2px 10px;color:#daa520;font-size:13px;display:inline-block;min-width:50px;"></span>
             </div>
           </div>
 
