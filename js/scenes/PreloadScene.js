@@ -1,5 +1,5 @@
 window.TextureGenerator = {
-    drawPlayerOnCanvas(canvas, r, angleDeg, colors, borderThickness, borderColor) {
+    drawPlayerOnCanvas(canvas, r, angleDeg, colors, borderThickness, borderColor, avatarText, avatarColor) {
         const ctx = canvas.getContext('2d');
         const size = canvas.width;
         const cx = size / 2;
@@ -63,6 +63,15 @@ window.TextureGenerator = {
         ctx.arc(cx, cx, r, 0, 2 * Math.PI);
         ctx.closePath();
         ctx.stroke();
+
+        // 3. Draw avatar text (Haxball style inside the circle)
+        if (avatarText) {
+            ctx.font = "bold 11px Arial, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = toCssColor(avatarColor || '#ffffff');
+            ctx.fillText(avatarText, cx, cx);
+        }
     }
 };
 

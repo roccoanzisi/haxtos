@@ -88,6 +88,10 @@ class GameScene extends Phaser.Scene {
         this._setupCollisions();
         this._buildHUD();
         this._buildPlayerLabels();
+
+        // Draw numbers inside player jerseys (Haxball style)
+        this._resetTeamColors();
+
         this._buildChatUI();
         this._buildEscPanel();
         this._reset(); // position players per kickoff team from the start
@@ -604,7 +608,7 @@ class GameScene extends Phaser.Scene {
             this._playerLabels[key] = this.add.text(0, 0, nums[key], {
                 fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
                 color: colors[key] || '#ffffff', stroke: '#000000', strokeThickness: 3
-            }).setOrigin(0.5, 1).setDepth(15);
+            }).setOrigin(0.5, 1).setDepth(15).setVisible(false); // Hidden! Avatar text is inside the circle
         });
     }
 
@@ -729,8 +733,13 @@ class GameScene extends Phaser.Scene {
             case 'avatar': {
                 const av = args.join(' ').slice(0, 3);
                 if (av) {
-                    this._avatarOverrides['blue'] = av;
+                    const localKey = this.isOnline ? (this.playerIndex === 0 ? 'blue' : 'red') : 'blue';
+                    this._playerUniforms[localKey].avatar = av;
+                    this._redrawPlayerTexture(localKey);
                     this._addChatMessage(`Avatar: "${av}"`, '#aaffaa');
+                    if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'avatar', playerKey: localKey, avatar: av }));
+                    }
                 } else this._addChatMessage('Uso: /avatar <texto>', '#ffaaaa');
                 break;
             }
@@ -824,70 +833,48 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    _updateTeamColors(team, angle, textColor, colors) {
+    _redrawPlayerTexture(key) {
+        const u = this._playerUniforms[key];
+        if (!u) return;
         const r = P_RADIUS;
+
+        // Update normal texture canvas
+        const normKey = `player_${key}`;
+        const normTexture = this.textures.get(normKey);
+        if (normTexture && normTexture.canvas) {
+            window.TextureGenerator.drawPlayerOnCanvas(normTexture.canvas, r, u.angle, u.colors, 2, 0x000000, u.avatar, u.textColor);
+            normTexture.refresh();
+        }
+
+        // Update kick texture canvas
+        const kickKey = `kick_${key}`;
+        const kickTexture = this.textures.get(kickKey);
+        if (kickTexture && kickTexture.canvas) {
+            window.TextureGenerator.drawPlayerOnCanvas(kickTexture.canvas, r, u.angle, u.colors, 4, 0xFFFFFF, u.avatar, u.textColor);
+            kickTexture.refresh();
+        }
+    }
+
+    _updateTeamColors(team, angle, textColor, colors) {
         const keys = team === 'blue' ? ['blue', 'blue2'] : ['red', 'red2'];
-
         keys.forEach(k => {
-            // Update normal texture canvas
-            const normKey = `player_${k}`;
-            const normTexture = this.textures.get(normKey);
-            if (normTexture && normTexture.canvas) {
-                window.TextureGenerator.drawPlayerOnCanvas(normTexture.canvas, r, angle, colors, 2, 0x000000);
-                normTexture.refresh();
-            }
-
-            // Update kick texture canvas
-            const kickKey = `kick_${k}`;
-            const kickTexture = this.textures.get(kickKey);
-            if (kickTexture && kickTexture.canvas) {
-                window.TextureGenerator.drawPlayerOnCanvas(kickTexture.canvas, r, angle, colors, 4, 0xFFFFFF);
-                kickTexture.refresh();
-            }
-
-            // Update player label text color
-            const lbl = this._playerLabels[k];
-            if (lbl) {
-                const formattedColor = textColor.startsWith('#') ? textColor : '#' + textColor;
-                lbl.setColor(formattedColor);
+            if (this._playerUniforms[k]) {
+                this._playerUniforms[k].angle = angle;
+                this._playerUniforms[k].textColor = textColor;
+                this._playerUniforms[k].colors = colors;
+                this._redrawPlayerTexture(k);
             }
         });
     }
 
     _resetTeamColors() {
-        const r = P_RADIUS;
-        const blueColors1 = [0x0000F8];
-        const blueColors2 = [0x0000C0];
-        const redColors1 = [0xF00000];
-        const redColors2 = [0xC00000];
-
-        // Blue 1
-        const ntB1 = this.textures.get('player_blue');
-        if (ntB1 && ntB1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntB1.canvas, r, 0, blueColors1, 2, 0x000000); ntB1.refresh(); }
-        const ktB1 = this.textures.get('kick_blue');
-        if (ktB1 && ktB1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktB1.canvas, r, 0, blueColors1, 4, 0xFFFFFF); ktB1.refresh(); }
-        if (this._playerLabels['blue']) this._playerLabels['blue'].setColor('#8888ff');
-
-        // Blue 2
-        const ntB2 = this.textures.get('player_blue2');
-        if (ntB2 && ntB2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntB2.canvas, r, 0, blueColors2, 2, 0x000000); ntB2.refresh(); }
-        const ktB2 = this.textures.get('kick_blue2');
-        if (ktB2 && ktB2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktB2.canvas, r, 0, blueColors2, 4, 0xFFFFFF); ktB2.refresh(); }
-        if (this._playerLabels['blue2']) this._playerLabels['blue2'].setColor('#6666dd');
-
-        // Red 1
-        const ntR1 = this.textures.get('player_red');
-        if (ntR1 && ntR1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntR1.canvas, r, 0, redColors1, 2, 0x000000); ntR1.refresh(); }
-        const ktR1 = this.textures.get('kick_red');
-        if (ktR1 && ktR1.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktR1.canvas, r, 0, redColors1, 4, 0xFFFFFF); ktR1.refresh(); }
-        if (this._playerLabels['red']) this._playerLabels['red'].setColor('#ff5555');
-
-        // Red 2
-        const ntR2 = this.textures.get('player_red2');
-        if (ntR2 && ntR2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ntR2.canvas, r, 0, redColors2, 2, 0x000000); ntR2.refresh(); }
-        const ktR2 = this.textures.get('kick_red2');
-        if (ktR2 && ktR2.canvas) { window.TextureGenerator.drawPlayerOnCanvas(ktR2.canvas, r, 0, redColors2, 4, 0xFFFFFF); ktR2.refresh(); }
-        if (this._playerLabels['red2']) this._playerLabels['red2'].setColor('#dd3333');
+        this._playerUniforms = {
+            blue:  { angle: 0, textColor: '#ffffff', colors: [0x0000F8], avatar: '1' },
+            blue2: { angle: 0, textColor: '#ffffff', colors: [0x0000C0], avatar: '3' },
+            red:   { angle: 0, textColor: '#ffffff', colors: [0xF00000], avatar: '2' },
+            red2:  { angle: 0, textColor: '#ffffff', colors: [0xC00000], avatar: '4' }
+        };
+        Object.keys(this._playerUniforms).forEach(k => this._redrawPlayerTexture(k));
     }
 
     _addChatMessage(text, color) {
@@ -1080,6 +1067,10 @@ class GameScene extends Phaser.Scene {
                 if (msg.action === 'reset') this._resetTeamColors();
                 else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
             }
+            if (msg.type === 'avatar') {
+                this._playerUniforms[msg.playerKey].avatar = msg.avatar;
+                this._redrawPlayerTexture(msg.playerKey);
+            }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
@@ -1097,6 +1088,10 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'colors') {
                 if (msg.action === 'reset') this._resetTeamColors();
                 else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
+            }
+            if (msg.type === 'avatar') {
+                this._playerUniforms[msg.playerKey].avatar = msg.avatar;
+                this._redrawPlayerTexture(msg.playerKey);
             }
         };
     }
