@@ -1213,7 +1213,7 @@ class GameScene extends Phaser.Scene {
             const isBlue = p._normalTexture.includes('blue');
             const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
             if (!this._kickoffActive || isKicking)
-                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, P_INV_M, ball._invMass, P_BOUNCE, ball._bCoef);
+                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
         }
     }
 
