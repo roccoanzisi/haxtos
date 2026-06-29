@@ -334,6 +334,7 @@ class GameScene extends Phaser.Scene {
         const vtx = fd.vertexes;
         const lineColor = isHockey ? 0xE9CC6E : 0xC7E6BD;
         for (const seg of fd.segments) {
+            if (seg.vis === false) continue;
             if (seg.v0 >= vtx.length || seg.v1 >= vtx.length) continue;
             const v0 = vtx[seg.v0];
             const v1 = vtx[seg.v1];
@@ -425,6 +426,10 @@ class GameScene extends Phaser.Scene {
         this.ball._damping = B_DAMPING;
         this.ball._invMass = B_INV_M;
         this.ball._bCoef   = B_BOUNCE;
+
+        // Collision groups/masks
+        this.ball.cGroup = ['ball'];
+        this.ball.cMask = ['all'];
     }
 
     _spawnPlayers() {
@@ -452,6 +457,16 @@ class GameScene extends Phaser.Scene {
         p._inputDx = 0;
         p._inputDy = 0;
         p._isKicking = false;
+
+        // Physics properties for generic collision resolution
+        p._radius  = P_RADIUS;
+        p._bCoef   = P_BOUNCE;
+        p._invMass = P_INV_M;
+
+        // Collision groups/masks
+        p.cGroup = key.includes('blue') ? ['blue'] : ['red'];
+        p.cMask = ['all'];
+
         return p;
     }
 
@@ -1016,14 +1031,18 @@ class GameScene extends Phaser.Scene {
             const fd = this._hbsField;
             if (fd.staticDiscs.length > 0) {
                 this._goalPosts = fd.staticDiscs.map(d => ({
-                    x: F.CX + d.pos[0], y: F.CY - d.pos[1], _vx: 0, _vy: 0
+                    x: F.CX + d.pos[0], y: F.CY - d.pos[1], _vx: 0, _vy: 0,
+                    radius: d.radius != null ? d.radius : POST_RADIUS,
+                    bCoef: d.bCoef != null ? d.bCoef : POST_BOUNCE,
+                    cGroup: d.cGroup,
+                    cMask: d.cMask
                 }));
             } else {
                 this._goalPosts = [
-                    { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0 },
-                    { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0 },
-                    { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0 },
-                    { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+                    { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+                    { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+                    { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+                    { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
                 ];
             }
             this._cornerDiscs = [];
@@ -1031,10 +1050,10 @@ class GameScene extends Phaser.Scene {
         }
 
         this._goalPosts = [
-            { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0 },
-            { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0 },
-            { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0 },
-            { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0 },
+            { x: F.X,       y: F.GOAL_TOP, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+            { x: F.X,       y: F.GOAL_BOT, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+            { x: F.X + F.W, y: F.GOAL_TOP, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
+            { x: F.X + F.W, y: F.GOAL_BOT, _vx: 0, _vy: 0, radius: POST_RADIUS, bCoef: POST_BOUNCE },
         ];
         this._cornerDiscs = [];
         const cr = this.stadiumCfg.cornerRadius;
@@ -1049,6 +1068,204 @@ class GameScene extends Phaser.Scene {
     }
 
     // ── Custom Haxball Physics Engine ──────────────────────────────
+
+    _canCollide(aGroups, aMasks, bGroups, bMasks) {
+        const toArray = (v) => {
+            if (v == null) return [];
+            if (Array.isArray(v)) return v;
+            return [v];
+        };
+        const gA = toArray(aGroups);
+        const mA = toArray(aMasks);
+        const gB = toArray(bGroups);
+        const mB = toArray(bMasks);
+
+        if (mA.length === 0 || mB.length === 0) return true;
+
+        const matches = (groups, mask) => {
+            if (mask.includes('all')) return true;
+            for (const g of groups) {
+                if (mask.includes(g)) return true;
+            }
+            return false;
+        };
+
+        return matches(gB, mA) && matches(gA, mB);
+    }
+
+    _resolveDiscPlane(disc, plane) {
+        if (!plane.normal || plane.dist == null) return;
+        if (!this._canCollide(disc.cGroup, disc.cMask, plane.cGroup, plane.cMask)) return;
+
+        const wnx = plane.normal[0];
+        const wny = -plane.normal[1];
+        const proj = (disc.x - F.CX) * wnx + (disc.y - F.CY) * wny - plane.dist;
+        const radius = disc._radius || B_RADIUS;
+
+        if (proj >= radius) return;
+
+        const overlap = radius - proj;
+        disc.x += wnx * overlap;
+        disc.y += wny * overlap;
+
+        const vn = disc._vx * wnx + disc._vy * wny;
+        if (vn < 0) {
+            const bounce = (disc._bCoef || 0.5) * (plane.bCoef != null ? plane.bCoef : 1.0);
+            disc._vx -= (1 + bounce) * vn * wnx;
+            disc._vy -= (1 + bounce) * vn * wny;
+            if (disc === this.ball) {
+                const speed = Math.hypot(disc._vx, disc._vy);
+                if (speed > 30) soundManager.wallHit(speed);
+            }
+        }
+    }
+
+    _resolveDiscSegment(disc, seg) {
+        const vtx = this._hbsField.vertexes;
+        if (seg.v0 >= vtx.length || seg.v1 >= vtx.length) return;
+        if (!this._canCollide(disc.cGroup, disc.cMask, seg.cGroup, seg.cMask)) return;
+
+        const v0 = vtx[seg.v0];
+        const v1 = vtx[seg.v1];
+        const p0 = { x: F.CX + v0.x, y: F.CY - v0.y };
+        const p1 = { x: F.CX + v1.x, y: F.CY - v1.y };
+
+        const curve = seg.curve || 0;
+        const radius = disc._radius || B_RADIUS;
+        const bounce = (disc._bCoef || 0.5) * (seg.bCoef != null ? seg.bCoef : 1.0);
+
+        let closestX, closestY;
+
+        if (Math.abs(curve) < 0.1) {
+            const dx = p1.x - p0.x;
+            const dy = p1.y - p0.y;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq < 0.0001) {
+                closestX = p0.x;
+                closestY = p0.y;
+            } else {
+                const t = ((disc.x - p0.x) * dx + (disc.y - p0.y) * dy) / lenSq;
+                const tClamped = Math.max(0, Math.min(1, t));
+                closestX = p0.x + tClamped * dx;
+                closestY = p0.y + tClamped * dy;
+            }
+        } else {
+            const theta = curve * Math.PI / 180;
+            const dx = p1.x - p0.x;
+            const dy = p1.y - p0.y;
+            const chord = Math.hypot(dx, dy);
+            if (chord < 0.01) return;
+
+            const r = chord / (2 * Math.abs(Math.sin(theta / 2)));
+            const px = -dy / chord;
+            const py = dx / chord;
+            const halfChord = chord / 2;
+            const d = Math.sqrt(Math.max(0, r * r - halfChord * halfChord));
+
+            const sign = theta > 0 ? -1 : 1;
+            const cx = (p0.x + p1.x) / 2 + sign * px * d;
+            const cy = (p0.y + p1.y) / 2 + sign * py * d;
+
+            const pdx = disc.x - cx;
+            const pdy = disc.y - cy;
+            const pdist = Math.hypot(pdx, pdy);
+            if (pdist < 0.0001) return;
+
+            const projX = cx + (pdx / pdist) * r;
+            const projY = cy + (pdy / pdist) * r;
+
+            const startA = Math.atan2(p0.y - cy, p0.x - cx);
+            const endA   = Math.atan2(p1.y - cy, p1.x - cx);
+            const projA  = Math.atan2(projY - cy, projX - cx);
+
+            let sweep = endA - startA;
+            if (theta > 0) { if (sweep > 0) sweep -= 2 * Math.PI; }
+            else           { if (sweep < 0) sweep += 2 * Math.PI; }
+
+            let diff = projA - startA;
+            if (theta > 0) {
+                while (diff > 0) diff -= 2 * Math.PI;
+                while (diff <= -2 * Math.PI) diff += 2 * Math.PI;
+                if (diff >= sweep && diff <= 0) {
+                    closestX = projX;
+                    closestY = projY;
+                }
+            } else {
+                while (diff < 0) diff += 2 * Math.PI;
+                while (diff >= 2 * Math.PI) diff -= 2 * Math.PI;
+                if (diff <= sweep && diff >= 0) {
+                    closestX = projX;
+                    closestY = projY;
+                }
+            }
+
+            if (closestX === undefined) {
+                const d0 = Math.hypot(disc.x - p0.x, disc.y - p0.y);
+                const d1 = Math.hypot(disc.x - p1.x, disc.y - p1.y);
+                if (d0 < d1) {
+                    closestX = p0.x;
+                    closestY = p0.y;
+                } else {
+                    closestX = p1.x;
+                    closestY = p1.y;
+                }
+            }
+        }
+
+        const cdx = disc.x - closestX;
+        const cdy = disc.y - closestY;
+        const cdist = Math.hypot(cdx, cdy);
+
+        if (cdist >= radius || cdist < 0.0001) return;
+
+        const normalX = cdx / cdist;
+        const normalY = cdy / cdist;
+        const overlap = radius - cdist;
+
+        disc.x += normalX * overlap;
+        disc.y += normalY * overlap;
+
+        const vn = disc._vx * normalX + disc._vy * normalY;
+        if (vn < 0) {
+            disc._vx -= (1 + bounce) * vn * normalX;
+            disc._vy -= (1 + bounce) * vn * normalY;
+            if (disc === this.ball) {
+                const speed = Math.hypot(disc._vx, disc._vy);
+                if (speed > 30) soundManager.wallHit(speed);
+            }
+        }
+    }
+
+    _resolveDiscVertex(disc, vtx) {
+        if (!this._canCollide(disc.cGroup, disc.cMask, vtx.cGroup, vtx.cMask)) return;
+
+        const vx = F.CX + vtx.x;
+        const vy = F.CY - vtx.y;
+        const dx = disc.x - vx;
+        const dy = disc.y - vy;
+        const dist = Math.hypot(dx, dy);
+        const radius = disc._radius || B_RADIUS;
+
+        if (dist >= radius || dist < 0.0001) return;
+
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const overlap = radius - dist;
+
+        disc.x += nx * overlap;
+        disc.y += ny * overlap;
+
+        const vn = disc._vx * nx + disc._vy * ny;
+        if (vn < 0) {
+            const bounce = (disc._bCoef || 0.5) * (vtx.bCoef != null ? vtx.bCoef : 1.0);
+            disc._vx -= (1 + bounce) * vn * nx;
+            disc._vy -= (1 + bounce) * vn * ny;
+            if (disc === this.ball) {
+                const speed = Math.hypot(disc._vx, disc._vy);
+                if (speed > 30) soundManager.postHit(speed);
+            }
+        }
+    }
 
     // Haxball disc-to-disc collision (exact impulse math)
     _resolveDiscDisc(a, b, rA, rB, invMA, invMB, bCoefA, bCoefB) {
@@ -1197,23 +1414,74 @@ class GameScene extends Phaser.Scene {
 
         // 5. Collisions
         this._resolveKickoffBarrier(players);
-        for (const p of players) this._resolvePlayerWall(p);
-        for (let i = 0; i < players.length; i++)
-            for (let j = i + 1; j < players.length; j++)
+
+        // Player-to-player collision
+        for (let i = 0; i < players.length; i++) {
+            for (let j = i + 1; j < players.length; j++) {
                 this._resolveDiscDisc(players[i], players[j], P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
-        this._resolveBallWall(ball, ball._radius);
-        for (const post of this._goalPosts)
-            this._resolveDiscDisc(ball, post, ball._radius, POST_RADIUS, ball._invMass, 0, ball._bCoef, POST_BOUNCE);
-        for (const cd of this._cornerDiscs) {
-            this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
-            for (const p of players)
-                this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
+            }
         }
+
+        // Static obstacle collisions (planes, segments, vertexes)
+        if (this.hbsData && this._hbsField) {
+            const fd = this._hbsField;
+
+            // 1) Planes
+            for (const plane of (fd.planes || [])) {
+                this._resolveDiscPlane(ball, plane);
+                for (const p of players) {
+                    this._resolveDiscPlane(p, plane);
+                }
+            }
+
+            // 2) Segments
+            for (const seg of (fd.segments || [])) {
+                this._resolveDiscSegment(ball, seg);
+                for (const p of players) {
+                    this._resolveDiscSegment(p, seg);
+                }
+            }
+
+            // 3) Vertexes (only if they have a collision group)
+            for (const v of (fd.vertexes || [])) {
+                if (v.cGroup && v.cGroup.length > 0) {
+                    this._resolveDiscVertex(ball, v);
+                    for (const p of players) {
+                        this._resolveDiscVertex(p, v);
+                    }
+                }
+            }
+        } else {
+            // Standard fallback boundaries
+            this._resolveBallWall(ball, ball._radius);
+            for (const p of players) this._resolvePlayerWall(p);
+            for (const cd of this._cornerDiscs) {
+                this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
+                for (const p of players) {
+                    this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
+                }
+            }
+        }
+
+        // Static discs / Goal posts (runs for both HBS and standard mode)
+        for (const post of this._goalPosts) {
+            if (this._canCollide(ball.cGroup, ball.cMask, post.cGroup, post.cMask)) {
+                this._resolveDiscDisc(ball, post, ball._radius, post.radius || POST_RADIUS, ball._invMass, 0, ball._bCoef, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+            }
+            for (const p of players) {
+                if (this._canCollide(p.cGroup, p.cMask, post.cGroup, post.cMask)) {
+                    this._resolveDiscDisc(p, post, P_RADIUS, post.radius || POST_RADIUS, P_INV_M, 0, P_BOUNCE, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+                }
+            }
+        }
+
+        // Player-to-ball collision
         for (const p of players) {
             const isBlue = p._normalTexture.includes('blue');
             const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
-            if (!this._kickoffActive || isKicking)
+            if (!this._kickoffActive || isKicking) {
                 this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
+            }
         }
     }
 

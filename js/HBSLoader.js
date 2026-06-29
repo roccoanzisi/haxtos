@@ -53,9 +53,6 @@ const HBSLoader = (function () {
         const camW = hbs.width  || bw + 60;
         const camH = hbs.height || bh + 20;
 
-        // Visible segments (vis:true after trait resolution)
-        const visSegs = (hbs.segments || []).filter(s => s.vis === true);
-
         // Static discs (goal posts): invMass=0
         const staticDiscs = (hbs.discs || []).filter(d => d.invMass === 0);
 
@@ -76,8 +73,9 @@ const HBSLoader = (function () {
             cornerRadius:  bg.cornerRadius  || 0,
             ballPhysics:   hbs.ballPhysics   || null,
             playerPhysics: hbs.playerPhysics || null,
-            segments:      visSegs,
-            vertexes:      hbs.vertexes || [],
+            segments:      hbs.segments      || [],
+            vertexes:      hbs.vertexes      || [],
+            planes:        hbs.planes        || [],
             staticDiscs,
         };
     }
