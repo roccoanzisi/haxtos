@@ -793,7 +793,6 @@ class GameScene extends Phaser.Scene {
     }
 
     _buildEscPanelInner() {
-        // Remove any leftover panel from a previous scene restart
         const old = document.getElementById('_haxEscPanel');
         if (old) old.remove();
 
@@ -801,100 +800,106 @@ class GameScene extends Phaser.Scene {
         const bluePlayers = this.is2v2 ? ['Azul 1', 'Azul 2'] : ['Azul'];
 
         const mkRow = (name, color) =>
-            `<div style="background:#1e2230;margin:3px 4px;padding:7px 10px;font-size:13px;color:${color}">${name}</div>`;
+            `<div style="display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:13px;color:${color};border-bottom:1px solid #181826;">
+                <span style="display:inline-block;width:16px;height:11px;background:#3366bb;border:1px solid #4477cc;flex-shrink:0;"></span>
+                <span>${name}</span>
+            </div>`;
 
         const div = document.createElement('div');
         div.id = '_haxEscPanel';
         div.style.cssText = `
             position:fixed;top:0;left:0;right:0;bottom:0;
-            background:rgba(0,0,0,0.55);
+            background:rgba(0,0,0,0.82);
             display:none;align-items:center;justify-content:center;
-            z-index:9999;font-family:Arial,sans-serif;
+            z-index:9999;font-family:Arial,Helvetica,sans-serif;
         `;
         div.innerHTML = `
-        <div style="background:#1e2030;border:1px solid #44455a;width:870px;user-select:none;">
+        <div style="background:#111120;border:1px solid #2a2a40;width:920px;max-width:95vw;user-select:none;">
           <!-- Header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px 0;">
-            <span style="color:#fff;font-size:21px;font-weight:bold;">Haxtos</span>
-            <div style="display:flex;gap:8px;">
-              <button id="_escLeave" style="background:#2a5280;border:none;color:#fff;padding:5px 14px;cursor:pointer;font-size:13px;font-weight:bold;">→ Leave</button>
-            </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;">
+            <span style="color:#ddd;font-size:16px;">Haxtos</span>
+            <button id="_escLeave" style="background:#2a5280;border:1px solid #3a6290;color:#ddd;padding:4px 13px;cursor:pointer;font-size:13px;">↵ Leave</button>
           </div>
-          <div style="height:2px;background:#cc2222;margin-top:8px;"></div>
+          <div style="height:2px;background:#cc2222;"></div>
 
-          <!-- Teams -->
+          <!-- Body -->
           <div style="display:flex;">
             <!-- Left sidebar -->
-            <div style="width:108px;padding:8px 6px;display:flex;flex-direction:column;gap:6px;">
-              <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:6px 0;cursor:pointer;font-size:13px;font-weight:bold;width:94px;">Reset</button>
+            <div style="width:104px;padding:8px 6px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #1a1a2c;">
+              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Auto</button>
+              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Rand</button>
+              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">&#128274; Lock</button>
+              <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:5px 0;cursor:pointer;font-size:12px;width:90px;">Reset</button>
             </div>
             <!-- Red column -->
-            <div style="width:200px;">
-              <div style="background:#7a1a1a;padding:7px 10px;font-size:15px;font-weight:bold;color:#ff9999;display:flex;align-items:center;justify-content:space-between;">
+            <div style="width:215px;border-right:1px solid #1a1a2c;">
+              <div style="background:#3a1818;padding:6px 10px;font-size:14px;font-weight:bold;color:#ff8888;display:flex;align-items:center;justify-content:space-between;">
                 <span>Red</span>
-                <span style="background:#224466;padding:2px 8px;font-size:12px;color:#aaccff;">▶</span>
+                <button style="background:#2a5280;border:none;color:#fff;padding:1px 8px;font-size:12px;cursor:pointer;">&#9654;</button>
               </div>
-              <div id="_escRedPlayers" style="background:#12141e;min-height:150px;">
+              <div id="_escRedPlayers" style="background:#0c0c14;min-height:180px;">
                 ${redPlayers.map(n => mkRow(n, '#ffaaaa')).join('')}
               </div>
             </div>
             <!-- Spectators -->
-            <div style="flex:1;">
-              <div style="background:#141622;padding:7px;font-size:14px;color:#888899;text-align:center;">Spectators</div>
-              <div style="background:#12141e;min-height:150px;display:flex;align-items:center;justify-content:center;">
-                <span id="_escScore" style="font-size:30px;font-weight:bold;color:#fff;font-family:'Arial Black',Arial;">0 - 0</span>
-              </div>
+            <div style="flex:1;border-right:1px solid #1a1a2c;">
+              <div style="background:#161626;padding:6px 10px;font-size:14px;color:#888899;text-align:center;">Spectators</div>
+              <div style="background:#0c0c14;min-height:180px;"></div>
             </div>
             <!-- Blue column -->
-            <div style="width:200px;">
-              <div style="background:#1a2a7a;padding:7px 10px;font-size:15px;font-weight:bold;color:#99bbff;display:flex;align-items:center;justify-content:space-between;">
-                <span style="background:#224466;padding:2px 8px;font-size:12px;color:#aaccff;">◀</span>
+            <div style="width:215px;">
+              <div style="background:#182038;padding:6px 10px;font-size:14px;font-weight:bold;color:#88aaff;display:flex;align-items:center;justify-content:space-between;">
+                <button style="background:#2a5280;border:none;color:#fff;padding:1px 8px;font-size:12px;cursor:pointer;">&#9664;</button>
                 <span>Blue</span>
               </div>
-              <div id="_escBluePlayers" style="background:#12141e;min-height:150px;">
+              <div id="_escBluePlayers" style="background:#0c0c14;min-height:180px;">
                 ${bluePlayers.map(n => mkRow(n, '#aabbff')).join('')}
               </div>
             </div>
           </div>
-          <div style="height:1px;background:#333344;margin:0 108px;"></div>
 
           <!-- Settings -->
-          <div style="padding:12px 20px 0 148px;display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;gap:16px;">
-              <span style="color:#ccc;width:110px;">Time limit</span>
-              <span id="_escTimeVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+          <div style="border-top:1px solid #1a1a2c;padding:10px 14px 4px 116px;">
+            <div style="display:flex;align-items:center;margin-bottom:6px;">
+              <span style="color:#aaa;width:90px;font-size:13px;">Time limit</span>
+              <span id="_escTimeVal" style="color:#fff;font-size:13px;"></span>
             </div>
-            <div style="display:flex;align-items:center;gap:16px;">
-              <span style="color:#ccc;width:110px;">Score limit</span>
-              <span id="_escScoreVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+            <div style="display:flex;align-items:center;margin-bottom:6px;">
+              <span style="color:#aaa;width:90px;font-size:13px;">Score limit</span>
+              <span id="_escScoreVal" style="color:#fff;font-size:13px;"></span>
             </div>
-            <div style="display:flex;align-items:center;gap:16px;">
-              <span style="color:#ccc;width:110px;">Stadium</span>
-              <span id="_escStadVal" style="background:#2a2c3e;padding:3px 12px;color:#fff;font-size:13px;min-width:80px;"></span>
+            <div style="display:flex;align-items:center;margin-bottom:6px;">
+              <span style="color:#aaa;width:90px;font-size:13px;">Stadium</span>
+              <span id="_escStadVal" style="color:#daa520;font-size:13px;"></span>
             </div>
           </div>
 
-          <!-- Resume button -->
-          <div style="padding:16px;text-align:center;">
-            <button id="_escResume" style="background:#228833;border:none;color:#fff;padding:10px 40px;font-size:15px;font-weight:bold;cursor:pointer;">▶ Reanudar</button>
+          <!-- Bottom buttons -->
+          <div style="padding:10px 14px 12px;display:flex;gap:8px;justify-content:center;">
+            <button id="_escStop" style="background:#cc2222;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;">&#9632; Stop game</button>
+            <button id="_escResume" style="background:#2a3a4a;border:1px solid #3a4a5a;color:#ccc;padding:7px 22px;font-size:14px;cursor:pointer;">&#9646;&#9646; Resume</button>
           </div>
         </div>`;
 
         document.body.appendChild(div);
         this._escPanel = div;
 
-        // Wire up buttons
         div.addEventListener('click', (e) => { if (e.target === div) this._hideEscPanel(); });
-        document.getElementById('_escLeave').onclick  = () => {
+        document.getElementById('_escLeave').onclick = () => {
             this._hideEscPanel();
             if (this.isOnline && this.ws) this.ws.close();
             this.scene.start('MenuScene');
         };
-        document.getElementById('_escReset').onclick  = () => {
+        document.getElementById('_escReset').onclick = () => {
             this._hideEscPanel();
             this._reset();
             this.paused = false;
             this.goalLock = false;
+        };
+        document.getElementById('_escStop').onclick = () => {
+            this._hideEscPanel();
+            if (this.isOnline && this.ws) this.ws.close();
+            this.scene.start('MenuScene');
         };
         document.getElementById('_escResume').onclick = () => this._hideEscPanel();
     }
@@ -905,7 +910,6 @@ class GameScene extends Phaser.Scene {
         this._wasPaused = this.paused;
         this.paused = true;
         // Refresh dynamic values
-        document.getElementById('_escScore').textContent    = this.score.blue + ' - ' + this.score.red;
         document.getElementById('_escTimeVal').textContent  = this.timeLimit  > 0 ? (this.timeLimit / 60) + ' min' : '∞';
         document.getElementById('_escScoreVal').textContent = this.scoreWin   > 0 ? String(this.scoreWin) : '∞';
         document.getElementById('_escStadVal').textContent  = this.hbsData
