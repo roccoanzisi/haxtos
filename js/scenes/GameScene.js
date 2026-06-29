@@ -825,8 +825,22 @@ class GameScene extends Phaser.Scene {
                 }
                 break;
             }
+            case 'kick':
+            case 'ban':
+            case 'admin':
+            case 'w': {
+                if (this.isOnline) {
+                    if (this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'command', text: '/' + cmd + ' ' + args.join(' ') }));
+                    }
+                } else {
+                    this._addChatMessage('Este comando solo funciona en salas online', '#ffaaaa');
+                }
+                break;
+            }
             case 'help':
-                this._addChatMessage('/extrapolation /avatar /zoom /handicap /fps /colors', '#ffff88');
+                this._addChatMessage('Comandos locales: /colors /avatar /zoom /extrapolation /fps /handicap', '#ffff88');
+                this._addChatMessage('Comandos online: /kick <id|nombre> /ban <id|nombre> /admin <id|nombre> /w <id|nombre> <msg>', '#ffff88');
                 break;
             default:
                 this._addChatMessage(`Desconocido: /${name} — prueba /help`, '#ffaaaa');
@@ -1071,6 +1085,13 @@ class GameScene extends Phaser.Scene {
                 this._playerUniforms[msg.playerKey].avatar = msg.avatar;
                 this._redrawPlayerTexture(msg.playerKey);
             }
+            if (msg.type === 'players_list') {
+                this.roomPlayers = msg.list;
+                const me = msg.list.find(p => p.index === this.playerIndex);
+                if (me) {
+                    this.isAdmin = me.admin;
+                }
+            }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
@@ -1092,6 +1113,13 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'avatar') {
                 this._playerUniforms[msg.playerKey].avatar = msg.avatar;
                 this._redrawPlayerTexture(msg.playerKey);
+            }
+            if (msg.type === 'players_list') {
+                this.roomPlayers = msg.list;
+                const me = msg.list.find(p => p.index === this.playerIndex);
+                if (me) {
+                    this.isAdmin = me.admin;
+                }
             }
         };
     }
