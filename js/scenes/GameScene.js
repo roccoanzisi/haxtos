@@ -1370,6 +1370,22 @@ class GameScene extends Phaser.Scene {
         const ball = this.ball;
         const players = Object.values(this.players);
 
+        // Deactivate kickoff if ball is kicked
+        if (this._kickoffActive && Math.hypot(ball._vx, ball._vy) > 0.5) {
+            this._kickoffActive = false;
+        }
+
+        // Dynamically update player collision masks for kickoff barriers
+        for (const p of players) {
+            const isBlue = p._normalTexture.includes('blue');
+            const baseMask = ['ball', 'red', 'blue', 'wall'];
+            if (this._kickoffActive) {
+                p.cMask = baseMask.concat(isBlue ? ['blueKO'] : ['redKO']);
+            } else {
+                p.cMask = baseMask;
+            }
+        }
+
         // 1. Acceleration only (damping applied AFTER move, like Haxball)
         for (const p of players) {
             const accel = p._isKicking ? PK_ACCEL : P_ACCEL;
@@ -1495,7 +1511,7 @@ class GameScene extends Phaser.Scene {
     }
 
     _resolveKickoffBarrier(players) {
-        if (!this._kickoffActive) return;
+        if (!this._kickoffActive || this.hbsData) return;
         if (Math.hypot(this.ball._vx, this.ball._vy) > 0.5) {
             this._kickoffActive = false;
             return;
