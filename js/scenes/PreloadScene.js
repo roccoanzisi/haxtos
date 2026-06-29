@@ -41,16 +41,15 @@ window.TextureGenerator = {
             ctx.translate(-cx, -cx);
 
             const numStripes = cssColors.length;
-            const stripeW = 8; // width of each stripe in pixels
-            const totalW = numStripes * stripeW;
-            const startX = cx - r * 2;
-            const endX = cx + r * 2;
+            const diameter = r * 2;
+            const stripeW = diameter / numStripes;
+            const startX = cx - r;
 
-            for (let x = startX; x < endX; x += totalW) {
-                for (let i = 0; i < numStripes; i++) {
-                    ctx.fillStyle = cssColors[i];
-                    ctx.fillRect(x + i * stripeW, cx - r * 2, stripeW, r * 4);
-                }
+            for (let i = 0; i < numStripes; i++) {
+                ctx.fillStyle = cssColors[i];
+                const x0 = startX + i * stripeW;
+                const x1 = startX + (i + 1) * stripeW;
+                ctx.fillRect(x0 - 0.5, cx - r, (x1 - x0) + 0.5, diameter);
             }
             ctx.restore();
         }
