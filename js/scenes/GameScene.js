@@ -1192,17 +1192,44 @@ class GameScene extends Phaser.Scene {
     // ── Online ─────────────────────────────────────────────────────
     _getInputKeys() {
         const r = {};
-        const map = (keys, prefix) => {
-            r[prefix + '_up']    = keys.up.isDown;
-            r[prefix + '_down']  = keys.down.isDown;
-            r[prefix + '_left']  = keys.left.isDown;
-            r[prefix + '_right'] = keys.right.isDown;
-        };
-        map(this.keys1, 'k1');
-        map(this.keys2, 'k2');
-        if (this.is2v2) { map(this.keys3, 'k3'); map(this.keys4, 'k4'); }
-        r.kick1 = this.kick1.isDown;
-        r.kick2 = this.kick2.isDown;
+        
+        // Combine WASD and Arrow keys for our movement in online mode
+        const up = this.keys1.up.isDown || this.keys2.up.isDown;
+        const down = this.keys1.down.isDown || this.keys2.down.isDown;
+        const left = this.keys1.left.isDown || this.keys2.left.isDown;
+        const right = this.keys1.right.isDown || this.keys2.right.isDown;
+        const kick = this.kick1.isDown || this.kick2.isDown;
+
+        if (this.isOnline) {
+            if (this.playerIndex === 1) {
+                // Guest: send our combined inputs as 'k2' so Host applies them to red player
+                r.k2_up = up;
+                r.k2_down = down;
+                r.k2_left = left;
+                r.k2_right = right;
+                r.kick2 = kick;
+            } else {
+                // Host: send our combined inputs as 'k1'
+                r.k1_up = up;
+                r.k1_down = down;
+                r.k1_left = left;
+                r.k1_right = right;
+                r.kick1 = kick;
+            }
+        } else {
+            // Local mode: keep separate
+            r.k1_up = this.keys1.up.isDown;
+            r.k1_down = this.keys1.down.isDown;
+            r.k1_left = this.keys1.left.isDown;
+            r.k1_right = this.keys1.right.isDown;
+            r.kick1 = this.kick1.isDown;
+
+            r.k2_up = this.keys2.up.isDown;
+            r.k2_down = this.keys2.down.isDown;
+            r.k2_left = this.keys2.left.isDown;
+            r.k2_right = this.keys2.right.isDown;
+            r.kick2 = this.kick2.isDown;
+        }
         return r;
     }
 
@@ -2071,13 +2098,17 @@ class GameScene extends Phaser.Scene {
     _updateHost() {
         if (!this._chatOpen) {
             if (this.players.blue) {
-                this.players.blue._isKicking = this.kick1.isDown;
-                this._movePlayer(this.players.blue, this.keys1, 'blue');
+                // Combine WASD and Arrow keys for Host player (blue)
+                const up = this.keys1.up.isDown || this.keys2.up.isDown;
+                const down = this.keys1.down.isDown || this.keys2.down.isDown;
+                const left = this.keys1.left.isDown || this.keys2.left.isDown;
+                const right = this.keys1.right.isDown || this.keys2.right.isDown;
+                const kick = this.kick1.isDown || this.kick2.isDown;
+
+                this.players.blue._isKicking = kick;
+                this._movePlayer(this.players.blue, { up, down, left, right }, 'blue');
             }
-            if (this.players.red) {
-                this.players.red._isKicking = this.kick2.isDown;
-                this._movePlayer(this.players.red, this.keys2, 'red');
-            }
+            // Host does NOT override Guest player (red) inputs locally!
         }
         this._applyGuestInputs();
         this._physicsStep();
@@ -2102,11 +2133,16 @@ class GameScene extends Phaser.Scene {
         const myKey = this.playerIndex === 0 ? 'blue' : 'red';
         const myPlayer = this.players[myKey];
         if (myPlayer && !this._chatOpen) {
-            const myKeys = this.playerIndex === 0 ? this.keys1 : this.keys2;
-            const myKick = this.playerIndex === 0 ? this.kick1 : this.kick2;
-            
+            // Combine WASD and Arrow keys for our local prediction
+            const up = this.keys1.up.isDown || this.keys2.up.isDown;
+            const down = this.keys1.down.isDown || this.keys2.down.isDown;
+            const left = this.keys1.left.isDown || this.keys2.left.isDown;
+            const right = this.keys1.right.isDown || this.keys2.right.isDown;
+            const kick = this.kick1.isDown || this.kick2.isDown;
+
+            const myKeys = { up, down, left, right };
             this._movePlayer(myPlayer, myKeys, myKey);
-            myPlayer._isKicking = myKick.isDown;
+            myPlayer._isKicking = kick;
             
             const accel = myPlayer._isKicking ? PK_ACCEL : P_ACCEL;
             myPlayer._vx += myPlayer._inputDx * accel;
@@ -2143,20 +2179,15 @@ class GameScene extends Phaser.Scene {
                             this.players[k]._vx = pState.vx;
                             this.players[k]._vy = pState.vy;
                         } else {
-                            // Soft reconciliation for ourselves
+                            // Threshold-based reconciliation for ourselves (no rubberband pulling when delta is small!)
                             const dx = pState.x - this.players[k].x;
                             const dy = pState.y - this.players[k].y;
                             const dist = Math.hypot(dx, dy);
-                            if (dist > 60) {
+                            if (dist > 20) {
                                 this.players[k].x = pState.x;
                                 this.players[k].y = pState.y;
                                 this.players[k]._vx = pState.vx;
                                 this.players[k]._vy = pState.vy;
-                            } else {
-                                this.players[k].x += dx * 0.20;
-                                this.players[k].y += dy * 0.20;
-                                this.players[k]._vx += (pState.vx - this.players[k]._vx) * 0.20;
-                                this.players[k]._vy += (pState.vy - this.players[k]._vy) * 0.20;
                             }
                         }
                     }
