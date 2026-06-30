@@ -105,8 +105,6 @@ class ConfigScene extends Phaser.Scene {
 
     // ── Main layout ────────────────────────────────────────────────────────
     _drawLayout(W, H) {
-        const modeLabel = this.mode === 'local2v2' ? 'LOCAL 2 vs 2' : 'LOCAL 1 vs 1';
-
         // ── Header ──
         // Back arrow
         const back = this.add.text(22, 18, '‹ Volver', {
@@ -120,11 +118,6 @@ class ConfigScene extends Phaser.Scene {
         this.add.text(W / 2, 22, 'CONFIGURAR PARTIDA', {
             fontSize: '22px', fontFamily: 'Arial Black, sans-serif',
             color: '#ddeeff', stroke: '#0a0a30', strokeThickness: 5
-        }).setOrigin(0.5, 0);
-
-        // Mode badge
-        this.add.text(W / 2, 50, modeLabel, {
-            fontSize: '12px', fontFamily: 'Arial, sans-serif', color: '#5566aa'
         }).setOrigin(0.5, 0);
 
         // Divider
@@ -144,6 +137,31 @@ class ConfigScene extends Phaser.Scene {
     // ── Left column: stadium / goals / time ───────────────────────────────
     _drawOptionsColumn(cx, startY, W, H) {
         let y = startY;
+
+        // ── Mode ──
+        this._sectionLabel(cx, y, 'MODO DE JUEGO');
+        y += 38;
+        const modeOptions = [
+            { label: '1 vs 1', value: 'local1v1' },
+            { label: '2 vs 2', value: 'local2v2' },
+        ];
+        const modePillW = 110, modePillH = 40, modeGap = 10;
+        const mTotalW = modeOptions.length * modePillW + (modeOptions.length - 1) * modeGap;
+        const mx = cx - mTotalW / 2;
+        modeOptions.forEach((opt, i) => {
+            const px = mx + i * (modePillW + modeGap) + modePillW / 2;
+            this._optPill(px, y, modePillW, modePillH, opt.label, this.mode === opt.value, () => {
+                this.scene.restart({ mode: opt.value, stadium: this.selectedStadium,
+                    goals: this.selectedGoals, time: this.selectedTime });
+            });
+        });
+        y += modePillH + 20;
+
+        // ── Divider ──
+        const dg0 = this.add.graphics();
+        dg0.lineStyle(1, 0x1e2255, 1);
+        dg0.lineBetween(cx - mTotalW / 2, y, cx + mTotalW / 2, y);
+        y += 18;
 
         // ── Stadium ──
         this._sectionLabel(cx, y, 'ESTADIO');

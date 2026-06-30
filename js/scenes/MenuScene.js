@@ -125,14 +125,12 @@ class MenuScene extends Phaser.Scene {
 
     _drawButtons(W, H) {
         this._cardIndex = 0;
-        const startY = H * 0.42;
-        const gap    = 76;
+        const startY = H * 0.46;
+        const gap    = 84;
 
         const items = [
-            { icon: '⚽',  label: 'LOCAL 1 vs 1',   sub: 'Mismo teclado · 2 jugadores', color: '#1e4fcc', cb: () => this.scene.start('ConfigScene', { mode: 'local1v1' }) },
-            { icon: '⚽⚽', label: 'LOCAL 2 vs 2',   sub: 'Mismo teclado · 4 jugadores', color: '#163a99', cb: () => this.scene.start('ConfigScene', { mode: 'local2v2' }) },
-            { icon: '🌐',  label: 'ONLINE',          sub: 'Partidas en línea',            color: '#1a6628', cb: () => this.scene.start('OnlineScene') },
-            { icon: '🗺️', label: 'CARGAR MAPA',     sub: 'Archivo .hbs personalizado',  color: '#6b3d0e', cb: () => this._loadHBS() },
+            { icon: '⚽',  label: 'LOCAL',   sub: 'Partida en el mismo equipo',  color: '#1e4fcc', cb: () => this.scene.start('ConfigScene', { mode: 'local1v1' }) },
+            { icon: '🌐',  label: 'ONLINE',  sub: 'Partidas en línea',            color: '#1a6628', cb: () => this.scene.start('OnlineScene') },
         ];
 
         items.forEach(({ icon, label, sub, color, cb }, i) => {
@@ -219,36 +217,6 @@ class MenuScene extends Phaser.Scene {
         this.add.text(W / 2, y, 'Azul: WASD + Espacio  ·  Rojo: ↑↓←→ + Shift  ·  2v2 añade TGFH e IJKL', {
             fontSize: '12px', fontFamily: 'Arial, sans-serif', color: '#334466'
         }).setOrigin(0.5);
-    }
-
-    _loadHBS() {
-        let input = document.getElementById('_hbsFileInput');
-        if (!input) {
-            input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.hbs';
-            input.id = '_hbsFileInput';
-            input.style.display = 'none';
-            document.body.appendChild(input);
-        }
-        input.value = '';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    window._hbsData = HBSLoader.load(ev.target.result);
-                    window._hbsData._fileName = file.name;
-                    this.scene.start('ConfigScene', { mode: 'local1v1', hbs: true });
-                } catch (err) {
-                    console.error('Error al cargar HBS:', err);
-                    alert('Error al leer el archivo: ' + err.message);
-                }
-            };
-            reader.readAsText(file);
-        };
-        input.click();
     }
 
     _soundToggle(x, y) {
