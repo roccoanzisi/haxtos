@@ -495,6 +495,7 @@ class GameScene extends Phaser.Scene {
             }
         }
         this._buildPlayerLabels();
+        if (this.ball) this.ball.setVisible(true);
     }
 
     _makePlayer(x, y, key) {
