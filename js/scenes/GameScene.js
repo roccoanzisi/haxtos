@@ -112,17 +112,20 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline && !this.isHost) this._setupOnlineGuest();
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
 
-        // Always start in lobby state — game begins only when "Start game" is pressed
-        this.gameStarted = false;
-        this.paused = true;
-        this._despawnPlayers();
-        this._showEscPanel();
-
         if (this.isOnline) {
+            // Online: start in lobby — wait for "Start game"
+            this.gameStarted = false;
+            this.paused = true;
+            this._despawnPlayers();
+            this._showEscPanel();
             this._initWebRTC();
             if (this.ws && this.ws.readyState === 1) {
                 this.ws.send(JSON.stringify({ type: 'request_players' }));
             }
+        } else {
+            // Local: start game immediately, ESC opens settings
+            this.gameStarted = true;
+            this._reset();
         }
     }
 
