@@ -1032,25 +1032,31 @@ class GameScene extends Phaser.Scene {
             </div>
           </div>
 
-          <!-- Settings -->
-          <div style="border-top:1px solid #1a1a2c;padding:8px 12px 6px 12px;">
-            <div style="display:flex;align-items:center;margin-bottom:5px;">
-              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Modo</span>
-              <div id="_escModeOpts" style="display:flex;gap:4px;"></div>
+          <!-- Settings (collapsible) -->
+          <div style="border-top:1px solid #1a1a2c;">
+            <div id="_escSettingsToggle" style="padding:6px 14px;display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
+              <span id="_escSettingsArrow" style="color:#556688;font-size:10px;transition:transform 0.15s;">&#9654;</span>
+              <span style="color:#556688;font-size:11px;letter-spacing:0.5px;">CONFIGURACIÓN</span>
             </div>
-            <div style="display:flex;align-items:center;margin-bottom:5px;flex-wrap:wrap;row-gap:4px;">
-              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Estadio</span>
-              <div id="_escStadOpts" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-              <button id="_escLoadMap" style="margin-left:5px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 7px;font-size:11px;cursor:pointer;border-radius:3px;">&#128194;</button>
-              <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
-            </div>
-            <div style="display:flex;align-items:center;margin-bottom:5px;">
-              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Goles</span>
-              <div id="_escGoalOpts" style="display:flex;gap:4px;"></div>
-            </div>
-            <div style="display:flex;align-items:center;">
-              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Tiempo</span>
-              <div id="_escTimeOpts" style="display:flex;gap:4px;"></div>
+            <div id="_escSettingsBody" style="display:none;padding:4px 14px 8px 14px;">
+              <div style="display:flex;align-items:center;margin-bottom:5px;">
+                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Modo</span>
+                <div id="_escModeOpts" style="display:flex;gap:4px;"></div>
+              </div>
+              <div style="display:flex;align-items:center;margin-bottom:5px;flex-wrap:wrap;row-gap:4px;">
+                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Estadio</span>
+                <div id="_escStadOpts" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+                <button id="_escLoadMap" style="margin-left:5px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 7px;font-size:11px;cursor:pointer;border-radius:3px;">&#128194;</button>
+                <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
+              </div>
+              <div style="display:flex;align-items:center;margin-bottom:5px;">
+                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Goles</span>
+                <div id="_escGoalOpts" style="display:flex;gap:4px;"></div>
+              </div>
+              <div style="display:flex;align-items:center;">
+                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Tiempo</span>
+                <div id="_escTimeOpts" style="display:flex;gap:4px;"></div>
+              </div>
             </div>
           </div>
 
@@ -1065,6 +1071,14 @@ class GameScene extends Phaser.Scene {
 
         document.body.appendChild(div);
         this._escPanel = div;
+
+        document.getElementById('_escSettingsToggle').onclick = () => {
+            const body  = document.getElementById('_escSettingsBody');
+            const arrow = document.getElementById('_escSettingsArrow');
+            const open  = body.style.display === 'none';
+            body.style.display  = open ? 'block' : 'none';
+            arrow.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)';
+        };
 
         this._buildSettingsPills();
 
