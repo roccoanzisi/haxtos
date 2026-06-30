@@ -1687,17 +1687,17 @@ class GameScene extends Phaser.Scene {
     // ── Custom Haxball Physics Engine ──────────────────────────────
 
     _canCollide(aGroups, aMasks, bGroups, bMasks) {
-        const toArray = (v) => {
-            if (v == null) return [];
-            if (Array.isArray(v)) return v;
-            return [v];
-        };
-        const gA = toArray(aGroups);
-        const mA = toArray(aMasks);
-        const gB = toArray(bGroups);
-        const mB = toArray(bMasks);
+        // null/undefined mask = unspecified = collides with everything
+        // []  empty mask      = explicitly no collision
+        if (aMasks == null || bMasks == null) return true;
 
-        if (mA.length === 0 || mB.length === 0) return true;
+        const toArr = (v) => Array.isArray(v) ? v : (v != null ? [v] : []);
+        const mA = toArr(aMasks);
+        const mB = toArr(bMasks);
+        const gA = toArr(aGroups);
+        const gB = toArr(bGroups);
+
+        if (mA.length === 0 || mB.length === 0) return false;
 
         const matches = (groups, mask) => {
             if (mask.includes('all')) return true;
