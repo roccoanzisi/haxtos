@@ -91,7 +91,7 @@ class OnlineScene extends Phaser.Scene {
 
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        const host = isLocal ? location.host : 'haxtos-server-production.up.railway.app';
+        const host = isLocal ? location.host : 'haxtos.onrender.com';
         this.ws = new WebSocket(`${proto}//${host}`);
 
         this.ws.onopen = () => {
