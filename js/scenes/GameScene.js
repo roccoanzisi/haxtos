@@ -1210,7 +1210,10 @@ class GameScene extends Phaser.Scene {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            if (msg.type === 'state') this.serverState = msg.data;
+            if (msg.type === 'state') {
+                this.serverState = msg.data;
+                this.newServerState = true;
+            }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
                 if (msg.action === 'reset') this._resetTeamColors();
@@ -1392,6 +1395,7 @@ class GameScene extends Phaser.Scene {
                 this._guestInputs = msg.keys;
             } else if (msg.type === 'state') {
                 this.serverState = msg.data;
+                this.newServerState = true;
             }
         };
     }
@@ -2098,29 +2102,53 @@ class GameScene extends Phaser.Scene {
             // Velocity is in pixels per frame, so we convert extrapolation ms to frames
             // 1 frame = 16.667ms at 60 FPS
             const extFrames = (window.HAXTOS_EXTRAPOLATION || 0) / 16.667;
-            this.ball.x = this.serverState.ballX + this.serverState.ballVX * extFrames;
-            this.ball.y = this.serverState.ballY + this.serverState.ballVY * extFrames;
-            this.ball._vx = this.serverState.ballVX;
-            this.ball._vy = this.serverState.ballVY;
-            this.ball.rotation = this.serverState.ballRot || 0;
+
+            if (this.newServerState) {
+                // A new packet arrived! We update base positions with extrapolation
+                this.ball.x = this.serverState.ballX + this.serverState.ballVX * extFrames;
+                this.ball.y = this.serverState.ballY + this.serverState.ballVY * extFrames;
+                this.ball._vx = this.serverState.ballVX;
+                this.ball._vy = this.serverState.ballVY;
+                this.ball.rotation = this.serverState.ballRot || 0;
+
+                Object.keys(this.serverState.players || {}).forEach(k => {
+                    if (this.players[k]) {
+                        const pState = this.serverState.players[k];
+                        const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
+                        
+                        if (!isOurselves) {
+                            this.players[k].x = pState.x + pState.vx * extFrames;
+                            this.players[k].y = pState.y + pState.vy * extFrames;
+                        } else {
+                            this.players[k].x = pState.x;
+                            this.players[k].y = pState.y;
+                        }
+                        this.players[k]._vx = pState.vx;
+                        this.players[k]._vy = pState.vy;
+                    }
+                });
+
+                this.newServerState = false; // Reset flag
+            } else {
+                // No new packet. We let them glide naturally based on last known velocity!
+                this.ball.x += this.ball._vx;
+                this.ball.y += this.ball._vy;
+
+                Object.keys(this.players).forEach(k => {
+                    const p = this.players[k];
+                    if (p) {
+                        p.x += p._vx;
+                        p.y += p._vy;
+                    }
+                });
+            }
+
+            // Sync Phaser bodies
             this.ball.body.reset(this.ball.x, this.ball.y);
             this.ball.body.velocity.set(this.ball._vx, this.ball._vy);
 
-            Object.keys(this.serverState.players || {}).forEach(k => {
+            Object.keys(this.players).forEach(k => {
                 if (this.players[k]) {
-                    const pState = this.serverState.players[k];
-                    // We only extrapolate the opponent player to avoid jittering the client's own avatar
-                    const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
-                    
-                    if (!isOurselves) {
-                        this.players[k].x = pState.x + pState.vx * extFrames;
-                        this.players[k].y = pState.y + pState.vy * extFrames;
-                    } else {
-                        this.players[k].x = pState.x;
-                        this.players[k].y = pState.y;
-                    }
-                    this.players[k]._vx = pState.vx;
-                    this.players[k]._vy = pState.vy;
                     this.players[k].body.reset(this.players[k].x, this.players[k].y);
                     this.players[k].body.velocity.set(this.players[k]._vx, this.players[k]._vy);
                 }
