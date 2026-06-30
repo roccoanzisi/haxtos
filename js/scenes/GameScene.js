@@ -112,23 +112,17 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline && !this.isHost) this._setupOnlineGuest();
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
 
-        // If online mode, initialize lobby state: game not started, paused, ball hidden, players despawned, show Lobby Panel
-        if (this.isOnline) {
-            this.gameStarted = false;
-            this.paused = true;
-            this._despawnPlayers();
-            this._showEscPanel();
-            
-            // Initialize WebRTC P2P connection handshake
-            this._initWebRTC();
+        // Always start in lobby state — game begins only when "Start game" is pressed
+        this.gameStarted = false;
+        this.paused = true;
+        this._despawnPlayers();
+        this._showEscPanel();
 
-            // Request initial player list from server to sync lobby columns and admin status
+        if (this.isOnline) {
+            this._initWebRTC();
             if (this.ws && this.ws.readyState === 1) {
                 this.ws.send(JSON.stringify({ type: 'request_players' }));
             }
-        } else {
-            this.gameStarted = true;
-            this._reset();
         }
     }
 
@@ -1035,20 +1029,24 @@ class GameScene extends Phaser.Scene {
           </div>
 
           <!-- Settings -->
-          <div style="border-top:1px solid #1a1a2c;padding:10px 14px 4px 116px;">
-            <div style="display:flex;align-items:center;margin-bottom:6px;">
-              <span style="color:#aaa;width:90px;font-size:13px;">Time limit</span>
-              <span id="_escTimeVal" style="background:#2a2c3e;padding:2px 10px;color:#fff;font-size:13px;display:inline-block;min-width:50px;"></span>
+          <div style="border-top:1px solid #1a1a2c;padding:8px 12px 6px 12px;">
+            <div style="display:flex;align-items:center;margin-bottom:5px;">
+              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Modo</span>
+              <div id="_escModeOpts" style="display:flex;gap:4px;"></div>
             </div>
-            <div style="display:flex;align-items:center;margin-bottom:6px;">
-              <span style="color:#aaa;width:90px;font-size:13px;">Score limit</span>
-              <span id="_escScoreVal" style="background:#2a2c3e;padding:2px 10px;color:#fff;font-size:13px;display:inline-block;min-width:50px;"></span>
-            </div>
-            <div style="display:flex;align-items:center;margin-bottom:6px;">
-              <span style="color:#aaa;width:90px;font-size:13px;">Stadium</span>
-              <span id="_escStadVal" style="background:#2a2c3e;padding:2px 10px;color:#daa520;font-size:13px;display:inline-block;min-width:50px;"></span>
-              <button id="_escLoadMap" style="margin-left:8px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 9px;font-size:12px;cursor:pointer;">&#128194; Cargar mapa</button>
+            <div style="display:flex;align-items:center;margin-bottom:5px;flex-wrap:wrap;row-gap:4px;">
+              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Estadio</span>
+              <div id="_escStadOpts" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+              <button id="_escLoadMap" style="margin-left:5px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 7px;font-size:11px;cursor:pointer;border-radius:3px;">&#128194;</button>
               <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
+            </div>
+            <div style="display:flex;align-items:center;margin-bottom:5px;">
+              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Goles</span>
+              <div id="_escGoalOpts" style="display:flex;gap:4px;"></div>
+            </div>
+            <div style="display:flex;align-items:center;">
+              <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Tiempo</span>
+              <div id="_escTimeOpts" style="display:flex;gap:4px;"></div>
             </div>
           </div>
 
@@ -1064,9 +1062,11 @@ class GameScene extends Phaser.Scene {
         document.body.appendChild(div);
         this._escPanel = div;
 
-        div.addEventListener('click', (e) => { 
+        this._buildSettingsPills();
+
+        div.addEventListener('click', (e) => {
             // In Lobby state, clicking outside the panel should NOT hide it!
-            if (e.target === div && this.gameStarted) this._hideEscPanel(); 
+            if (e.target === div && this.gameStarted) this._hideEscPanel();
         });
 
         document.getElementById('_escLeave').onclick = () => {
@@ -1097,6 +1097,19 @@ class GameScene extends Phaser.Scene {
             if (this.isOnline) {
                 if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'start_game' }));
             } else {
+                // Apply stadium geometry before spawning
+                if (!this.hbsData && STADIUMS[this.stadium]) {
+                    const s = STADIUMS[this.stadium];
+                    F.W = s.W; F.H = s.H;
+                    F.X = Math.floor((s.canvasW - s.W) / 2);
+                    F.Y = Math.floor((s.canvasH - s.H) / 2);
+                    F.GOAL_H = s.GOAL_H; F.GOAL_D = s.GOAL_D; F.WALL_T = 22;
+                    F.CX = F.X + F.W / 2; F.CY = F.Y + F.H / 2;
+                    F.GOAL_TOP = F.CY - F.GOAL_H / 2;
+                    F.GOAL_BOT = F.CY + F.GOAL_H / 2;
+                    F.OUTER_X_MIN = F.CX - s.camW; F.OUTER_X_MAX = F.CX + s.camW;
+                    F.OUTER_Y_MIN = F.CY - s.camH; F.OUTER_Y_MAX = F.CY + s.camH;
+                }
                 this.gameStarted = true;
                 this.paused = false;
                 this._hideEscPanel();
@@ -1123,34 +1136,107 @@ class GameScene extends Phaser.Scene {
         document.getElementById('_joinRedBtn').onclick = () => requestMove('red');
         document.getElementById('_joinSpecBtn').onclick = () => requestMove('spec');
         document.getElementById('_joinBlueBtn').onclick = () => requestMove('blue');
+    }
 
-        const mapFileInput = document.getElementById('_escMapFile');
-        document.getElementById('_escLoadMap').onclick = () => mapFileInput.click();
-        mapFileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const hbs = JSON.parse(ev.target.result);
-                    hbs._fileName = file.name.replace(/\.hbs$/i, '');
-                    if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
-                        this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
-                    } else if (!this.isOnline) {
-                        this._hideEscPanel();
-                        this.scene.start('GameScene', {
-                            mode: this.mode,
-                            stadium: this.stadium,
-                            scoreWin: this.scoreWin,
-                            timeLimit: this.timeLimit,
-                            hbs
-                        });
-                    }
-                } catch (_) { /* archivo inválido */ }
+    _buildSettingsPills() {
+        const canEdit = !this.isOnline || this.isAdmin;
+
+        const pill = (active) => (
+            `background:${active ? '#1a5228' : '#0e0e22'};` +
+            `border:1px solid ${active ? '#44cc66' : '#252540'};` +
+            `color:${active ? '#aaffbb' : '#556688'};` +
+            `padding:2px 9px;font-size:12px;cursor:${canEdit ? 'pointer' : 'default'};` +
+            `border-radius:3px;font-family:Arial,sans-serif;`
+        );
+
+        const mkPills = (id, options, getVal, onPick) => {
+            const wrap = document.getElementById(id);
+            if (!wrap) return;
+            const render = () => {
+                wrap.innerHTML = '';
+                options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.textContent = opt.label;
+                    btn.style.cssText = pill(getVal() === opt.value);
+                    if (canEdit) btn.onclick = () => { onPick(opt.value); render(); };
+                    wrap.appendChild(btn);
+                });
             };
-            reader.readAsText(file);
-            e.target.value = '';
+            render();
         };
+
+        // Mode (1v1 / 2v2) — changing restarts scene in pre-game
+        mkPills('_escModeOpts',
+            [{ label: '1 vs 1', value: 'local1v1' }, { label: '2 vs 2', value: 'local2v2' }],
+            () => this.mode,
+            (v) => {
+                if (this.gameStarted) return;
+                this.scene.start('GameScene', {
+                    mode: v, stadium: this.stadium, scoreWin: this.scoreWin,
+                    timeLimit: this.timeLimit, hbs: this.hbsData || null
+                });
+            }
+        );
+
+        // Stadium — changing restarts scene to redraw field (only pre-game)
+        const stadOpts = Object.keys(STADIUMS).map(k => ({ label: STADIUMS[k].name, value: k }));
+        if (this.hbsData) stadOpts.unshift({ label: this.hbsData._fileName || 'HBS', value: 'hbs' });
+        mkPills('_escStadOpts',
+            stadOpts,
+            () => this.hbsData ? 'hbs' : this.stadium,
+            (v) => {
+                if (this.gameStarted) return;
+                this.scene.start('GameScene', {
+                    mode: this.mode, stadium: v, scoreWin: this.scoreWin,
+                    timeLimit: this.timeLimit
+                });
+            }
+        );
+
+        // Goals
+        mkPills('_escGoalOpts',
+            [{ label: '3', value: 3 }, { label: '5', value: 5 }, { label: '7', value: 7 }, { label: '∞', value: 0 }],
+            () => this.scoreWin,
+            (v) => { this.scoreWin = v; }
+        );
+
+        // Time
+        mkPills('_escTimeOpts',
+            [{ label: '2 min', value: 120 }, { label: '3 min', value: 180 }, { label: '5 min', value: 300 }, { label: '∞', value: 0 }],
+            () => this.timeLimit,
+            (v) => { this.timeLimit = v; this.timeLeft = v; }
+        );
+
+        // Map file loader
+        const mapFileInput = document.getElementById('_escMapFile');
+        const loadMapBtn   = document.getElementById('_escLoadMap');
+        if (loadMapBtn) {
+            loadMapBtn.style.display = canEdit ? '' : 'none';
+            loadMapBtn.onclick = () => mapFileInput && mapFileInput.click();
+        }
+        if (mapFileInput) {
+            mapFileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const hbs = JSON.parse(ev.target.result);
+                        hbs._fileName = file.name.replace(/\.hbs$/i, '');
+                        if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
+                            this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
+                        } else if (!this.isOnline && !this.gameStarted) {
+                            this.scene.start('GameScene', {
+                                mode: this.mode, scoreWin: this.scoreWin,
+                                timeLimit: this.timeLimit, hbs
+                            });
+                        }
+                    } catch (_) {}
+                };
+                reader.readAsText(file);
+                e.target.value = '';
+            };
+        }
     }
 
     _updateLobbyPlayers() {
@@ -1208,12 +1294,6 @@ class GameScene extends Phaser.Scene {
         this._escVisible = true;
         this._wasPaused = this.paused;
         this.paused = true;
-        // Refresh dynamic values
-        document.getElementById('_escTimeVal').textContent  = this.timeLimit  > 0 ? (this.timeLimit / 60) + ' min' : '∞';
-        document.getElementById('_escScoreVal').textContent = this.scoreWin   > 0 ? String(this.scoreWin) : '∞';
-        document.getElementById('_escStadVal').textContent  = this.hbsData
-            ? (this.hbsData._fileName || 'HBS Map')
-            : (STADIUMS[this.stadium] || STADIUMS.classic).name;
 
         this._updateLobbyPlayers();
 

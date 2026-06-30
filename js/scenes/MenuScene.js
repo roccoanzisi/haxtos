@@ -129,7 +129,7 @@ class MenuScene extends Phaser.Scene {
         const gap    = 84;
 
         const items = [
-            { icon: '⚽',  label: 'LOCAL',   sub: 'Partida en el mismo equipo',  color: '#1e4fcc', cb: () => this.scene.start('ConfigScene', { mode: 'local1v1' }) },
+            { icon: '⚽',  label: 'LOCAL',   sub: 'Partida en el mismo equipo',  color: '#1e4fcc', cb: () => this.scene.start('GameScene', { mode: 'local1v1' }) },
             { icon: '🌐',  label: 'ONLINE',  sub: 'Partidas en línea',            color: '#1a6628', cb: () => this.scene.start('OnlineScene') },
         ];
 
