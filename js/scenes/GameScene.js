@@ -120,6 +120,9 @@ class GameScene extends Phaser.Scene {
             });
             this.players = {};
             this._showEscPanel();
+            
+            // Initialize WebRTC P2P connection handshake
+            this._initWebRTC();
         } else {
             this.gameStarted = true;
             this._reset();
@@ -1246,6 +1249,24 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
             }
+            if (msg.type === 'signal') {
+                if (msg.sdp) {
+                    this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
+                        if (msg.sdp.type === 'offer') {
+                            return this.peerConnection.createAnswer().then(answer => {
+                                return this.peerConnection.setLocalDescription(answer);
+                            }).then(() => {
+                                if (this.ws && this.ws.readyState === 1) {
+                                    this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
+                                }
+                            });
+                        }
+                    }).catch(err => console.error('[WebRTC] remote sdp error:', err));
+                } else if (msg.candidate) {
+                    this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
+                        .catch(err => console.error('[WebRTC] add candidate error:', err));
+                }
+            }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
@@ -1297,6 +1318,81 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
             }
+            if (msg.type === 'signal') {
+                if (msg.sdp) {
+                    this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp))
+                        .catch(err => console.error('[WebRTC] remote sdp error:', err));
+                } else if (msg.candidate) {
+                    this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
+                        .catch(err => console.error('[WebRTC] add candidate error:', err));
+                }
+            }
+        };
+    }
+
+    _initWebRTC() {
+        console.log('[WebRTC] Initializing connection...');
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        this.peerConnection = new RTCPeerConnection(configuration);
+
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'signal', candidate: event.candidate }));
+            }
+        };
+
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('[WebRTC] State:', this.peerConnection.connectionState);
+            if (this.peerConnection.connectionState === 'connected') {
+                this._addChatMessage('Conexión P2P (WebRTC) Establecida (Ultra-bajo lag)', '#aaffaa');
+                this.isP2P = true;
+            } else if (this.peerConnection.connectionState === 'failed' || this.peerConnection.connectionState === 'closed') {
+                this._addChatMessage('P2P desconectado. Usando WebSocket de respaldo.', '#ffaaaa');
+                this.isP2P = false;
+            }
+        };
+
+        if (this.isHost) {
+            this.dataChannel = this.peerConnection.createDataChannel('physics', { ordered: false });
+            this._setupDataChannel(this.dataChannel);
+
+            this.peerConnection.createOffer().then(offer => {
+                return this.peerConnection.setLocalDescription(offer);
+            }).then(() => {
+                if (this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
+                }
+            }).catch(err => console.error('[WebRTC] Offer error:', err));
+        } else {
+            this.peerConnection.ondatachannel = (event) => {
+                this.dataChannel = event.channel;
+                this._setupDataChannel(this.dataChannel);
+            };
+        }
+    }
+
+    _setupDataChannel(channel) {
+        channel.onopen = () => {
+            console.log('[WebRTC] DataChannel open!');
+            this.isP2P = true;
+        };
+        channel.onclose = () => {
+            console.log('[WebRTC] DataChannel closed');
+            this.isP2P = false;
+        };
+        channel.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'input') {
+                this._guestInputs = msg.keys;
+            } else if (msg.type === 'state') {
+                this.serverState = msg.data;
+            }
         };
     }
 
@@ -1316,7 +1412,6 @@ class GameScene extends Phaser.Scene {
     }
 
     _sendState() {
-        if (!this.ws || this.ws.readyState !== 1) return;
         const state = {
             ballX: this.ball.x, ballY: this.ball.y,
             ballVX: this.ball._vx, ballVY: this.ball._vy,
@@ -1324,9 +1419,16 @@ class GameScene extends Phaser.Scene {
         };
         Object.keys(this.players).forEach(k => {
             const p = this.players[k];
-            state.players[k] = { x: p.x, y: p.y, vx: p._vx, vy: p._vy };
+            if (p) state.players[k] = { x: p.x, y: p.y, vx: p._vx, vy: p._vy };
         });
-        this.ws.send(JSON.stringify({ type: 'state', data: state }));
+
+        if (this.isP2P && this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({ type: 'state', data: state }));
+        } else {
+            if (this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'state', data: state }));
+            }
+        }
     }
 
     // ── Camera modes (1=close follow, 2=medium follow, 3=full field) ──
@@ -1984,9 +2086,14 @@ class GameScene extends Phaser.Scene {
 
     _updateGuest() {
         const keys = this._getInputKeys();
-        if (this.ws && this.ws.readyState === 1) {
-            this.ws.send(JSON.stringify({ type: 'input', keys }));
+        if (this.isP2P && this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({ type: 'input', keys }));
+        } else {
+            if (this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'input', keys }));
+            }
         }
+
         if (this.serverState) {
             const ext = (window.HAXTOS_EXTRAPOLATION || 0) / 1000;
             this.ball.x = this.serverState.ballX + this.serverState.ballVX * ext;
