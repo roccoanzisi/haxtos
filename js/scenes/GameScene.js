@@ -279,10 +279,6 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        g.lineStyle(2, s.lineColor, 0.45);
-        g.strokeCircle(F.X + 150,       F.CY, 55);
-        g.strokeCircle(F.X + F.W - 150, F.CY, 55);
-
         g.lineStyle(3, s.goalColor1, 1);
         g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
         g.lineStyle(1, s.goalColor1, 0.28);
@@ -1115,19 +1111,8 @@ class GameScene extends Phaser.Scene {
             if (this.isOnline) {
                 if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'start_game' }));
             } else {
-                // Apply stadium geometry before spawning
-                if (!this.hbsData && STADIUMS[this.stadium]) {
-                    const s = STADIUMS[this.stadium];
-                    F.W = s.W; F.H = s.H;
-                    F.X = Math.floor((s.canvasW - s.W) / 2);
-                    F.Y = Math.floor((s.canvasH - s.H) / 2);
-                    F.GOAL_H = s.GOAL_H; F.GOAL_D = s.GOAL_D; F.WALL_T = 22;
-                    F.CX = F.X + F.W / 2; F.CY = F.Y + F.H / 2;
-                    F.GOAL_TOP = F.CY - F.GOAL_H / 2;
-                    F.GOAL_BOT = F.CY + F.GOAL_H / 2;
-                    F.OUTER_X_MIN = F.CX - s.camW; F.OUTER_X_MAX = F.CX + s.camW;
-                    F.OUTER_Y_MIN = F.CY - s.camH; F.OUTER_Y_MAX = F.CY + s.camH;
-                }
+                // Recalculate F using window dimensions (not the hardcoded canvasW/canvasH)
+                this._recalcF();
                 this.gameStarted = true;
                 this.paused = false;
                 this._hideEscPanel();
