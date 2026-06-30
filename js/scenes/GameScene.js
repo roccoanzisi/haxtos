@@ -48,8 +48,10 @@ class GameScene extends Phaser.Scene {
         this.isOnline = this.mode === 'online';
         this.ws = (data && data.ws) ? data.ws : null;
         this.playerIndex = (data && data.playerIndex !== undefined) ? data.playerIndex : 0;
+        this.roomCode = (data && data.roomCode) || null;
         this.isHost = this.playerIndex === 0;
         this.isAdmin = this.isHost;
+        if (window.HAXTOS_EXTRAPOLATION === undefined) window.HAXTOS_EXTRAPOLATION = 100;
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.hbsData = (data && data.hbs) || null;
@@ -1035,6 +1037,8 @@ class GameScene extends Phaser.Scene {
             <div style="display:flex;align-items:center;margin-bottom:6px;">
               <span style="color:#aaa;width:90px;font-size:13px;">Stadium</span>
               <span id="_escStadVal" style="background:#2a2c3e;padding:2px 10px;color:#daa520;font-size:13px;display:inline-block;min-width:50px;"></span>
+              <button id="_escLoadMap" style="margin-left:8px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 9px;font-size:12px;cursor:pointer;">&#128194; Cargar mapa</button>
+              <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
             </div>
           </div>
 
@@ -1109,6 +1113,34 @@ class GameScene extends Phaser.Scene {
         document.getElementById('_joinRedBtn').onclick = () => requestMove('red');
         document.getElementById('_joinSpecBtn').onclick = () => requestMove('spec');
         document.getElementById('_joinBlueBtn').onclick = () => requestMove('blue');
+
+        const mapFileInput = document.getElementById('_escMapFile');
+        document.getElementById('_escLoadMap').onclick = () => mapFileInput.click();
+        mapFileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const hbs = JSON.parse(ev.target.result);
+                    hbs._fileName = file.name.replace(/\.hbs$/i, '');
+                    if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
+                    } else if (!this.isOnline) {
+                        this._hideEscPanel();
+                        this.scene.start('GameScene', {
+                            mode: this.mode,
+                            stadium: this.stadium,
+                            scoreWin: this.scoreWin,
+                            timeLimit: this.timeLimit,
+                            hbs
+                        });
+                    }
+                } catch (_) { /* archivo inválido */ }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        };
     }
 
     _updateLobbyPlayers() {
@@ -1121,20 +1153,44 @@ class GameScene extends Phaser.Scene {
         specDiv.innerHTML = '';
         blueDiv.innerHTML = '';
 
-        const mkRow = (p) => {
-            const isAdmin = p.admin ? ' <span style="color:#ffaa00;font-size:11px;font-weight:bold;">[Admin]</span>' : '';
-            return `<div style="display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;">
-                <span style="font-weight:bold;">${p.name}</span>${isAdmin}
-            </div>`;
-        };
-
         const players = this.roomPlayers || [];
         players.forEach(p => {
-            const rowHtml = mkRow(p);
-            if (p.team === 'red') redDiv.innerHTML += rowHtml;
-            else if (p.team === 'blue') blueDiv.innerHTML += rowHtml;
-            else specDiv.innerHTML += rowHtml;
+            const adminBadge = p.admin ? '<span style="color:#ffaa00;font-size:11px;font-weight:bold;margin-left:4px;">[Admin]</span>' : '';
+            const canDrag = this.isAdmin && this.isOnline;
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;' + (canDrag ? 'cursor:grab;' : '');
+            row.innerHTML = `<span style="font-weight:bold;">${p.name}</span>${adminBadge}`;
+            row.dataset.pidx = p.playerIndex;
+            if (canDrag) {
+                row.setAttribute('draggable', 'true');
+                row.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', String(p.playerIndex));
+                    setTimeout(() => { row.style.opacity = '0.4'; }, 0);
+                });
+                row.addEventListener('dragend', () => { row.style.opacity = ''; });
+            }
+            if (p.team === 'red') redDiv.appendChild(row);
+            else if (p.team === 'blue') blueDiv.appendChild(row);
+            else specDiv.appendChild(row);
         });
+
+        if (this.isAdmin && this.isOnline) {
+            const sendMove = (team) => (e) => {
+                e.preventDefault();
+                const pidx = parseInt(e.dataTransfer.getData('text/plain'));
+                if (!isNaN(pidx) && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'move_player_team', playerIndex: pidx, team }));
+                }
+            };
+            const highlight = (col, on) => { col.style.outline = on ? '2px dashed #5588ff' : ''; };
+
+            [{ col: redDiv, team: 'red' }, { col: specDiv, team: 'spec' }, { col: blueDiv, team: 'blue' }]
+                .forEach(({ col, team }) => {
+                    col.addEventListener('dragover',  (e) => { e.preventDefault(); highlight(col, true); });
+                    col.addEventListener('dragleave', () => highlight(col, false));
+                    col.addEventListener('drop',      (e) => { highlight(col, false); sendMove(team)(e); });
+                });
+        }
     }
 
     _showEscPanel() {
@@ -1303,6 +1359,12 @@ class GameScene extends Phaser.Scene {
                         .catch(err => console.error('[WebRTC] add candidate error:', err));
                 }
             }
+            if (msg.type === 'map_changed') {
+                this.scene.start('GameScene', {
+                    mode: this.mode, ws: this.ws, playerIndex: this.playerIndex,
+                    roomCode: this.roomCode, hbs: msg.hbs
+                });
+            }
             if (msg.type === 'opponent_left') {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
@@ -1362,6 +1424,12 @@ class GameScene extends Phaser.Scene {
                     this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
                         .catch(err => console.error('[WebRTC] add candidate error:', err));
                 }
+            }
+            if (msg.type === 'map_changed') {
+                this.scene.start('GameScene', {
+                    mode: this.mode, ws: this.ws, playerIndex: this.playerIndex,
+                    roomCode: this.roomCode, hbs: msg.hbs
+                });
             }
         };
     }

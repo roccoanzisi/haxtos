@@ -103,6 +103,14 @@ wss.on('connection', (ws, req) => {
             } else if (msg.type === 'move_team') {
                 ws.team = msg.team;
                 sendRoomPlayersUpdate(room);
+            } else if (msg.type === 'move_player_team') {
+                if (ws.admin) {
+                    const target = room.players.find(p => p.playerIndex === msg.playerIndex);
+                    if (target) {
+                        target.team = msg.team;
+                        sendRoomPlayersUpdate(room);
+                    }
+                }
             } else if (msg.type === 'start_game') {
                 if (ws.admin) {
                     broadcast(room, { type: 'start_game' });
@@ -114,6 +122,11 @@ wss.on('connection', (ws, req) => {
             } else if (msg.type === 'resume_game') {
                 if (ws.admin) {
                     broadcast(room, { type: 'resume_game' });
+                }
+            } else if (msg.type === 'set_map') {
+                if (ws.admin && msg.hbs) {
+                    room.hbs = msg.hbs;
+                    broadcast(room, { type: 'map_changed', hbs: msg.hbs });
                 }
             } else if (msg.type === 'command') {
                 const text = (msg.text || '').trim();
