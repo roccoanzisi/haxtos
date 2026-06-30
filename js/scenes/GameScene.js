@@ -454,7 +454,7 @@ class GameScene extends Phaser.Scene {
     }
 
     _despawnPlayers() {
-        Object.keys(this.players).forEach(k => {
+        Object.keys(this.players || {}).forEach(k => {
             if (this.players[k]) this.players[k].destroy();
         });
         this.players = {};
