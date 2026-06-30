@@ -147,14 +147,14 @@ class ConfigScene extends Phaser.Scene {
 
         // ── Stadium ──
         this._sectionLabel(cx, y, 'ESTADIO');
-        y += 26;
+        y += 38;
 
         if (this.hbsMode && window._hbsData) {
             const mapName = window._hbsData._fileName || window._hbsData.name || 'Mapa HBS';
             this._pill(cx, y, '🗺  ' + mapName, true, '#9955ee', () => {});
-            y += 44;
+            y += 48;
             this._sectionLabel(cx, y, 'o elegí un estadio estándar:');
-            y += 22;
+            y += 36;
         }
 
         const stadKeys = Object.keys(STADIUMS);
@@ -178,7 +178,7 @@ class ConfigScene extends Phaser.Scene {
 
         // ── Goals ──
         this._sectionLabel(cx, y, 'GOLES PARA GANAR');
-        y += 26;
+        y += 38;
         const goalPillW = 80, goalPillH = 42;
         const gTotalW = this.goalOptions.length * goalPillW + (this.goalOptions.length - 1) * gap;
         const gx = cx - gTotalW / 2;
@@ -199,7 +199,7 @@ class ConfigScene extends Phaser.Scene {
 
         // ── Time ──
         this._sectionLabel(cx, y, 'DURACIÓN');
-        y += 26;
+        y += 38;
         const timePillW = 80;
         const tTotalW = this.timeOptions.length * timePillW + (this.timeOptions.length - 1) * gap;
         const tx = cx - tTotalW / 2;
@@ -242,8 +242,8 @@ class ConfigScene extends Phaser.Scene {
     // ── Section label ──────────────────────────────────────────────────────
     _sectionLabel(x, y, text) {
         this.add.text(x, y, text, {
-            fontSize: '11px', fontFamily: 'Arial, sans-serif',
-            color: '#445577', letterSpacing: 2
+            fontSize: '12px', fontFamily: 'Arial, sans-serif',
+            color: '#7788bb', letterSpacing: 2
         }).setOrigin(0.5, 0);
     }
 
