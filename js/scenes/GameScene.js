@@ -2095,9 +2095,11 @@ class GameScene extends Phaser.Scene {
         }
 
         if (this.serverState) {
-            const ext = (window.HAXTOS_EXTRAPOLATION || 0) / 1000;
-            this.ball.x = this.serverState.ballX + this.serverState.ballVX * ext;
-            this.ball.y = this.serverState.ballY + this.serverState.ballVY * ext;
+            // Velocity is in pixels per frame, so we convert extrapolation ms to frames
+            // 1 frame = 16.667ms at 60 FPS
+            const extFrames = (window.HAXTOS_EXTRAPOLATION || 0) / 16.667;
+            this.ball.x = this.serverState.ballX + this.serverState.ballVX * extFrames;
+            this.ball.y = this.serverState.ballY + this.serverState.ballVY * extFrames;
             this.ball._vx = this.serverState.ballVX;
             this.ball._vy = this.serverState.ballVY;
             this.ball.rotation = this.serverState.ballRot || 0;
@@ -2106,10 +2108,19 @@ class GameScene extends Phaser.Scene {
 
             Object.keys(this.serverState.players || {}).forEach(k => {
                 if (this.players[k]) {
-                    this.players[k].x = this.serverState.players[k].x;
-                    this.players[k].y = this.serverState.players[k].y;
-                    this.players[k]._vx = this.serverState.players[k].vx;
-                    this.players[k]._vy = this.serverState.players[k].vy;
+                    const pState = this.serverState.players[k];
+                    // We only extrapolate the opponent player to avoid jittering the client's own avatar
+                    const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
+                    
+                    if (!isOurselves) {
+                        this.players[k].x = pState.x + pState.vx * extFrames;
+                        this.players[k].y = pState.y + pState.vy * extFrames;
+                    } else {
+                        this.players[k].x = pState.x;
+                        this.players[k].y = pState.y;
+                    }
+                    this.players[k]._vx = pState.vx;
+                    this.players[k]._vy = pState.vy;
                     this.players[k].body.reset(this.players[k].x, this.players[k].y);
                     this.players[k].body.velocity.set(this.players[k]._vx, this.players[k]._vy);
                 }
