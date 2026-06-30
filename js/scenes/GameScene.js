@@ -90,7 +90,6 @@ class GameScene extends Phaser.Scene {
         this._setupInput();
         this._setupCollisions();
         this._buildHUD();
-        this._buildPlayerLabels();
 
         // Draw numbers inside player jerseys (Haxball style)
         this._resetTeamColors();
@@ -117,11 +116,7 @@ class GameScene extends Phaser.Scene {
         if (this.isOnline) {
             this.gameStarted = false;
             this.paused = true;
-            this.ball.setVisible(false);
-            Object.keys(this.players).forEach(k => {
-                if (this.players[k]) this.players[k].destroy();
-            });
-            this.players = {};
+            this._despawnPlayers();
             this._showEscPanel();
             
             // Initialize WebRTC P2P connection handshake
@@ -461,9 +456,23 @@ class GameScene extends Phaser.Scene {
         this.ball.cMask = ['all'];
     }
 
-    _spawnPlayers() {
+    _despawnPlayers() {
+        Object.keys(this.players).forEach(k => {
+            if (this.players[k]) this.players[k].destroy();
+        });
         this.players = {};
-        
+        if (this._playerLabels) {
+            Object.keys(this._playerLabels).forEach(k => {
+                if (this._playerLabels[k]) this._playerLabels[k].destroy();
+            });
+            this._playerLabels = {};
+        }
+        if (this.ball) this.ball.setVisible(false);
+    }
+
+    _spawnPlayers() {
+        this._despawnPlayers();
+
         let hasBlue = false;
         let hasRed = false;
 
@@ -488,6 +497,7 @@ class GameScene extends Phaser.Scene {
                 this.players.red2  = this._makePlayer(F.CX + 280, F.CY + 80, 'player_red2');
             }
         }
+        this._buildPlayerLabels();
     }
 
     _makePlayer(x, y, key) {
@@ -1078,7 +1088,7 @@ class GameScene extends Phaser.Scene {
                 if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'stop_game' }));
             } else {
                 this.gameStarted = false;
-                this.paused = true;
+                this._despawnPlayers();
                 this._showEscPanel();
             }
         };
@@ -1331,11 +1341,7 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
-                this.ball.setVisible(false);
-                Object.keys(this.players).forEach(k => {
-                    if (this.players[k]) this.players[k].destroy();
-                });
-                this.players = {};
+                this._despawnPlayers();
                 this._showEscPanel();
             }
             if (msg.type === 'resume_game') {
@@ -1406,11 +1412,7 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
-                this.ball.setVisible(false);
-                Object.keys(this.players).forEach(k => {
-                    if (this.players[k]) this.players[k].destroy();
-                });
-                this.players = {};
+                this._despawnPlayers();
                 this._showEscPanel();
             }
             if (msg.type === 'resume_game') {
