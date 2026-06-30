@@ -160,7 +160,7 @@ wss.on('connection', (ws, req) => {
                 }
             } else if (msg.type === 'start_game') {
                 if (ws.admin) {
-                    broadcast(room, { type: 'start_game' });
+                    broadcast(room, { type: 'start_game', scoreWin: msg.scoreWin, timeLimit: msg.timeLimit });
                 }
             } else if (msg.type === 'stop_game') {
                 if (ws.admin) {

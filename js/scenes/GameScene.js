@@ -1177,7 +1177,13 @@ class GameScene extends Phaser.Scene {
 
         document.getElementById('_escStart').onclick = () => {
             if (this.isOnline) {
-                if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'start_game' }));
+                if (this.isAdmin) {
+                    this.ws.send(JSON.stringify({ 
+                        type: 'start_game', 
+                        scoreWin: this.scoreWin, 
+                        timeLimit: this.timeLimit 
+                    }));
+                }
             } else {
                 this._recalcF();
                 this.gameStarted = true;
@@ -1598,6 +1604,10 @@ class GameScene extends Phaser.Scene {
                 this._updateLobbyPlayers();
             }
             if (msg.type === 'start_game') {
+                this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;
+                this.timeLimit = msg.timeLimit !== undefined ? msg.timeLimit : this.timeLimit;
+                this.timeLeft = this.timeLimit;
+                this._updateHUD();
                 this.gameStarted = true;
                 this.paused = false;
                 this._hideEscPanel();
@@ -1682,6 +1692,10 @@ class GameScene extends Phaser.Scene {
                 this._updateLobbyPlayers();
             }
             if (msg.type === 'start_game') {
+                this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;
+                this.timeLimit = msg.timeLimit !== undefined ? msg.timeLimit : this.timeLimit;
+                this.timeLeft = this.timeLimit;
+                this._updateHUD();
                 this.gameStarted = true;
                 this.paused = false;
                 this._hideEscPanel();
