@@ -1046,9 +1046,9 @@ class GameScene extends Phaser.Scene {
           <div style="display:flex;">
             <!-- Left sidebar -->
             <div style="width:104px;border-right:1px solid #1a1a2c;padding:8px 6px;display:flex;flex-direction:column;gap:4px;">
-              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Auto</button>
-              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">Rand</button>
-              <button style="background:#2a5280;border:none;color:#aaa;padding:5px 0;font-size:12px;width:90px;cursor:default;opacity:0.5;">&#128274; Lock</button>
+              <button id="_escAuto" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">Auto</button>
+              <button id="_escRand" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">Rand</button>
+              <button id="_escLock" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">🔓 Unlock</button>
               <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:5px 0;cursor:pointer;font-size:12px;width:90px;">Reset</button>
             </div>
             <!-- Columns area -->
@@ -1188,6 +1188,36 @@ class GameScene extends Phaser.Scene {
         document.getElementById('_joinRedBtn').onclick = () => requestMove('red');
         document.getElementById('_joinSpecBtn').onclick = () => requestMove('spec');
         document.getElementById('_joinBlueBtn').onclick = () => requestMove('blue');
+
+        const autoBtn = document.getElementById('_escAuto');
+        if (autoBtn) {
+            autoBtn.onclick = () => {
+                if (this.isOnline && !this.isAdmin) return;
+                if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'auto_teams' }));
+                }
+            };
+        }
+
+        const randBtn = document.getElementById('_escRand');
+        if (randBtn) {
+            randBtn.onclick = () => {
+                if (this.isOnline && !this.isAdmin) return;
+                if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'rand_teams' }));
+                }
+            };
+        }
+
+        const lockBtn = document.getElementById('_escLock');
+        if (lockBtn) {
+            lockBtn.onclick = () => {
+                if (this.isOnline && !this.isAdmin) return;
+                if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'lock_teams', locked: !this.teamsLocked }));
+                }
+            };
+        }
     }
 
     _buildSettingsPills() {
@@ -1301,13 +1331,59 @@ class GameScene extends Phaser.Scene {
         specDiv.innerHTML = '';
         blueDiv.innerHTML = '';
 
+        // Update Lock button state and style
+        const lockBtn = document.getElementById('_escLock');
+        if (lockBtn) {
+            if (this.isAdmin) {
+                lockBtn.style.opacity = '1';
+                lockBtn.style.cursor = 'pointer';
+                lockBtn.style.background = this.teamsLocked ? '#883333' : '#2a3a4a';
+                lockBtn.innerHTML = this.teamsLocked ? '🔒 Lock' : '🔓 Unlock';
+            } else {
+                lockBtn.style.opacity = '0.5';
+                lockBtn.style.cursor = 'default';
+                lockBtn.style.background = '#2a3a4a';
+                lockBtn.innerHTML = this.teamsLocked ? '🔒 Locked' : '🔓 Unlocked';
+            }
+        }
+
+        // Update Auto and Rand buttons
+        const autoBtn = document.getElementById('_escAuto');
+        if (autoBtn) {
+            autoBtn.style.opacity = this.isAdmin ? '1' : '0.5';
+            autoBtn.style.cursor = this.isAdmin ? 'pointer' : 'default';
+        }
+        const randBtn = document.getElementById('_escRand');
+        if (randBtn) {
+            randBtn.style.opacity = this.isAdmin ? '1' : '0.5';
+            randBtn.style.cursor = this.isAdmin ? 'pointer' : 'default';
+        }
+
+        // Show/hide join buttons depending on lock status
+        const canJoin = !this.teamsLocked || this.isAdmin;
+        document.getElementById('_joinRedBtn').style.display = canJoin ? 'block' : 'none';
+        document.getElementById('_joinSpecBtn').style.display = canJoin ? 'block' : 'none';
+        document.getElementById('_joinBlueBtn').style.display = canJoin ? 'block' : 'none';
+
         const players = this.roomPlayers || [];
         players.forEach(p => {
-            const adminBadge = p.admin ? '<span style="color:#ffaa00;font-size:11px;font-weight:bold;margin-left:4px;">[Admin]</span>' : '';
+            const isMe = p.index === this.playerIndex;
+            const adminBadge = p.admin ? '<span style="color:#ffaa00;font-size:12px;margin-left:4px;" title="Admin">👑</span>' : '';
             const canDrag = this.isAdmin && this.isOnline;
+            
+            let adminActions = '';
+            if (this.isAdmin && !isMe && this.isOnline) {
+                adminActions = `
+                <div style="display:flex;gap:4px;margin-left:auto;align-items:center;">
+                  <button class="_lobbyAdminBtn" data-index="${p.index}" data-action="admin" title="${p.admin ? 'Quitar Admin' : 'Dar Admin'}" style="background:#2a3a4a;border:1px solid #3a4a5a;color:#ffaa00;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;">👑</button>
+                  <button class="_lobbyAdminBtn" data-index="${p.index}" data-action="kick" title="Expulsar" style="background:#cc2222;border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;">❌</button>
+                  <button class="_lobbyAdminBtn" data-index="${p.index}" data-action="ban" title="Banear" style="background:#660000;border:none;color:#fff;font-size:10px;cursor:pointer;padding:1px 4px;border-radius:2px;">🚫</button>
+                </div>`;
+            }
+
             const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;' + (canDrag ? 'cursor:grab;' : '');
-            row.innerHTML = `<span style="font-weight:bold;">${p.name}</span>${adminBadge}`;
+            row.style.cssText = 'display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;width:100%;' + (canDrag ? 'cursor:grab;' : '');
+            row.innerHTML = `<span style="font-weight:bold;">${p.name}</span>${adminBadge}${adminActions}`;
             row.dataset.pidx = p.playerIndex;
             if (canDrag) {
                 row.setAttribute('draggable', 'true');
@@ -1321,6 +1397,29 @@ class GameScene extends Phaser.Scene {
             else if (p.team === 'blue') blueDiv.appendChild(row);
             else specDiv.appendChild(row);
         });
+
+        // Bind admin actions on players list
+        if (this.isAdmin) {
+            const adminBtns = document.querySelectorAll('._lobbyAdminBtn');
+            adminBtns.forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const targetIndex = parseInt(btn.getAttribute('data-index'));
+                    const action = btn.getAttribute('data-action');
+                    if (!isNaN(targetIndex)) {
+                        if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                            if (action === 'admin') {
+                                this.ws.send(JSON.stringify({ type: 'toggle_admin', playerIndex: targetIndex }));
+                            } else if (action === 'kick') {
+                                this.ws.send(JSON.stringify({ type: 'lobby_kick', playerIndex: targetIndex }));
+                            } else if (action === 'ban') {
+                                this.ws.send(JSON.stringify({ type: 'lobby_ban', playerIndex: targetIndex }));
+                            }
+                        }
+                    }
+                };
+            });
+        }
 
         if (this.isAdmin && this.isOnline) {
             const sendMove = (team) => (e) => {
@@ -1466,6 +1565,7 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'players_list') {
                 this.roomPlayers = msg.list;
+                this.teamsLocked = msg.teamsLocked || false;
                 const me = msg.list.find(p => p.index === this.playerIndex);
                 if (me) {
                     this.isAdmin = me.admin;
@@ -1549,6 +1649,7 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'players_list') {
                 this.roomPlayers = msg.list;
+                this.teamsLocked = msg.teamsLocked || false;
                 const me = msg.list.find(p => p.index === this.playerIndex);
                 if (me) {
                     this.isAdmin = me.admin;

@@ -13,7 +13,7 @@ const rooms = new Map();
 const bannedIps = new Set();
 
 function createRoom(id) {
-    return { id, players: [], state: null };
+    return { id, players: [], state: null, teamsLocked: false };
 }
 
 function broadcast(room, msg, exclude) {
@@ -33,7 +33,7 @@ function sendRoomPlayersUpdate(room) {
         admin: p.admin,
         team: p.team
     }));
-    broadcast(room, { type: 'players_list', list });
+    broadcast(room, { type: 'players_list', list, teamsLocked: room.teamsLocked || false });
 }
 
 wss.on('connection', (ws, req) => {
@@ -109,6 +109,53 @@ wss.on('connection', (ws, req) => {
                     if (target) {
                         target.team = msg.team;
                         sendRoomPlayersUpdate(room);
+                    }
+                }
+            } else if (msg.type === 'lock_teams') {
+                if (ws.admin) {
+                    room.teamsLocked = msg.locked;
+                    sendRoomPlayersUpdate(room);
+                }
+            } else if (msg.type === 'auto_teams') {
+                if (ws.admin) {
+                    const active = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+                    active.forEach((p, idx) => {
+                        p.team = idx % 2 === 0 ? 'red' : 'blue';
+                    });
+                    sendRoomPlayersUpdate(room);
+                }
+            } else if (msg.type === 'rand_teams') {
+                if (ws.admin) {
+                    const active = room.players.filter(p => p.team === 'red' || p.team === 'blue');
+                    for (let i = active.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [active[i].team, active[j].team] = [active[j].team, active[i].team];
+                    }
+                    sendRoomPlayersUpdate(room);
+                }
+            } else if (msg.type === 'toggle_admin') {
+                if (ws.admin) {
+                    const target = room.players.find(p => p.playerIndex === msg.playerIndex);
+                    if (target) {
+                        target.admin = !target.admin;
+                        sendRoomPlayersUpdate(room);
+                    }
+                }
+            } else if (msg.type === 'lobby_kick') {
+                if (ws.admin) {
+                    const target = room.players.find(p => p.playerIndex === msg.playerIndex);
+                    if (target) {
+                        target.send(JSON.stringify({ type: 'error', text: 'Has sido expulsado de la sala' }));
+                        target.close();
+                    }
+                }
+            } else if (msg.type === 'lobby_ban') {
+                if (ws.admin) {
+                    const target = room.players.find(p => p.playerIndex === msg.playerIndex);
+                    if (target) {
+                        bannedIps.add(target.ip);
+                        target.send(JSON.stringify({ type: 'error', text: 'Has sido baneado de esta sala' }));
+                        target.close();
                     }
                 }
             } else if (msg.type === 'start_game') {
