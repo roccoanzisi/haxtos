@@ -122,6 +122,24 @@ class GameScene extends Phaser.Scene {
             if (this.ws && this.ws.readyState === 1) {
                 this.ws.send(JSON.stringify({ type: 'request_players' }));
             }
+
+            // Real-time ping/pong timer
+            this.pingTimer = this.time.addEvent({
+                delay: 1500,
+                loop: true,
+                callback: () => {
+                    if (!this.isHost) {
+                        const now = Date.now();
+                        if (this.isP2P && this.dataChannel && this.dataChannel.readyState === 'open') {
+                            this.dataChannel.send(JSON.stringify({ type: 'ping', time: now }));
+                        } else if (this.ws && this.ws.readyState === 1) {
+                            this.ws.send(JSON.stringify({ type: 'ping', time: now }));
+                        }
+                    } else {
+                        if (this.pingText) this.pingText.setText('Ping: 0 ms').setColor('#88ff88');
+                    }
+                }
+            });
         } else {
             // Local: start game immediately, ESC opens settings
             this.gameStarted = true;
@@ -591,6 +609,12 @@ class GameScene extends Phaser.Scene {
             color: '#ff4444', stroke: '#000', strokeThickness: 3
         }).setOrigin(1, 0.5).setDepth(20);
 
+        this.pingText = sf(this.add.text(GW - 20, 16, 'Ping: 0 ms', {
+            fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#88ff88', stroke: '#000', strokeThickness: 3
+        }).setOrigin(1, 0));
+        this.pingText.setVisible(this.isOnline);
+
         this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
@@ -807,6 +831,31 @@ class GameScene extends Phaser.Scene {
                     window.HAXTOS_HANDICAP = Math.min(500, ms);
                     this._addChatMessage(`Handicap: ${window.HAXTOS_HANDICAP}ms`, '#aaffaa');
                 } else this._addChatMessage('Uso: /handicap <ms>', '#ffaaaa');
+                break;
+            }
+            case 'help': {
+                this._addChatMessage('Comandos disponibles:', '#ffffaa');
+                this._addChatMessage('/help - Muestra esta ayuda', '#ffffaa');
+                this._addChatMessage('/extrapolation <ms> - Configura la extrapolación (0-200)', '#ffffaa');
+                this._addChatMessage('/avatar <texto> - Cambia tu avatar (máx 3 caracteres)', '#ffffaa');
+                this._addChatMessage('/zoom <0.5-4> - Ajusta el zoom de cámara', '#ffffaa');
+                this._addChatMessage('/fps - Muestra los FPS actuales', '#ffffaa');
+                this._addChatMessage('/clear - Limpia el chat', '#ffffaa');
+                this._addChatMessage('/colors <red|blue> <ángulo> <colorTexto> <color1> [color2] [color3] - Personaliza uniforme', '#ffffaa');
+                if (this.isOnline && this.isAdmin) {
+                    this._addChatMessage('/kick <id|nombre> - Expulsa a un jugador', '#ff8888');
+                    this._addChatMessage('/ban <id|nombre> - Banea a un jugador', '#ff8888');
+                    this._addChatMessage('/admin <id|nombre> - Promueve a administrador', '#ff8888');
+                }
+                if (this.isOnline) {
+                    this._addChatMessage('/w <id|nombre> <msg> - Envía un susurro privado', '#ff88ff');
+                }
+                break;
+            }
+            case 'clear': {
+                this._chatMessages = [];
+                this._chatLogTexts.forEach(t => t.setText(''));
+                this._addChatMessage('Chat limpiado', '#aaffaa');
                 break;
             }
             case 'fps':
@@ -1385,6 +1434,7 @@ class GameScene extends Phaser.Scene {
             r.k2_right = this.keys2.right.isDown;
             r.kick2 = this.kick2.isDown;
         }
+        r.pingTime = Date.now();
         return r;
     }
 
@@ -1395,6 +1445,15 @@ class GameScene extends Phaser.Scene {
             if (msg.type === 'state') {
                 this.serverState = msg.data;
                 this.newServerState = true;
+            }
+            if (msg.type === 'pong') {
+                const lat = Date.now() - msg.time;
+                if (this.pingText) {
+                    this.pingText.setText(`Ping: ${lat} ms`);
+                    if (lat < 50) this.pingText.setColor('#88ff88');
+                    else if (lat < 120) this.pingText.setColor('#ffff88');
+                    else this.pingText.setColor('#ff8888');
+                }
             }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
@@ -1466,7 +1525,19 @@ class GameScene extends Phaser.Scene {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
-            if (msg.type === 'input') this._guestInputs = msg.keys;
+            if (msg.type === 'input') {
+                this._guestInputs = msg.keys;
+                if (msg.keys && msg.keys.pingTime) {
+                    if (this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'pong', time: msg.keys.pingTime }));
+                    }
+                }
+            }
+            if (msg.type === 'ping') {
+                if (this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'pong', time: msg.time }));
+                }
+            }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
                 if (msg.action === 'reset') this._resetTeamColors();
@@ -1582,6 +1653,18 @@ class GameScene extends Phaser.Scene {
             } else if (msg.type === 'state') {
                 this.serverState = msg.data;
                 this.newServerState = true;
+            } else if (msg.type === 'ping') {
+                if (this.isHost && this.dataChannel && this.dataChannel.readyState === 'open') {
+                    this.dataChannel.send(JSON.stringify({ type: 'pong', time: msg.time }));
+                }
+            } else if (msg.type === 'pong') {
+                const lat = Date.now() - msg.time;
+                if (this.pingText) {
+                    this.pingText.setText(`Ping: ${lat} ms`);
+                    if (lat < 50) this.pingText.setColor('#88ff88');
+                    else if (lat < 120) this.pingText.setColor('#ffff88');
+                    else this.pingText.setColor('#ff8888');
+                }
             }
         };
     }
@@ -2206,6 +2289,10 @@ class GameScene extends Phaser.Scene {
         if (this._escKeyHandler) {
             document.removeEventListener('keydown', this._escKeyHandler);
             this._escKeyHandler = null;
+        }
+        if (this.pingTimer) {
+            this.pingTimer.remove();
+            this.pingTimer = null;
         }
     }
 
