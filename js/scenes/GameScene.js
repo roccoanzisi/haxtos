@@ -2098,6 +2098,27 @@ class GameScene extends Phaser.Scene {
             }
         }
 
+        // Local Client-Side Prediction for our own player (zero input delay!)
+        const myKey = this.playerIndex === 0 ? 'blue' : 'red';
+        const myPlayer = this.players[myKey];
+        if (myPlayer && !this._chatOpen) {
+            const myKeys = this.playerIndex === 0 ? this.keys1 : this.keys2;
+            const myKick = this.playerIndex === 0 ? this.kick1 : this.kick2;
+            
+            this._movePlayer(myPlayer, myKeys, myKey);
+            myPlayer._isKicking = myKick.isDown;
+            
+            const accel = myPlayer._isKicking ? PK_ACCEL : P_ACCEL;
+            myPlayer._vx += myPlayer._inputDx * accel;
+            myPlayer._vy += myPlayer._inputDy * accel;
+            myPlayer.x += myPlayer._vx;
+            myPlayer.y += myPlayer._vy;
+            
+            const damp = myPlayer._isKicking ? PK_DAMPING : P_DAMPING;
+            myPlayer._vx *= damp;
+            myPlayer._vy *= damp;
+        }
+
         if (this.serverState) {
             // Velocity is in pixels per frame, so we convert extrapolation ms to frames
             // 1 frame = 16.667ms at 60 FPS
@@ -2119,12 +2140,25 @@ class GameScene extends Phaser.Scene {
                         if (!isOurselves) {
                             this.players[k].x = pState.x + pState.vx * extFrames;
                             this.players[k].y = pState.y + pState.vy * extFrames;
+                            this.players[k]._vx = pState.vx;
+                            this.players[k]._vy = pState.vy;
                         } else {
-                            this.players[k].x = pState.x;
-                            this.players[k].y = pState.y;
+                            // Soft reconciliation for ourselves
+                            const dx = pState.x - this.players[k].x;
+                            const dy = pState.y - this.players[k].y;
+                            const dist = Math.hypot(dx, dy);
+                            if (dist > 60) {
+                                this.players[k].x = pState.x;
+                                this.players[k].y = pState.y;
+                                this.players[k]._vx = pState.vx;
+                                this.players[k]._vy = pState.vy;
+                            } else {
+                                this.players[k].x += dx * 0.20;
+                                this.players[k].y += dy * 0.20;
+                                this.players[k]._vx += (pState.vx - this.players[k]._vx) * 0.20;
+                                this.players[k]._vy += (pState.vy - this.players[k]._vy) * 0.20;
+                            }
                         }
-                        this.players[k]._vx = pState.vx;
-                        this.players[k]._vy = pState.vy;
                     }
                 });
 
@@ -2136,21 +2170,22 @@ class GameScene extends Phaser.Scene {
 
                 Object.keys(this.players).forEach(k => {
                     const p = this.players[k];
-                    if (p) {
+                    const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
+                    if (p && !isOurselves) {
                         p.x += p._vx;
                         p.y += p._vy;
                     }
                 });
             }
 
-            // Sync Phaser bodies
+            // Sync Phaser bodies and stop Phaser's auto-movement
             this.ball.body.reset(this.ball.x, this.ball.y);
-            this.ball.body.velocity.set(this.ball._vx, this.ball._vy);
+            this.ball.body.velocity.set(0, 0);
 
             Object.keys(this.players).forEach(k => {
                 if (this.players[k]) {
                     this.players[k].body.reset(this.players[k].x, this.players[k].y);
-                    this.players[k].body.velocity.set(this.players[k]._vx, this.players[k]._vy);
+                    this.players[k].body.velocity.set(0, 0);
                 }
             });
         }
