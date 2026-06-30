@@ -49,6 +49,7 @@ class GameScene extends Phaser.Scene {
         this.ws = (data && data.ws) ? data.ws : null;
         this.playerIndex = (data && data.playerIndex !== undefined) ? data.playerIndex : 0;
         this.isHost = this.playerIndex === 0;
+        this.isAdmin = this.isHost;
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.hbsData = (data && data.hbs) || null;
@@ -123,6 +124,11 @@ class GameScene extends Phaser.Scene {
             
             // Initialize WebRTC P2P connection handshake
             this._initWebRTC();
+
+            // Request initial player list from server to sync lobby columns and admin status
+            if (this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'request_players' }));
+            }
         } else {
             this.gameStarted = true;
             this._reset();

@@ -30,7 +30,8 @@ function sendRoomPlayersUpdate(room) {
         index: p.playerIndex,
         id: p.id,
         name: p.name,
-        admin: p.admin
+        admin: p.admin,
+        team: p.team
     }));
     broadcast(room, { type: 'players_list', list });
 }
@@ -62,6 +63,7 @@ wss.on('connection', (ws, req) => {
             ws.id = ws.playerIndex + 1;
             ws.name = ws.playerIndex === 0 ? "Host" : "Invitado";
             ws.admin = ws.playerIndex === 0;
+            ws.team = ws.playerIndex === 0 ? "blue" : "red";
             ws.ip = ip;
 
             room.players.push(ws);
@@ -96,6 +98,23 @@ wss.on('connection', (ws, req) => {
                 broadcast(room, { type: 'input', index: ws.playerIndex, keys: msg.keys }, ws);
             } else if (msg.type === 'state') {
                 broadcast(room, { type: 'state', data: msg.data }, ws);
+            } else if (msg.type === 'request_players') {
+                sendRoomPlayersUpdate(room);
+            } else if (msg.type === 'move_team') {
+                ws.team = msg.team;
+                sendRoomPlayersUpdate(room);
+            } else if (msg.type === 'start_game') {
+                if (ws.admin) {
+                    broadcast(room, { type: 'start_game' });
+                }
+            } else if (msg.type === 'stop_game') {
+                if (ws.admin) {
+                    broadcast(room, { type: 'stop_game' });
+                }
+            } else if (msg.type === 'resume_game') {
+                if (ws.admin) {
+                    broadcast(room, { type: 'resume_game' });
+                }
             } else if (msg.type === 'command') {
                 const text = (msg.text || '').trim();
                 if (!text.startsWith('/')) return;
