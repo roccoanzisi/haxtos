@@ -1029,106 +1029,125 @@ class GameScene extends Phaser.Scene {
         div.id = '_haxEscPanel';
         div.style.cssText = `
             position:fixed;top:0;left:0;right:0;bottom:0;
-            background:rgba(0,0,0,0.60);
+            background:rgba(10,10,20,0.85);
             display:none;align-items:center;justify-content:center;
             z-index:9999;font-family:Arial,Helvetica,sans-serif;
         `;
         div.innerHTML = `
-        <div style="background:#111120;border:1px solid #2a2a40;width:920px;max-width:95vw;user-select:none;">
-          <!-- Header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;">
-            <span style="color:#ddd;font-size:16px;">Haxtos Lobby</span>
-            <button id="_escLeave" style="background:#2a5280;border:1px solid #3a6290;color:#ddd;padding:4px 13px;cursor:pointer;font-size:13px;">&#x21B5; Leave</button>
+        <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:950px; max-width:95vw; user-select:none; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+          <!-- Header Bar -->
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#2d3748; border-top-left-radius:3px; border-top-right-radius:3px;">
+            <span style="color:#f7fafc; font-size:15px; font-weight:bold; font-family:Verdana, Geneva, sans-serif;">Room: ${this.roomCode || 'Local Match'}</span>
+            <button id="_escLeave" style="background:#e53e3e; border:none; color:#fff; padding:5px 14px; cursor:pointer; font-size:12px; font-weight:bold; border-radius:3px;">Leave</button>
           </div>
-          <div style="height:2px;background:#cc2222;"></div>
+          <div style="height:2px; background:#e53e3e;"></div>
 
-          <!-- Body -->
-          <div style="display:flex;">
-            <!-- Left sidebar -->
-            <div style="width:104px;border-right:1px solid #1a1a2c;padding:8px 6px;display:flex;flex-direction:column;gap:4px;">
-              <button id="_escAuto" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">Auto</button>
-              <button id="_escRand" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">Rand</button>
-              <button id="_escLock" style="background:#2a3a4a;border:none;color:#ccc;padding:5px 0;font-size:12px;width:90px;cursor:pointer;">🔓 Unlock</button>
-              <button id="_escReset" style="background:#2a5280;border:none;color:#fff;padding:5px 0;cursor:pointer;font-size:12px;width:90px;">Reset</button>
-            </div>
-            <!-- Columns area -->
-            <div style="flex:1;display:flex;flex-direction:column;">
-              <!-- Single header row: Red [Join] Spectators [Join] Blue [Join] -->
-              <div style="display:flex;align-items:stretch;border-bottom:1px solid #1a1a2c;">
-                <div style="width:215px;background:#3a1818;padding:6px 12px;color:#ff8888;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;">
-                  <span>Red</span>
-                  <button id="_joinRedBtn" style="background:#aa3333;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
+          <!-- Main Layout -->
+          <div style="display:flex; padding:12px; gap:12px;">
+            <!-- Left Pane: Players lists -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+              <!-- Red and Blue Team boxes side by side -->
+              <div style="display:flex; gap:10px;">
+                <!-- Red Team -->
+                <div style="flex:1; border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column;">
+                  <div style="background:#3e1e1e; padding:6px 10px; color:#feb2b2; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
+                    <span>Red Team</span>
+                    <button id="_joinRedBtn" style="background:#e53e3e; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
+                  </div>
+                  <div id="_escRedPlayers" style="height:150px; overflow-y:auto; padding:4px;"></div>
                 </div>
-                <div style="flex:1;background:#161626;padding:6px 10px;color:#888899;font-size:14px;display:flex;align-items:center;justify-content:center;gap:10px;">
+
+                <!-- Blue Team -->
+                <div style="flex:1; border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column;">
+                  <div style="background:#1b2845; padding:6px 10px; color:#90cdf4; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
+                    <span>Blue Team</span>
+                    <button id="_joinBlueBtn" style="background:#3182ce; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
+                  </div>
+                  <div id="_escBluePlayers" style="height:150px; overflow-y:auto; padding:4px;"></div>
+                </div>
+              </div>
+
+              <!-- Sidebar-like buttons in a horizontal bar -->
+              <div style="display:flex; gap:6px; background:#2d3748; padding:6px; border-radius:3px; align-items:center; justify-content:center;">
+                <button id="_escAuto" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Auto</button>
+                <button id="_escRand" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Rand</button>
+                <button id="_escLock" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">🔓 Unlock</button>
+                <button id="_escReset" style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Reset</button>
+              </div>
+
+              <!-- Spectators list -->
+              <div style="border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column; flex:1; min-height:140px;">
+                <div style="background:#2d3748; padding:6px 10px; color:#cbd5e0; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
                   <span>Spectators</span>
-                  <button id="_joinSpecBtn" style="background:#555;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
+                  <button id="_joinSpecBtn" style="background:#718096; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
                 </div>
-                <div style="width:215px;background:#182038;padding:6px 12px;color:#88aaff;font-size:14px;font-weight:bold;display:flex;align-items:center;justify-content:space-between;">
-                  <button id="_joinBlueBtn" style="background:#3333aa;border:none;color:#fff;font-size:11px;cursor:pointer;padding:2px 6px;border-radius:2px;">Join</button>
-                  <span>Blue</span>
+                <div id="_escSpecPlayers" style="flex:1; overflow-y:auto; padding:4px;"></div>
+              </div>
+            </div>
+
+            <!-- Right Pane: Stadium Preview, Settings, and Controls -->
+            <div style="width:340px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+              <!-- Stadium Preview -->
+              <div style="height:150px; background:#1a1d24; border:1px solid #2d3748; border-radius:3px; padding:6px; display:flex; align-items:center; justify-content:center;">
+                <div style="width:100%; height:100%; background:#2d5a1e; position:relative; border:2px solid rgba(255,255,255,0.4); border-radius:3px; overflow:hidden;">
+                  <!-- Center Line -->
+                  <div style="position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(255,255,255,0.4); transform:translateX(-50%);"></div>
+                  <!-- Center Circle -->
+                  <div style="position:absolute; left:50%; top:50%; width:45px; height:45px; border:2px solid rgba(255,255,255,0.4); border-radius:50%; transform:translate(-50%, -50%);"></div>
+                  <!-- Goals -->
+                  <div style="position:absolute; left:0; top:30%; bottom:30%; width:8px; border-top:2px solid rgba(255,255,255,0.4); border-right:2px solid rgba(255,255,255,0.4); border-bottom:2px solid rgba(255,255,255,0.4);"></div>
+                  <div style="position:absolute; right:0; top:30%; bottom:30%; width:8px; border-top:2px solid rgba(255,255,255,0.4); border-left:2px solid rgba(255,255,255,0.4); border-bottom:2px solid rgba(255,255,255,0.4);"></div>
+                  <!-- Stadium label -->
+                  <div id="_escStadVal" style="position:absolute; bottom:5px; left:5px; right:5px; background:rgba(0,0,0,0.7); color:#fff; font-size:11px; font-weight:bold; font-family:Verdana; text-align:center; padding:3px; border-radius:2px;">Classic</div>
                 </div>
               </div>
-              <!-- Player areas -->
-              <div style="display:flex;">
-                <div id="_escRedPlayers" style="width:215px;background:#0c0c14;min-height:180px;border-right:1px solid #1a1a2c;"></div>
-                <div id="_escSpecPlayers" style="flex:1;background:#0c0c14;min-height:180px;padding:6px;"></div>
-                <div id="_escBluePlayers" style="width:215px;background:#0c0c14;min-height:180px;border-left:1px solid #1a1a2c;"></div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Settings (collapsible) -->
-          <div style="border-top:1px solid #1a1a2c;">
-            <div id="_escSettingsToggle" style="padding:6px 14px;display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;">
-              <span id="_escSettingsArrow" style="color:#556688;font-size:10px;transition:transform 0.15s;">&#9654;</span>
-              <span style="color:#556688;font-size:11px;letter-spacing:0.5px;">CONFIGURACIÓN</span>
-            </div>
-            <div id="_escSettingsBody" style="display:none;padding:4px 14px 8px 14px;">
-              <div style="display:flex;align-items:center;margin-bottom:5px;">
-                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Modo</span>
-                <div id="_escModeOpts" style="display:flex;gap:4px;"></div>
-              </div>
-              <div style="display:flex;align-items:center;margin-bottom:5px;flex-wrap:wrap;row-gap:4px;">
-                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Estadio</span>
-                <div id="_escStadOpts" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-                <button id="_escLoadMap" style="margin-left:5px;background:#1e3a1e;border:1px solid #3a6a3a;color:#88cc88;padding:2px 7px;font-size:11px;cursor:pointer;border-radius:3px;">&#128194;</button>
-                <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
-              </div>
-              <div style="display:flex;align-items:center;margin-bottom:5px;">
-                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Goles</span>
-                <div id="_escGoalOpts" style="display:flex;gap:4px;"></div>
-              </div>
-              <div style="display:flex;align-items:center;">
-                <span style="color:#556688;font-size:11px;width:68px;flex-shrink:0;">Tiempo</span>
-                <div id="_escTimeOpts" style="display:flex;gap:4px;"></div>
-              </div>
-            </div>
-          </div>
+              <!-- Settings panel -->
+              <div style="background:#1a1d24; border:1px solid #2d3748; border-radius:3px; padding:10px; display:flex; flex-direction:column; gap:8px;">
+                <span style="color:#718096; font-size:11px; font-weight:bold; border-bottom:1px solid #2d3748; padding-bottom:4px; letter-spacing:0.5px;">SETTINGS</span>
+                
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="color:#a0aec0; font-size:12px;">Mode:</span>
+                  <div id="_escModeOpts" style="display:flex; gap:4px;"></div>
+                </div>
+                
+                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; row-gap:4px;">
+                  <span style="color:#a0aec0; font-size:12px;">Stadium:</span>
+                  <div style="display:flex; align-items:center; gap:4px;">
+                    <div id="_escStadOpts" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+                    <button id="_escLoadMap" style="background:#2b6cb0; border:none; color:#fff; padding:3px 6px; font-size:11px; cursor:pointer; border-radius:2px;" title="Cargar mapa (.hbs)">📂</button>
+                    <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
+                  </div>
+                </div>
 
-          <!-- Bottom buttons -->
-          <div style="padding:10px 14px 12px;display:flex;gap:8px;justify-content:center;align-items:center;">
-            <button id="_escStop" style="background:#cc2222;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;display:none;">&#9632; Stop game</button>
-            <button id="_escStart" style="background:#228833;border:none;color:#fff;padding:7px 22px;font-size:14px;font-weight:bold;cursor:pointer;display:none;">&#9654; Start game</button>
-            <button id="_escResume" style="background:#2a3a4a;border:1px solid #3a4a5a;color:#ccc;padding:7px 22px;font-size:14px;cursor:pointer;display:none;">&#9646;&#9646; Resume</button>
-            <span id="_escWaitMsg" style="color:#888;font-size:14px;display:none;">Esperando a que el Host inicie el partido...</span>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="color:#a0aec0; font-size:12px;">Score Limit:</span>
+                  <div id="_escGoalOpts" style="display:flex; gap:4px;"></div>
+                </div>
+
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="color:#a0aec0; font-size:12px;">Time Limit:</span>
+                  <div id="_escTimeOpts" style="display:flex; gap:4px;"></div>
+                </div>
+              </div>
+
+              <!-- Game Controls -->
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <button id="_escStart" style="background:#48bb78; border:none; color:#fff; width:100%; padding:10px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">▶ START GAME</button>
+                <button id="_escStop" style="background:#f56565; border:none; color:#fff; width:100%; padding:10px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">■ STOP GAME</button>
+                <button id="_escResume" style="background:#4a5568; border:none; color:#fff; width:100%; padding:8px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">PAUSE / RESUME</button>
+                <span id="_escWaitMsg" style="color:#718096; font-size:12px; text-align:center; display:none; padding:8px; background:#1a1d24; border-radius:3px;">Waiting for Host to start the match...</span>
+              </div>
+            </div>
           </div>
         </div>`;
 
         document.body.appendChild(div);
         this._escPanel = div;
 
-        document.getElementById('_escSettingsToggle').onclick = () => {
-            const body  = document.getElementById('_escSettingsBody');
-            const arrow = document.getElementById('_escSettingsArrow');
-            const open  = body.style.display === 'none';
-            body.style.display  = open ? 'block' : 'none';
-            arrow.style.transform = open ? 'rotate(90deg)' : 'rotate(0deg)';
-        };
-
         this._buildSettingsPills();
 
         div.addEventListener('click', (e) => {
-            // In Lobby state, clicking outside the panel should NOT hide it!
             if (e.target === div && this.gameStarted) this._hideEscPanel();
         });
 
@@ -1160,7 +1179,6 @@ class GameScene extends Phaser.Scene {
             if (this.isOnline) {
                 if (this.isAdmin) this.ws.send(JSON.stringify({ type: 'start_game' }));
             } else {
-                // Recalculate F using window dimensions (not the hardcoded canvasW/canvasH)
                 this._recalcF();
                 this.gameStarted = true;
                 this.paused = false;
@@ -1480,6 +1498,13 @@ class GameScene extends Phaser.Scene {
                 stopBtn.style.display = 'block';
                 resumeBtn.style.display = 'block';
             }
+        }
+
+        const stadVal = document.getElementById('_escStadVal');
+        if (stadVal) {
+            stadVal.textContent = this.hbsData
+                ? (this.hbsData._fileName || 'Custom Map')
+                : (STADIUMS[this.stadium] ? STADIUMS[this.stadium].name : 'Classic');
         }
 
         this._escPanel.style.display = 'flex';
