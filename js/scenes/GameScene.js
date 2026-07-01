@@ -605,13 +605,13 @@ class GameScene extends Phaser.Scene {
             color: '#eeeeee', stroke: '#000', strokeThickness: 3
         }).setOrigin(0.5, 0));
 
-        this.add.text(F.X + 20, F.Y - 16, 'AZUL', {
-            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#8888ff', stroke: '#000', strokeThickness: 3
-        }).setOrigin(0, 0.5).setDepth(20);
-        this.add.text(F.X + F.W - 20, F.Y - 16, 'ROJO', {
+        this.add.text(F.X + 20, F.Y - 16, 'ROJO', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ff4444', stroke: '#000', strokeThickness: 3
+        }).setOrigin(0, 0.5).setDepth(20);
+        this.add.text(F.X + F.W - 20, F.Y - 16, 'AZUL', {
+            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
+            color: '#8888ff', stroke: '#000', strokeThickness: 3
         }).setOrigin(1, 0.5).setDepth(20);
 
         this.pingText = sf(this.add.text(GW - 20, 16, 'Ping: 0 ms', {
