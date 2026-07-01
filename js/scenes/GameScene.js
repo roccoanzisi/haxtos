@@ -810,7 +810,12 @@ class GameScene extends Phaser.Scene {
             case 'avatar': {
                 const av = args.join(' ').slice(0, 3);
                 if (av) {
-                    const localKey = this.isOnline ? (this.playerIndex === 0 ? 'blue' : 'red') : 'blue';
+                    let localKey = 'blue';
+                    if (this.isOnline) {
+                        const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
+                        localKey = myPlayerObj ? myPlayerObj.team : 'blue';
+                        if (localKey === 'spec') localKey = 'blue';
+                    }
                     this._playerUniforms[localKey].avatar = av;
                     this._redrawPlayerTexture(localKey);
                     this._addChatMessage(`Avatar: "${av}"`, '#aaffaa');
@@ -1911,15 +1916,12 @@ class GameScene extends Phaser.Scene {
     _applyGuestInputs() {
         if (!this._guestInputs || !Object.keys(this._guestInputs).length) return;
         const g = this._guestInputs;
-        const gp  = this.playerIndex === 0 ? 'red'  : 'blue';
-        const gp2 = this.playerIndex === 0 ? 'red2' : 'blue2';
-        if (this.players[gp]) {
+        const guestPlayerObj = this.roomPlayers.find(p => p.index === 1);
+        const guestTeam = guestPlayerObj ? guestPlayerObj.team : 'spec';
+        if (guestTeam !== 'spec' && this.players[guestTeam]) {
+            const gp = guestTeam;
             this._movePlayer(this.players[gp], { up: g.k2_up, down: g.k2_down, left: g.k2_left, right: g.k2_right }, gp);
             this.players[gp]._isKicking = g.kick2 || false;
-        }
-        if (this.is2v2 && this.players[gp2]) {
-            this._movePlayer(this.players[gp2], { up: g.k4_up, down: g.k4_down, left: g.k4_left, right: g.k4_right }, gp2);
-            this.players[gp2]._isKicking = g.kick2 || false;
         }
     }
 
@@ -2581,19 +2583,18 @@ class GameScene extends Phaser.Scene {
     }
 
     _updateHost() {
-        if (!this._chatOpen) {
-            if (this.players.blue) {
-                // Combine WASD and Arrow keys for Host player (blue)
-                const up = this.keys1.up.isDown || this.keys2.up.isDown;
-                const down = this.keys1.down.isDown || this.keys2.down.isDown;
-                const left = this.keys1.left.isDown || this.keys2.left.isDown;
-                const right = this.keys1.right.isDown || this.keys2.right.isDown;
-                const kick = this.kick1.isDown || this.kick2.isDown;
+        const hostPlayerObj = this.roomPlayers.find(p => p.index === 0);
+        const hostTeam = hostPlayerObj ? hostPlayerObj.team : 'spec';
+        if (!this._chatOpen && hostTeam !== 'spec' && this.players[hostTeam]) {
+            const pObj = this.players[hostTeam];
+            const up = this.keys1.up.isDown || this.keys2.up.isDown;
+            const down = this.keys1.down.isDown || this.keys2.down.isDown;
+            const left = this.keys1.left.isDown || this.keys2.left.isDown;
+            const right = this.keys1.right.isDown || this.keys2.right.isDown;
+            const kick = this.kick1.isDown || this.kick2.isDown;
 
-                this.players.blue._isKicking = kick;
-                this._movePlayer(this.players.blue, { up, down, left, right }, 'blue');
-            }
-            // Host does NOT override Guest player (red) inputs locally!
+            pObj._isKicking = kick;
+            this._movePlayer(pObj, { up, down, left, right }, hostTeam);
         }
         this._applyGuestInputs();
         this._physicsStep();
@@ -2615,9 +2616,11 @@ class GameScene extends Phaser.Scene {
         }
 
         // Local Client-Side Prediction for our own player (zero input delay!)
-        const myKey = this.playerIndex === 0 ? 'blue' : 'red';
-        const myPlayer = this.players[myKey];
-        if (myPlayer && !this._chatOpen) {
+        const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
+        const myTeam = myPlayerObj ? myPlayerObj.team : 'spec';
+        if (myTeam !== 'spec' && this.players[myTeam] && !this._chatOpen) {
+            const myKey = myTeam;
+            const myPlayer = this.players[myKey];
             // Combine WASD and Arrow keys for our local prediction
             const up = this.keys1.up.isDown || this.keys2.up.isDown;
             const down = this.keys1.down.isDown || this.keys2.down.isDown;
@@ -2653,10 +2656,12 @@ class GameScene extends Phaser.Scene {
                 this.ball._vy = this.serverState.ballVY;
                 this.ball.rotation = this.serverState.ballRot || 0;
 
+                const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
+                const myTeam = myPlayerObj ? myPlayerObj.team : '';
                 Object.keys(this.serverState.players || {}).forEach(k => {
                     if (this.players[k]) {
                         const pState = this.serverState.players[k];
-                        const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
+                        const isOurselves = (k === myTeam);
                         
                         if (!isOurselves) {
                             this.players[k].x = pState.x + pState.vx * extFrames;
@@ -2684,9 +2689,11 @@ class GameScene extends Phaser.Scene {
                 this.ball.x += this.ball._vx;
                 this.ball.y += this.ball._vy;
 
+                const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
+                const myTeam = myPlayerObj ? myPlayerObj.team : '';
                 Object.keys(this.players).forEach(k => {
                     const p = this.players[k];
-                    const isOurselves = (this.playerIndex === 0 && k === 'blue') || (this.playerIndex === 1 && k === 'red');
+                    const isOurselves = (k === myTeam);
                     if (p && !isOurselves) {
                         p.x += p._vx;
                         p.y += p._vy;
