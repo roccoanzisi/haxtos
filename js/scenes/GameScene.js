@@ -24,7 +24,6 @@ const B_DAMPING = 0.99;    // per frame (Haxball exact)
 const B_INV_M   = 1.0;     // invMass (Haxball exact)
 const B_MASS    = 1;       // mass = 1/invMass
 const B_BOUNCE  = 0.5;     // bCoef
-const B_MAX_SPEED = 11.7;  // cap px/frame (= legacy 700 px/s @ 60fps) to prevent runaway speed
 
 const SCORE_WIN  = 7;
 const GAME_TIME  = 3 * 60;
@@ -2429,13 +2428,6 @@ class GameScene extends Phaser.Scene {
             const damp = p._isKicking ? PK_DAMPING : P_DAMPING;
             p._vx *= damp;
             p._vy *= damp;
-        }
-
-        // Cap ball speed to avoid runaway velocity from stacked kicks/collisions
-        const ballSpeed = Math.hypot(ball._vx, ball._vy);
-        if (ballSpeed > B_MAX_SPEED) {
-            ball._vx = ball._vx / ballSpeed * B_MAX_SPEED;
-            ball._vy = ball._vy / ballSpeed * B_MAX_SPEED;
         }
 
         // 5. Collisions

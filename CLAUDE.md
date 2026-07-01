@@ -40,8 +40,8 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 | `P_ACCEL`, `P_DAMPING` | `GameScene.js` | Aceleración (4.848 px/s por frame) y damping jugador |
 | `P_MASS`, `P_BOUNCE` | `GameScene.js` | Masa (2) y rebote (0.5) del jugador |
 | `PK_ACCEL`, `PK_DAMPING` | `GameScene.js` | Aceleración/fricción al patear |
-| `KICK_POWER`, `KICK_BACK`, `KICK_COOLDOWN` | `GameScene.js` | Fuerza patada (480), retroceso (0.1), cooldown |
-| `B_DAMPING`, `B_MASS`, `B_BOUNCE`, `B_MAX_SPEED` | `GameScene.js` | Damping (0.995), masa (1), rebote (0.5), cap velocidad |
+| `KICK_POWER`, `KICK_BACK` | `GameScene.js` | Fuerza patada (5.0), retroceso (0) |
+| `B_DAMPING`, `B_MASS`, `B_BOUNCE` | `GameScene.js` | Damping (0.99), masa (1), rebote (0.5). Sin cap de velocidad — igual que Haxball real |
 | `SCORE_WIN`, `GAME_TIME` | `GameScene.js` | Goles para ganar, duración partida |
 | `WALL_BOUNCE`, `POST_BOUNCE` | `GameScene.js` | Rebote pared y poste (ambos 0.5 = bCoef) |
 
