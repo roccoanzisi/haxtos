@@ -1034,110 +1034,109 @@ class GameScene extends Phaser.Scene {
             z-index:9999;font-family:Arial,Helvetica,sans-serif;
         `;
         div.innerHTML = `
-        <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:950px; max-width:95vw; user-select:none; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+        <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:800px; max-width:95vw; user-select:none; display:flex; flex-direction:column; box-shadow:0 10px 25px rgba(0,0,0,0.5); font-family:Arial, sans-serif;">
           <!-- Header Bar -->
-          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#2d3748; border-top-left-radius:3px; border-top-right-radius:3px;">
-            <span style="color:#f7fafc; font-size:15px; font-weight:bold; font-family:Verdana, Geneva, sans-serif;">Room: ${this.roomCode || 'Local Match'}</span>
-            <button id="_escLeave" style="background:#e53e3e; border:none; color:#fff; padding:5px 14px; cursor:pointer; font-size:12px; font-weight:bold; border-radius:3px;">Leave</button>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#2d3748; border-top-left-radius:3px; border-top-right-radius:3px;">
+            <span style="color:#f7fafc; font-size:14px; font-weight:bold; font-family:Verdana, Geneva, sans-serif;">${this.roomCode ? this.roomCode + "'s room" : "Local Match"}</span>
+            <div style="display:flex; gap:6px;">
+              <button style="background:#718096; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;" onclick="alert('Recording is not supported in this version.')">● Rec</button>
+              <button style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;" onclick="navigator.clipboard.writeText(window.location.href); alert('Room link copied!')">🔗 Link</button>
+              <button id="_escLeave" style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;">🚪 Leave</button>
+            </div>
           </div>
-          <div style="height:2px; background:#e53e3e;"></div>
+          <div style="height:2px; background:#cc2222;"></div>
 
-          <!-- Main Layout -->
-          <div style="display:flex; padding:12px; gap:12px;">
-            <!-- Left Pane: Players lists -->
-            <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-              <!-- Red and Blue Team boxes side by side -->
-              <div style="display:flex; gap:10px;">
-                <!-- Red Team -->
-                <div style="flex:1; border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column;">
-                  <div style="background:#3e1e1e; padding:6px 10px; color:#feb2b2; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
-                    <span>Red Team</span>
-                    <button id="_joinRedBtn" style="background:#e53e3e; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
-                  </div>
-                  <div id="_escRedPlayers" style="height:150px; overflow-y:auto; padding:4px;"></div>
-                </div>
+          <!-- Main Layout: Sidebar & Player Columns -->
+          <div style="display:flex; padding:15px 12px; gap:12px; background:#1a202c;">
+            <!-- Left Sidebar buttons -->
+            <div style="width:75px; display:flex; flex-direction:column; gap:6px;">
+              <button id="_escAuto" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Auto</button>
+              <button id="_escRand" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Rand</button>
+              <button id="_escLock" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">🔓 Lock</button>
+              <button id="_escReset" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; cursor:pointer; font-size:12px; border-radius:4px; font-weight:bold;">Reset</button>
+            </div>
 
-                <!-- Blue Team -->
-                <div style="flex:1; border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column;">
-                  <div style="background:#1b2845; padding:6px 10px; color:#90cdf4; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
-                    <span>Blue Team</span>
-                    <button id="_joinBlueBtn" style="background:#3182ce; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
-                  </div>
-                  <div id="_escBluePlayers" style="height:150px; overflow-y:auto; padding:4px;"></div>
+            <!-- Player Columns Container -->
+            <div style="flex:1; display:flex; gap:10px;">
+              <!-- Red Column -->
+              <div style="flex:1; display:flex; flex-direction:column;">
+                <div style="display:flex; gap:4px; margin-bottom:6px;">
+                  <button id="_joinRedTitleBtn" style="flex:1; background:#e53e3e; border:none; color:#fff; font-size:12px; font-weight:bold; padding:5px; border-radius:4px; cursor:pointer;">Red</button>
+                  <button id="_joinRedBtn" style="background:#e53e3e; border:none; color:#fff; font-size:12px; font-weight:bold; padding:5px 10px; border-radius:4px; cursor:pointer;">▶</button>
                 </div>
+                <div id="_escRedPlayers" style="height:200px; background:#14161d; border:1px solid #282c37; border-radius:4px; overflow-y:auto; padding:4px;"></div>
               </div>
 
-              <!-- Sidebar-like buttons in a horizontal bar -->
-              <div style="display:flex; gap:6px; background:#2d3748; padding:6px; border-radius:3px; align-items:center; justify-content:center;">
-                <button id="_escAuto" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Auto</button>
-                <button id="_escRand" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Rand</button>
-                <button id="_escLock" style="background:#4a5568; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">🔓 Unlock</button>
-                <button id="_escReset" style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:2px; font-weight:bold;">Reset</button>
+              <!-- Spectators Column -->
+              <div style="flex:1; display:flex; flex-direction:column;">
+                <div style="margin-bottom:6px;">
+                  <button id="_joinSpecBtn" style="width:100%; background:#4a5568; border:none; color:#fff; font-size:12px; font-weight:bold; padding:5px; border-radius:4px; cursor:pointer;">Spectators</button>
+                </div>
+                <div id="_escSpecPlayers" style="height:200px; background:#14161d; border:1px solid #282c37; border-radius:4px; overflow-y:auto; padding:4px;"></div>
               </div>
 
-              <!-- Spectators list -->
-              <div style="border:1px solid #2d3748; background:#1a1d24; border-radius:3px; display:flex; flex-direction:column; flex:1; min-height:140px;">
-                <div style="background:#2d3748; padding:6px 10px; color:#cbd5e0; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:space-between;">
-                  <span>Spectators</span>
-                  <button id="_joinSpecBtn" style="background:#718096; border:none; color:#fff; font-size:11px; cursor:pointer; padding:2px 8px; border-radius:2px; font-weight:bold;">Join</button>
+              <!-- Blue Column -->
+              <div style="flex:1; display:flex; flex-direction:column;">
+                <div style="display:flex; gap:4px; margin-bottom:6px;">
+                  <button id="_joinBlueBtn" style="background:#3182ce; border:none; color:#fff; font-size:12px; font-weight:bold; padding:5px 10px; border-radius:4px; cursor:pointer;">◀</button>
+                  <button id="_joinBlueTitleBtn" style="flex:1; background:#3182ce; border:none; color:#fff; font-size:12px; font-weight:bold; padding:5px; border-radius:4px; cursor:pointer;">Blue</button>
                 </div>
-                <div id="_escSpecPlayers" style="flex:1; overflow-y:auto; padding:4px;"></div>
+                <div id="_escBluePlayers" style="height:200px; background:#14161d; border:1px solid #282c37; border-radius:4px; overflow-y:auto; padding:4px;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings & Start Button Area (Centered) -->
+          <div style="display:flex; flex-direction:column; align-items:center; padding:15px; border-top:1px solid #2d3748; background:#1a202c; gap:12px;">
+            <!-- Settings layout -->
+            <div style="display:flex; flex-direction:column; gap:8px; width:280px; font-family:Verdana, Geneva, sans-serif; font-size:13px; color:#cbd5e0;">
+              <!-- Mode selection (Only if local, otherwise we can hide or display it) -->
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span>Mode:</span>
+                <select id="_escModeSel" style="background:#14161d; border:1px solid #282c37; color:#fff; padding:3px 8px; border-radius:4px; width:120px; font-size:12px; cursor:pointer; font-weight:bold;"></select>
+              </div>
+
+              <!-- Time Limit -->
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span>Time limit:</span>
+                <select id="_escTimeSel" style="background:#14161d; border:1px solid #282c37; color:#fff; padding:3px 8px; border-radius:4px; width:120px; font-size:12px; cursor:pointer; font-weight:bold;"></select>
+              </div>
+
+              <!-- Score Limit -->
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span>Score limit:</span>
+                <select id="_escGoalSel" style="background:#14161d; border:1px solid #282c37; color:#fff; padding:3px 8px; border-radius:4px; width:120px; font-size:12px; cursor:pointer; font-weight:bold;"></select>
+              </div>
+
+              <!-- Stadium Selector -->
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span>Stadium:</span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span id="_escStadVal" style="font-weight:bold; color:#fff;">Classic</span>
+                  <button id="_escLoadMap" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:3px 10px; font-size:11px; cursor:pointer; border-radius:4px; font-weight:bold;">Pick</button>
+                  <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
+                </div>
               </div>
             </div>
 
-            <!-- Right Pane: Stadium Preview, Settings, and Controls -->
-            <div style="width:340px; display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
-              <!-- Stadium Preview -->
-              <div style="height:150px; background:#1a1d24; border:1px solid #2d3748; border-radius:3px; padding:6px; display:flex; align-items:center; justify-content:center;">
-                <div style="width:100%; height:100%; background:#2d5a1e; position:relative; border:2px solid rgba(255,255,255,0.4); border-radius:3px; overflow:hidden;">
-                  <!-- Center Line -->
-                  <div style="position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(255,255,255,0.4); transform:translateX(-50%);"></div>
-                  <!-- Center Circle -->
-                  <div style="position:absolute; left:50%; top:50%; width:45px; height:45px; border:2px solid rgba(255,255,255,0.4); border-radius:50%; transform:translate(-50%, -50%);"></div>
-                  <!-- Goals -->
-                  <div style="position:absolute; left:0; top:30%; bottom:30%; width:8px; border-top:2px solid rgba(255,255,255,0.4); border-right:2px solid rgba(255,255,255,0.4); border-bottom:2px solid rgba(255,255,255,0.4);"></div>
-                  <div style="position:absolute; right:0; top:30%; bottom:30%; width:8px; border-top:2px solid rgba(255,255,255,0.4); border-left:2px solid rgba(255,255,255,0.4); border-bottom:2px solid rgba(255,255,255,0.4);"></div>
-                  <!-- Stadium label -->
-                  <div id="_escStadVal" style="position:absolute; bottom:5px; left:5px; right:5px; background:rgba(0,0,0,0.7); color:#fff; font-size:11px; font-weight:bold; font-family:Verdana; text-align:center; padding:3px; border-radius:2px;">Classic</div>
-                </div>
-              </div>
+            <!-- Start Game Controls -->
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px; width:100%;">
+              <button id="_escStart" style="background:#48bb78; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px;">▶ Start game</button>
+              <button id="_escStop" style="background:#f56565; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">■ Stop game</button>
+              <button id="_escResume" style="background:#4a5568; border:none; color:#fff; padding:8px 30px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">Pause / Resume</button>
+              <span id="_escWaitMsg" style="color:#718096; font-size:12px; display:none; padding:8px; background:#14161d; border-radius:4px; width:280px; text-align:center;">Waiting for Host to start the match...</span>
+            </div>
+          </div>
+        </div>
 
-              <!-- Settings panel -->
-              <div style="background:#1a1d24; border:1px solid #2d3748; border-radius:3px; padding:10px; display:flex; flex-direction:column; gap:8px;">
-                <span style="color:#718096; font-size:11px; font-weight:bold; border-bottom:1px solid #2d3748; padding-bottom:4px; letter-spacing:0.5px;">SETTINGS</span>
-                
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <span style="color:#a0aec0; font-size:12px;">Mode:</span>
-                  <div id="_escModeOpts" style="display:flex; gap:4px;"></div>
-                </div>
-                
-                <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; row-gap:4px;">
-                  <span style="color:#a0aec0; font-size:12px;">Stadium:</span>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <div id="_escStadOpts" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
-                    <button id="_escLoadMap" style="background:#2b6cb0; border:none; color:#fff; padding:3px 6px; font-size:11px; cursor:pointer; border-radius:2px;" title="Cargar mapa (.hbs)">📂</button>
-                    <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
-                  </div>
-                </div>
-
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <span style="color:#a0aec0; font-size:12px;">Score Limit:</span>
-                  <div id="_escGoalOpts" style="display:flex; gap:4px;"></div>
-                </div>
-
-                <div style="display:flex; align-items:center; justify-content:space-between;">
-                  <span style="color:#a0aec0; font-size:12px;">Time Limit:</span>
-                  <div id="_escTimeOpts" style="display:flex; gap:4px;"></div>
-                </div>
-              </div>
-
-              <!-- Game Controls -->
-              <div style="display:flex; flex-direction:column; gap:6px;">
-                <button id="_escStart" style="background:#48bb78; border:none; color:#fff; width:100%; padding:10px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">▶ START GAME</button>
-                <button id="_escStop" style="background:#f56565; border:none; color:#fff; width:100%; padding:10px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">■ STOP GAME</button>
-                <button id="_escResume" style="background:#4a5568; border:none; color:#fff; width:100%; padding:8px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:3px; display:none;">PAUSE / RESUME</button>
-                <span id="_escWaitMsg" style="color:#718096; font-size:12px; text-align:center; display:none; padding:8px; background:#1a1d24; border-radius:3px;">Waiting for Host to start the match...</span>
-              </div>
+        <!-- Stadium Selector Dialog Modal (Haxball Pick Popup) -->
+        <div id="_haxStadiumDialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:10005; font-family:Arial, sans-serif;">
+          <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:300px; padding:15px; box-shadow:0 10px 25px rgba(0,0,0,0.6);">
+            <div style="color:#fff; font-size:14px; font-weight:bold; margin-bottom:12px; border-bottom:1px solid #2d3748; padding-bottom:6px;">Select Stadium</div>
+            <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; margin-bottom:12px;" id="_stadiumListWrap"></div>
+            <div style="display:flex; justify-content:space-between; gap:10px;">
+              <button id="_stadiumLoadLocal" style="flex:1; background:#2b6cb0; border:none; color:#fff; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Load .hbs</button>
+              <button id="_stadiumCancel" style="background:#4a5568; border:none; color:#fff; padding:6px 12px; font-size:12px; cursor:pointer; border-radius:3px;">Cancel</button>
             </div>
           </div>
         </div>`;
@@ -1247,81 +1246,127 @@ class GameScene extends Phaser.Scene {
     _buildSettingsPills() {
         const canEdit = !this.isOnline || this.isAdmin;
 
-        const pill = (active) => (
-            `background:${active ? '#1a5228' : '#0e0e22'};` +
-            `border:1px solid ${active ? '#44cc66' : '#252540'};` +
-            `color:${active ? '#aaffbb' : '#556688'};` +
-            `padding:2px 9px;font-size:12px;cursor:${canEdit ? 'pointer' : 'default'};` +
-            `border-radius:3px;font-family:Arial,sans-serif;`
-        );
-
-        const mkPills = (id, options, getVal, onPick) => {
-            const wrap = document.getElementById(id);
-            if (!wrap) return;
-            const render = () => {
-                wrap.innerHTML = '';
-                options.forEach(opt => {
-                    const btn = document.createElement('button');
-                    btn.textContent = opt.label;
-                    btn.style.cssText = pill(getVal() === opt.value);
-                    if (canEdit) btn.onclick = () => { onPick(opt.value); render(); };
-                    wrap.appendChild(btn);
-                });
-            };
-            render();
-        };
-
-        // Mode (1v1 / 2v2) — changing restarts scene in pre-game
-        mkPills('_escModeOpts',
-            [{ label: '1 vs 1', value: 'local1v1' }, { label: '2 vs 2', value: 'local2v2' }],
-            () => this.mode,
-            (v) => {
+        // Mode select dropdown
+        const modeSel = document.getElementById('_escModeSel');
+        if (modeSel) {
+            modeSel.innerHTML = `
+                <option value="local1v1">1 vs 1</option>
+                <option value="local2v2">2 vs 2</option>
+            `;
+            modeSel.value = this.mode;
+            modeSel.disabled = !canEdit;
+            modeSel.onchange = (e) => {
                 if (this.gameStarted) return;
                 this.scene.start('GameScene', {
-                    mode: v, stadium: this.stadium, scoreWin: this.scoreWin,
+                    mode: e.target.value, stadium: this.stadium, scoreWin: this.scoreWin,
                     timeLimit: this.timeLimit, hbs: this.hbsData || null
                 });
-            }
-        );
-
-        // Stadium — changing restarts scene to redraw field (only pre-game)
-        const stadOpts = Object.keys(STADIUMS).map(k => ({ label: STADIUMS[k].name, value: k }));
-        if (this.hbsData) stadOpts.unshift({ label: this.hbsData._fileName || 'HBS', value: 'hbs' });
-        mkPills('_escStadOpts',
-            stadOpts,
-            () => this.hbsData ? 'hbs' : this.stadium,
-            (v) => {
-                if (this.gameStarted) return;
-                this.scene.start('GameScene', {
-                    mode: this.mode, stadium: v, scoreWin: this.scoreWin,
-                    timeLimit: this.timeLimit
-                });
-            }
-        );
-
-        // Goals
-        mkPills('_escGoalOpts',
-            [{ label: '3', value: 3 }, { label: '5', value: 5 }, { label: '7', value: 7 }, { label: '∞', value: 0 }],
-            () => this.scoreWin,
-            (v) => { this.scoreWin = v; }
-        );
-
-        // Time
-        mkPills('_escTimeOpts',
-            [{ label: '2 min', value: 120 }, { label: '3 min', value: 180 }, { label: '5 min', value: 300 }, { label: '∞', value: 0 }],
-            () => this.timeLimit,
-            (v) => { this.timeLimit = v; this.timeLeft = v; }
-        );
-
-        // Map file loader
-        const mapFileInput = document.getElementById('_escMapFile');
-        const loadMapBtn   = document.getElementById('_escLoadMap');
-        if (loadMapBtn) {
-            loadMapBtn.style.display = canEdit ? '' : 'none';
-            loadMapBtn.onclick = () => mapFileInput && mapFileInput.click();
+            };
         }
-        if (mapFileInput) {
-            mapFileInput.onchange = (e) => {
+
+        // Time Limit dropdown
+        const timeSel = document.getElementById('_escTimeSel');
+        if (timeSel) {
+            timeSel.innerHTML = `
+                <option value="0">None</option>
+                <option value="60">1</option>
+                <option value="120">2</option>
+                <option value="180">3</option>
+                <option value="300">5</option>
+                <option value="600">10</option>
+            `;
+            timeSel.value = String(this.timeLimit);
+            timeSel.disabled = !canEdit;
+            timeSel.onchange = (e) => {
+                const val = parseInt(e.target.value);
+                this.timeLimit = val;
+                this.timeLeft = val;
+            };
+        }
+
+        // Score Limit dropdown
+        const goalSel = document.getElementById('_escGoalSel');
+        if (goalSel) {
+            goalSel.innerHTML = `
+                <option value="0">None</option>
+                <option value="1">1</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="7">7</option>
+                <option value="10">10</option>
+            `;
+            goalSel.value = String(this.scoreWin);
+            goalSel.disabled = !canEdit;
+            goalSel.onchange = (e) => {
+                this.scoreWin = parseInt(e.target.value);
+            };
+        }
+
+        // Stadium Selection popup dialog (Haxball style Pick)
+        const pickBtn = document.getElementById('_escLoadMap');
+        const dialog = document.getElementById('_haxStadiumDialog');
+        const listWrap = document.getElementById('_stadiumListWrap');
+        const cancelBtn = document.getElementById('_stadiumCancel');
+        const loadLocalBtn = document.getElementById('_stadiumLoadLocal');
+        const fileInput = document.getElementById('_escMapFile');
+
+        if (pickBtn && dialog && listWrap) {
+            pickBtn.onclick = () => {
+                if (!canEdit) return;
+                dialog.style.display = 'flex';
+                listWrap.innerHTML = '';
+
+                // Add active custom map if any
+                if (this.hbsData) {
+                    const btn = document.createElement('button');
+                    btn.textContent = `⭐ ${this.hbsData._fileName || 'Custom Map'}`;
+                    btn.style.cssText = 'background:#1a5228; border:1px solid #44cc66; color:#aaffbb; padding:6px; cursor:pointer; border-radius:3px; font-size:12px; font-weight:bold; text-align:left;';
+                    btn.onclick = () => { dialog.style.display = 'none'; };
+                    listWrap.appendChild(btn);
+                }
+
+                // Add built-in maps
+                Object.keys(STADIUMS).forEach(k => {
+                    const isActive = !this.hbsData && this.stadium === k;
+                    const btn = document.createElement('button');
+                    btn.textContent = STADIUMS[k].name;
+                    btn.style.cssText = `background:${isActive ? '#1a5228' : '#2d3748'}; border:1px solid ${isActive ? '#44cc66' : '#4a5568'}; color:${isActive ? '#aaffbb' : '#fff'}; padding:6px; cursor:pointer; border-radius:3px; font-size:12px; text-align:left;`;
+                    btn.onclick = () => {
+                        dialog.style.display = 'none';
+                        this.hbsData = null;
+                        this._hbsField = null;
+                        this._hbsGoals = null;
+                        this.stadium = k;
+                        this.stadiumCfg = STADIUMS[k];
+                        
+                        this._recalcF();
+                        this._createGoalPosts();
+                        this._buildWalls();
+                        this._drawField();
+                        this._reset();
+
+                        const stadVal = document.getElementById('_escStadVal');
+                        if (stadVal) stadVal.textContent = STADIUMS[k].name;
+
+                        if (this.isOnline && this.isHost && this.ws && this.ws.readyState === 1) {
+                            this.ws.send(JSON.stringify({ type: 'change_map', mapName: k }));
+                        }
+                    };
+                    listWrap.appendChild(btn);
+                });
+            };
+        }
+
+        if (cancelBtn && dialog) {
+            cancelBtn.onclick = () => { dialog.style.display = 'none'; };
+        }
+
+        if (loadLocalBtn && fileInput) {
+            loadLocalBtn.onclick = () => { fileInput.click(); };
+        }
+
+        if (fileInput) {
+            fileInput.onchange = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
@@ -1329,13 +1374,22 @@ class GameScene extends Phaser.Scene {
                     try {
                         const hbs = JSON.parse(ev.target.result);
                         hbs._fileName = file.name.replace(/\.hbs$/i, '');
+                        if (dialog) dialog.style.display = 'none';
+
                         if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
                             this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
-                        } else if (!this.isOnline && !this.gameStarted) {
-                            this.scene.start('GameScene', {
-                                mode: this.mode, scoreWin: this.scoreWin,
-                                timeLimit: this.timeLimit, hbs
-                            });
+                        } else if (!this.isOnline) {
+                            this.hbsData = hbs;
+                            this.stadiumCfg = STADIUMS.classic;
+                            this._applyHBSField();
+                            this._applyHBSBallPhysics();
+                            this._createGoalPosts();
+                            this._buildWalls();
+                            this._drawField();
+                            this._reset();
+
+                            const stadVal = document.getElementById('_escStadVal');
+                            if (stadVal) stadVal.textContent = hbs._fileName;
                         }
                     } catch (_) {}
                 };
@@ -1512,6 +1566,15 @@ class GameScene extends Phaser.Scene {
                 ? (this.hbsData._fileName || 'Custom Map')
                 : (STADIUMS[this.stadium] ? STADIUMS[this.stadium].name : 'Classic');
         }
+
+        const modeSel = document.getElementById('_escModeSel');
+        if (modeSel) modeSel.value = this.mode;
+
+        const timeSel = document.getElementById('_escTimeSel');
+        if (timeSel) timeSel.value = String(this.timeLimit);
+
+        const goalSel = document.getElementById('_escGoalSel');
+        if (goalSel) goalSel.value = String(this.scoreWin);
 
         this._escPanel.style.display = 'flex';
     }
