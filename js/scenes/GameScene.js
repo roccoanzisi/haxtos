@@ -582,6 +582,7 @@ class GameScene extends Phaser.Scene {
         p._inputDx = 0;
         p._inputDy = 0;
         p._isKicking = false;
+        p._hasKicked = false;
 
         // Physics properties for generic collision resolution
         p._radius  = P_RADIUS;
@@ -2389,21 +2390,26 @@ class GameScene extends Phaser.Scene {
             p._vy += p._inputDy * accel;
         }
 
-        // 2. Kick impulse to ball (hold-based: fires while key held and in range)
+        // 2. Kick impulse to ball (fires once per kick activation when in range)
         for (const p of players) {
-            if (p._isKicking && !this._chatOpen) {
-                const dx = ball.x - p.x;
-                const dy = ball.y - p.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist - P_RADIUS - ball._radius < 4 && dist > 0.1) {
-                    const nx = dx / dist, ny = dy / dist;
-                    ball._vx += nx * KICK_POWER * ball._invMass;
-                    ball._vy += ny * KICK_POWER * ball._invMass;
-                    if (!this._kickSoundPlayed) {
-                        soundManager.kick(Math.hypot(ball._vx, ball._vy));
-                        this._kickSoundPlayed = true;
+            if (p._isKicking) {
+                if (!p._hasKicked && !this._chatOpen) {
+                    const dx = ball.x - p.x;
+                    const dy = ball.y - p.y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist - P_RADIUS - ball._radius < 4 && dist > 0.1) {
+                        const nx = dx / dist, ny = dy / dist;
+                        ball._vx += nx * KICK_POWER * ball._invMass;
+                        ball._vy += ny * KICK_POWER * ball._invMass;
+                        p._hasKicked = true; // Mark as kicked so it only triggers once per press
+                        if (!this._kickSoundPlayed) {
+                            soundManager.kick(Math.hypot(ball._vx, ball._vy));
+                            this._kickSoundPlayed = true;
+                        }
                     }
                 }
+            } else {
+                p._hasKicked = false; // Reset when kick button is released
             }
         }
 
@@ -2492,7 +2498,7 @@ class GameScene extends Phaser.Scene {
             const isBlue = p._normalTexture.includes('blue');
             const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
             if (!this._kickoffActive || isKicking) {
-                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
+                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, p._invMass, ball._invMass, P_BOUNCE, ball._bCoef);
             }
         }
     }
