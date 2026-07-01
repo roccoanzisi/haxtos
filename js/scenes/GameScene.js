@@ -1467,7 +1467,7 @@ class GameScene extends Phaser.Scene {
         players.forEach(p => {
             const isMe = p.index === this.playerIndex;
             const adminBadge = p.admin ? '<span style="color:#ffaa00;font-size:12px;margin-left:4px;" title="Admin">👑</span>' : '';
-            const canDrag = this.isAdmin && this.isOnline;
+            const canDrag = this.isAdmin;
             
             let adminActions = '';
             if (this.isAdmin && !isMe && this.isOnline) {
@@ -1482,11 +1482,11 @@ class GameScene extends Phaser.Scene {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;padding:4px 8px;font-size:13px;color:#ddd;border-bottom:1px solid #181826;min-height:28px;width:100%;' + (canDrag ? 'cursor:grab;' : '');
             row.innerHTML = `<span style="font-weight:bold;">${p.name}</span>${adminBadge}${adminActions}`;
-            row.dataset.pidx = p.playerIndex;
+            row.dataset.pidx = p.index;
             if (canDrag) {
                 row.setAttribute('draggable', 'true');
                 row.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/plain', String(p.playerIndex));
+                    e.dataTransfer.setData('text/plain', String(p.index));
                     setTimeout(() => { row.style.opacity = '0.4'; }, 0);
                 });
                 row.addEventListener('dragend', () => { row.style.opacity = ''; });
@@ -1519,12 +1519,22 @@ class GameScene extends Phaser.Scene {
             });
         }
 
-        if (this.isAdmin && this.isOnline) {
+        if (this.isAdmin) {
             const sendMove = (team) => (e) => {
                 e.preventDefault();
                 const pidx = parseInt(e.dataTransfer.getData('text/plain'));
-                if (!isNaN(pidx) && this.ws && this.ws.readyState === 1) {
-                    this.ws.send(JSON.stringify({ type: 'move_player_team', playerIndex: pidx, team }));
+                if (isNaN(pidx)) return;
+
+                if (this.isOnline) {
+                    if (this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'move_player_team', playerIndex: pidx, team }));
+                    }
+                } else {
+                    const target = this.roomPlayers.find(p => p.index === pidx);
+                    if (target) {
+                        target.team = team;
+                        this._updateLobbyPlayers();
+                    }
                 }
             };
             const highlight = (col, on) => { col.style.outline = on ? '2px dashed #5588ff' : ''; };
