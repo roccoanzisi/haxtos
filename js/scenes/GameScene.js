@@ -1091,7 +1091,7 @@ class GameScene extends Phaser.Scene {
             <!-- Settings layout -->
             <div style="display:flex; flex-direction:column; gap:8px; width:280px; font-family:Verdana, Geneva, sans-serif; font-size:13px; color:#cbd5e0;">
               <!-- Mode selection (Only if local, otherwise we can hide or display it) -->
-              <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:${this.isOnline ? 'none' : 'flex'}; align-items:center; justify-content:space-between;">
                 <span>Mode:</span>
                 <select id="_escModeSel" style="background:#14161d; border:1px solid #282c37; color:#fff; padding:3px 8px; border-radius:4px; width:120px; font-size:12px; cursor:pointer; font-weight:bold;"></select>
               </div>
