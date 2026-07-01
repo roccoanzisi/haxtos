@@ -1527,30 +1527,30 @@ class GameScene extends Phaser.Scene {
         }
 
         if (this.isAdmin) {
-            const sendMove = (team) => (e) => {
-                e.preventDefault();
-                const pidx = parseInt(e.dataTransfer.getData('text/plain'));
-                if (isNaN(pidx)) return;
-
-                if (this.isOnline) {
-                    if (this.ws && this.ws.readyState === 1) {
-                        this.ws.send(JSON.stringify({ type: 'move_player_team', playerIndex: pidx, team }));
-                    }
-                } else {
-                    const target = this.roomPlayers.find(p => p.index === pidx);
-                    if (target) {
-                        target.team = team;
-                        this._updateLobbyPlayers();
-                    }
-                }
-            };
             const highlight = (col, on) => { col.style.outline = on ? '2px dashed #5588ff' : ''; };
 
             [{ col: redDiv, team: 'red' }, { col: specDiv, team: 'spec' }, { col: blueDiv, team: 'blue' }]
                 .forEach(({ col, team }) => {
-                    col.addEventListener('dragover',  (e) => { e.preventDefault(); highlight(col, true); });
-                    col.addEventListener('dragleave', () => highlight(col, false));
-                    col.addEventListener('drop',      (e) => { highlight(col, false); sendMove(team)(e); });
+                    // Use direct assignment (not addEventListener) to avoid handler accumulation on repeated calls
+                    col.ondragover  = (e) => { e.preventDefault(); highlight(col, true); };
+                    col.ondragleave = () => highlight(col, false);
+                    col.ondrop      = (e) => {
+                        e.preventDefault();
+                        highlight(col, false);
+                        const pidx = parseInt(e.dataTransfer.getData('text/plain'));
+                        if (isNaN(pidx)) return;
+
+                        // Optimistic local update so UI responds immediately
+                        const target = this.roomPlayers.find(p => p.index === pidx);
+                        if (target && target.team !== team) {
+                            target.team = team;
+                            this._updateLobbyPlayers();
+                        }
+
+                        if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                            this.ws.send(JSON.stringify({ type: 'move_player_team', playerIndex: pidx, team }));
+                        }
+                    };
                 });
         }
     }
