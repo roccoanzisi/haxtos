@@ -66,7 +66,7 @@ class GameScene extends Phaser.Scene {
         this._avatarOverrides = {};
         this._floatingMsg = null;
         this._kickoffActive = true;
-        this._kickoffTeam = 'blue'; // blue always kicks off first
+        this._kickoffTeam = 'red'; // red (left team) always kicks off first
         this._overtime = false;
         this._teamTints = { blue: null, red: null, blue2: null, red2: null };
         this._originalTints = { blue: null, red: null, blue2: null, red2: null };
