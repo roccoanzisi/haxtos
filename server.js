@@ -12,8 +12,15 @@ app.use(express.static(path.join(__dirname)));
 const rooms = new Map();
 const bannedIps = new Set();
 
-function createRoom(id) {
-    return { id, players: [], state: null, teamsLocked: false };
+function createRoom(id, name, password) {
+    return { 
+        id, 
+        players: [], 
+        state: null, 
+        teamsLocked: false,
+        name: name || `${id}'s room`,
+        password: password || ''
+    };
 }
 
 function broadcast(room, msg, exclude) {
@@ -49,9 +56,33 @@ wss.on('connection', (ws, req) => {
         let msg;
         try { msg = JSON.parse(raw); } catch { return; }
 
+        if (msg.type === 'list_rooms') {
+            const list = [];
+            let totalPlayers = 0;
+            rooms.forEach(r => {
+                totalPlayers += r.players.length;
+                list.push({
+                    code: r.id,
+                    name: r.name || `${r.id}'s room`,
+                    players: r.players.length,
+                    hasPass: !!r.password
+                });
+            });
+            ws.send(JSON.stringify({ 
+                type: 'room_list', 
+                list, 
+                totalPlayers, 
+                totalRooms: rooms.size 
+            }));
+            return;
+        }
+
         if (msg.type === 'join') {
             const roomCode = msg.room.toUpperCase();
-            let room = rooms.get(roomCode) || createRoom(roomCode);
+            let room = rooms.get(roomCode);
+            if (!room) {
+                room = createRoom(roomCode, msg.roomName, msg.password);
+            }
 
             if (room.players.length >= 2) {
                 ws.send(JSON.stringify({ type: 'error', text: 'Sala llena' }));

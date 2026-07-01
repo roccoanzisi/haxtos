@@ -130,7 +130,7 @@ class MenuScene extends Phaser.Scene {
 
         const items = [
             { icon: '⚽',  label: 'LOCAL',   sub: 'Partida en el mismo equipo',  color: '#1e4fcc', cb: () => this.scene.start('GameScene', { mode: 'local1v1' }) },
-            { icon: '🌐',  label: 'ONLINE',  sub: 'Partidas en línea',            color: '#1a6628', cb: () => this.scene.start('OnlineScene') },
+            { icon: '🌐',  label: 'ONLINE',  sub: 'Partidas en línea',            color: '#1a6628', cb: () => { if (window.showHaxRoomList) window.showHaxRoomList(); else this.scene.start('OnlineScene'); } },
         ];
 
         items.forEach(({ icon, label, sub, color, cb }, i) => {
