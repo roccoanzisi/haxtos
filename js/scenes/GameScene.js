@@ -960,11 +960,17 @@ class GameScene extends Phaser.Scene {
         const args  = parts.slice(1);
         switch (name) {
             case 'extrapolation': {
-                const ms = parseInt(args[0]);
-                if (!isNaN(ms) && ms >= 0) {
-                    window.HAXTOS_EXTRAPOLATION = Math.min(200, ms);
-                    this._addChatMessage(`Extrapolation: ${window.HAXTOS_EXTRAPOLATION}ms`, '#aaffaa');
-                } else this._addChatMessage('Uso: /extrapolation <0–200>', '#ffaaaa');
+                if (this.isOnline) {
+                    if (this.ws && this.ws.readyState === 1) {
+                        this.ws.send(JSON.stringify({ type: 'command', text: '/' + name + (args.length > 0 ? ' ' + args.join(' ') : '') }));
+                    }
+                } else {
+                    const ms = parseInt(args[0]);
+                    if (!isNaN(ms) && ms >= 0) {
+                        window.HAXTOS_EXTRAPOLATION = Math.min(250, ms);
+                        this._addChatMessage(`Extrapolation: ${window.HAXTOS_EXTRAPOLATION}ms`, '#aaffaa');
+                    } else this._addChatMessage('Uso: /extrapolation <0–250>', '#ffaaaa');
+                }
                 break;
             }
             case 'avatar': {
@@ -1098,7 +1104,7 @@ class GameScene extends Phaser.Scene {
             case 'w': {
                 if (this.isOnline) {
                     if (this.ws && this.ws.readyState === 1) {
-                        this.ws.send(JSON.stringify({ type: 'command', text: '/' + cmd + ' ' + args.join(' ') }));
+                        this.ws.send(JSON.stringify({ type: 'command', text: '/' + name + (args.length > 0 ? ' ' + args.join(' ') : '') }));
                     }
                 } else {
                     this._addChatMessage('Este comando solo funciona en salas online', '#ffaaaa');
@@ -1916,6 +1922,9 @@ class GameScene extends Phaser.Scene {
                 this._addChatMessage('El rival se desconectó', '#ffaaaa');
                 this.time.delayedCall(1500, () => { this.ws && this.ws.close(); this.scene.start('MenuScene'); });
             }
+            if (msg.type === 'set_extrapolation') {
+                window.HAXTOS_EXTRAPOLATION = msg.ms;
+            }
         };
     }
 
@@ -1995,6 +2004,9 @@ class GameScene extends Phaser.Scene {
                     mode: this.mode, ws: this.ws, playerIndex: this.playerIndex,
                     roomCode: this.roomCode, hbs: msg.hbs
                 });
+            }
+            if (msg.type === 'set_extrapolation') {
+                window.HAXTOS_EXTRAPOLATION = msg.ms;
             }
         };
     }

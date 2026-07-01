@@ -40,7 +40,8 @@ function sendRoomPlayersUpdate(room) {
         id: p.id,
         name: p.name,
         admin: p.admin,
-        team: p.team
+        team: p.team,
+        extrapolationMs: p.extrapolationMs || 0
     }));
     broadcast(room, { type: 'players_list', list, teamsLocked: room.teamsLocked || false });
 }
@@ -103,6 +104,7 @@ wss.on('connection', (ws, req) => {
             ws.admin = ws.playerIndex === 0;
             ws.team = ws.playerIndex === 0 ? "blue" : "red";
             ws.ip = ip;
+            ws.extrapolationMs = 0;
 
             room.players.push(ws);
             rooms.set(roomCode, room);
@@ -269,6 +271,21 @@ wss.on('connection', (ws, req) => {
                     const whisperMsg = args.slice(1).join(' ');
                     target.send(JSON.stringify({ type: 'chat', text: `De ${ws.name} (privado): ${whisperMsg}`, color: '#ff88ff' }));
                     ws.send(JSON.stringify({ type: 'chat', text: `A ${target.name} (privado): ${whisperMsg}`, color: '#ff88ff' }));
+                } else if (cmd === 'extrapolation') {
+                    const valorStr = args[0];
+                    if (!valorStr) {
+                        ws.send(JSON.stringify({ type: 'chat', text: `Tu extrapolación actual: ${ws.extrapolationMs || 0} ms.`, color: '#ffffaa' }));
+                        return;
+                    }
+                    const ms = parseInt(valorStr, 10);
+                    if (!isNaN(ms) && ms >= 0 && ms <= 250) {
+                        ws.extrapolationMs = ms;
+                        ws.send(JSON.stringify({ type: 'chat', text: `[Red] Extrapolación ajustada a ${ms} ms.`, color: '#aaffaa' }));
+                        ws.send(JSON.stringify({ type: 'set_extrapolation', ms }));
+                        sendRoomPlayersUpdate(room);
+                    } else {
+                        ws.send(JSON.stringify({ type: 'chat', text: `Error. Usa un número válido entre 0 y 250. Ejemplo: /extrapolation 100`, color: '#ffaaaa' }));
+                    }
                 }
             } else {
                 // Relay all other message types (chat, colors, etc.) to the other players
