@@ -337,7 +337,7 @@ class GameScene extends Phaser.Scene {
         g.lineTo(F.X + F.W, F.GOAL_BOT);
         g.strokePath();
 
-        g.lineStyle(2, s.lineColor, 0.9);
+        g.lineStyle(3, s.lineColor, 1.0);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
         g.strokeCircle(F.CX, F.CY, 75);
 
@@ -345,8 +345,8 @@ class GameScene extends Phaser.Scene {
         g.fillCircle(F.CX, F.CY, 4);
 
         // Goal net cage — black bracket outline, rounded at the back, open at the posts
-        const netCr = Math.min(F.GOAL_D, F.GOAL_H / 2);
-        g.lineStyle(2, 0x000000, 0.85);
+        const netCr = 10;
+        g.lineStyle(3, 0x000000, 1.0);
 
         g.beginPath();
         g.moveTo(F.X, F.GOAL_TOP);
@@ -367,7 +367,7 @@ class GameScene extends Phaser.Scene {
         g.strokePath();
 
         // Goal posts — team-colored discs matching Haxball physics discs (radius=8)
-        g.lineStyle(1.5, 0x000000, 0.6);
+        g.lineStyle(2, 0x000000, 1.0);
         [
             { px: F.X,       color: s.goalColor1 },
             { px: F.X + F.W, color: s.goalColor2 },
@@ -708,28 +708,30 @@ class GameScene extends Phaser.Scene {
         scoreBg.fillRoundedRect(scoreX, barY, scoreW, barH, 6);
 
         const midY = barY + barH / 2;
-        const redSwX = scoreX + 12;
+        const swatchW = 34, swatchH = 22;
+
+        const redSwX = scoreX + 8;
         scoreBg.fillStyle(0xe0604a, 1);
-        scoreBg.fillRoundedRect(redSwX, midY - 11, 22, 22, 5);
+        scoreBg.fillRoundedRect(redSwX, midY - swatchH / 2, swatchW, swatchH, 4);
 
-        this.hudRed = sf(this.add.text(redSwX + 30, midY, '0', {
-            fontSize: '18px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
-        }).setOrigin(0, 0.5));
-
-        sf(this.add.text(redSwX + 56, midY, '-', {
-            fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
+        this.hudRed = sf(this.add.text(redSwX + swatchW / 2, midY, '0', {
+            fontSize: '14px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0.5));
 
-        const blueSwX = redSwX + 70;
+        sf(this.add.text(scoreX + 54, midY, '-', {
+            fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0.5));
+
+        const blueSwX = scoreX + 62;
         scoreBg.fillStyle(0x5588e0, 1);
-        scoreBg.fillRoundedRect(blueSwX, midY - 11, 22, 22, 5);
+        scoreBg.fillRoundedRect(blueSwX, midY - swatchH / 2, swatchW, swatchH, 4);
 
-        this.hudBlue = sf(this.add.text(blueSwX + 30, midY, '0', {
-            fontSize: '18px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
-        }).setOrigin(0, 0.5));
+        this.hudBlue = sf(this.add.text(blueSwX + swatchW / 2, midY, '0', {
+            fontSize: '14px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0.5));
 
-        this.hudTime = sf(this.add.text(scoreX + scoreW - 12, midY, this._fmt(this.timeLeft), {
-            fontSize: '17px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        this.hudTime = sf(this.add.text(scoreX + scoreW - 16, midY, this._fmt(this.timeLeft), {
+            fontSize: '15px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(1, 0.5));
 
         // ── Top-right button panel: sound / menu / camera (exact Haxball layout) ──
@@ -2419,11 +2421,11 @@ class GameScene extends Phaser.Scene {
         // Field outer walls (top/bottom) — ballArea bCoef = 1.0 (perfect bounce)
         if (b.y < F.Y + r) {
             b.y = F.Y + r;
-            if (b._vy < 0) b._vy = -b._vy * WALL_BOUNCE;
+            if (b._vy < 0) b._vy = -b._vy * b._bCoef * WALL_BOUNCE;
         }
         if (b.y > F.Y + F.H - r) {
             b.y = F.Y + F.H - r;
-            if (b._vy > 0) b._vy = -b._vy * WALL_BOUNCE;
+            if (b._vy > 0) b._vy = -b._vy * b._bCoef * WALL_BOUNCE;
         }
 
         // Side walls — split above/below the goal mouth as real segments so the post
