@@ -137,15 +137,27 @@
 
         <!-- Right Column: Buttons -->
         <div style="width: 150px; display: flex; flex-direction: column; gap: 6px;">
-          <button id="_haxBtnRefresh" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">⟳ Refresh</button>
-          <button id="_haxBtnJoinId" style="background: #1f3a52; border: 1px solid #2b4e6f; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">➔ Join Room</button>
-          <button id="_haxBtnCreate" style="background: #1f3a52; border: 1px solid #2b4e6f; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">✚ Create Room</button>
+           <button id="_haxBtnRefresh" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px; flex-shrink: 0;"><path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>Refresh
+          </button>
+          <button id="_haxBtnJoinId" style="background: #1f3a52; border: 1px solid #2b4e6f; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px; flex-shrink: 0;"><path fill-rule="evenodd" d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0v-2z"/><path fill-rule="evenodd" d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg>Join Room
+          </button>
+          <button id="_haxBtnCreate" style="background: #1f3a52; border: 1px solid #2b4e6f; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 8px; flex-shrink: 0;"><line x1="8" y1="2" x2="8" y2="14" /><line x1="2" y1="8" x2="14" y2="8" /></svg>Create Room
+          </button>
           
           <div style="flex: 1;"></div> <!-- Spacer -->
 
-          <button id="_haxBtnBack" style="background: #718096; border: 1px solid #4a5568; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">◀ Back</button>
-          <button onclick="alert('Options coming soon!')" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">⚙ Settings</button>
-          <button onclick="changeNickname()" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left;">👤 Change Nick</button>
+          <button id="_haxBtnBack" style="background: #718096; border: 1px solid #4a5568; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px; flex-shrink: 0;"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/></svg>Back
+          </button>
+          <button onclick="alert('Options coming soon!')" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px; flex-shrink: 0;"><path d="M9.405 1.02c.203-.74 1.258-.74 1.461 0l.2.732a1.018 1.018 0 0 0 1.579.662l.628-.426c.666-.452 1.52.19 1.33 1.002l-.18.78c-.066.29.014.595.215.818l.582.646c.557.618.17 1.62-.647 1.705l-.83.088a1.018 1.018 0 0 0-.895.962l-.01.836c-.01.815-.99 1.202-1.57.63l-.594-.585a1.018 1.018 0 0 0-1.442 0l-.593.585c-.58.572-1.56.185-1.57-.63l-.01-.836a1.018 1.018 0 0 0-.895-.962l-.83-.088c-.818-.086-1.204-1.087-.647-1.705l.582-.646a1.018 1.018 0 0 0 .215-.818l-.18-.78c-.19-.812.664-1.454 1.33-1.002l.628.426a1.018 1.018 0 0 0 1.579-.662l.2-.732zm.98 5.73a1.75 1.75 0 1 0 0-3.5 1.75 1.75 0 0 0 0 3.5z"/></svg>Settings
+          </button>
+          <button onclick="changeNickname()" style="background: #2b6cb0; border: 1px solid #3182ce; color: #fff; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; text-align: left; display: flex; align-items: center; justify-content: flex-start; width: 100%;">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px; flex-shrink: 0;"><path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>Change Nick
+          </button>
         </div>
       </div>
     </div>
@@ -321,8 +333,13 @@
         row.innerHTML = `
           <div style="flex: 3; text-align: left; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${room.name}</div>
           <div style="width: 70px; text-align: center; color: #cbd5e0;">${room.players}/2</div>
-          <div style="width: 60px; text-align: center; color: #cbd5e0;">${room.hasPass ? '🔒 Yes' : 'No'}</div>
-          <div style="width: 100px; text-align: right; color: #a0aec0;">🇦🇷 ${randDist}</div>
+          <div style="width: 60px; text-align: center; color: #cbd5e0; display: flex; align-items: center; justify-content: center;">
+            ${room.hasPass ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="#cbd5e0" style="vertical-align: middle;"><path d="M3.5 11.5a3.5 3.5 0 1 1 3.163-5H14L15.5 8 14 9.5l-1-1-1 1-1-1-1.5 1.5L7.5 9l-1.337 2.5H3.5zm0-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>' : 'No'}
+          </div>
+          <div style="width: 100px; text-align: right; color: #a0aec0; display: flex; align-items: center; justify-content: flex-end; gap: 6px;">
+            <svg width="14" height="10" viewBox="0 0 3 2" style="border: 1px solid rgba(255,255,255,0.15); flex-shrink: 0;"><rect width="3" height="2" fill="#74ACDF"/><rect width="3" height="0.66" y="0.66" fill="#FFFFFF"/><circle cx="1.5" cy="1" r="0.18" fill="#F6B426"/></svg>
+            <span>${randDist}</span>
+          </div>
         `;
 
         row.onclick = () => {

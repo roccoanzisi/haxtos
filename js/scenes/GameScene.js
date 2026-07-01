@@ -1045,9 +1045,13 @@ class GameScene extends Phaser.Scene {
           <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#2d3748; border-top-left-radius:3px; border-top-right-radius:3px;">
             <span style="color:#f7fafc; font-size:14px; font-weight:bold; font-family:Verdana, Geneva, sans-serif;">${this.roomCode ? this.roomCode + "'s room" : "Local Match"}</span>
             <div style="display:flex; gap:6px;">
-              <button style="background:#718096; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;" onclick="alert('Recording is not supported in this version.')">● Rec</button>
-              <button style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;" onclick="navigator.clipboard.writeText(window.location.href); alert('Room link copied!')">🔗 Link</button>
-              <button id="_escLeave" style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;">🚪 Leave</button>
+              <button style="background:#718096; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;">● Rec</button>
+              <button style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px;" onclick="navigator.clipboard.writeText(window.location.href); alert('Room link copied!')">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .786 3.486L6.802 11.6a2 2 0 1 1-2.829-2.83l1.393-1.393a.5.5 0 0 0-.708-.708zm3.71-3.226a.5.5 0 0 0-.708.708l1.393 1.393a2 2 0 0 1-.786 3.486L6.802 7.1a2 2 0 0 1 2.829 2.83l1.393-1.393a3 3 0 1 0-4.243-4.242L4.914 6.126a1.002 1.002 0 0 0 .154-.199 2 2 0 0 1 .786-3.486L7.198 1.1a2 2 0 0 1 2.829 2.83l-1.393 1.393a.5.5 0 0 0 .708.708z"/></svg>Link
+              </button>
+              <button id="_escLeave" style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px;">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg>Leave
+              </button>
             </div>
           </div>
           <div style="height:2px; background:#cc2222;"></div>
@@ -1058,7 +1062,9 @@ class GameScene extends Phaser.Scene {
             <div style="width:75px; display:flex; flex-direction:column; gap:6px;">
               <button id="_escAuto" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Auto</button>
               <button id="_escRand" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Rand</button>
-              <button id="_escLock" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">🔓 Lock</button>
+              <button id="_escLock" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px; width:100%;">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M11 4.5A3.5 3.5 0 0 0 7.5 1 3.5 3.5 0 0 0 4 4.5V6H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5V4.5a2.5 2.5 0 0 1 5 0V6a.5.5 0 0 0 1 0V4.5z"/></svg>Unlock
+              </button>
               <button id="_escReset" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; cursor:pointer; font-size:12px; border-radius:4px; font-weight:bold;">Reset</button>
             </div>
 
@@ -1425,16 +1431,18 @@ class GameScene extends Phaser.Scene {
         // Update Lock button state and style
         const lockBtn = document.getElementById('_escLock');
         if (lockBtn) {
+            const lockSvg = `<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: middle; display: inline-block; margin-right: 4px;"><path d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1.5V4.5A3.5 3.5 0 0 0 8 1zm2.5 5H5.5V4.5a2.5 2.5 0 0 1 5 0V6z"/></svg>`;
+            const unlockSvg = `<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: middle; display: inline-block; margin-right: 4px;"><path d="M11 4.5A3.5 3.5 0 0 0 7.5 1 3.5 3.5 0 0 0 4 4.5V6H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5V4.5a2.5 2.5 0 0 1 5 0V6a.5.5 0 0 0 1 0V4.5z"/></svg>`;
             if (this.isAdmin) {
                 lockBtn.style.opacity = '1';
                 lockBtn.style.cursor = 'pointer';
                 lockBtn.style.background = this.teamsLocked ? '#883333' : '#2a3a4a';
-                lockBtn.innerHTML = this.teamsLocked ? '🔒 Lock' : '🔓 Unlock';
+                lockBtn.innerHTML = this.teamsLocked ? (lockSvg + 'Lock') : (unlockSvg + 'Unlock');
             } else {
                 lockBtn.style.opacity = '0.5';
                 lockBtn.style.cursor = 'default';
                 lockBtn.style.background = '#2a3a4a';
-                lockBtn.innerHTML = this.teamsLocked ? '🔒 Locked' : '🔓 Unlocked';
+                lockBtn.innerHTML = this.teamsLocked ? (lockSvg + 'Locked') : (unlockSvg + 'Unlocked');
             }
         }
 
