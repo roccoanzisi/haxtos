@@ -165,23 +165,35 @@
 
   <!-- Create Room Dialog Modal Overlay -->
   <div id="_haxCreateRoomDialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:10007; font-family:Arial, sans-serif; user-select:none;">
-    <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:300px; padding:15px; box-shadow:0 10px 25px rgba(0,0,0,0.6); display:flex; flex-direction:column; gap:10px;">
-      <div style="color:#fff; font-size:14px; font-weight:bold; font-family:Verdana;">Create Room</div>
+    <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:340px; padding:12px 14px; box-shadow:0 10px 25px rgba(0,0,0,0.6); display:flex; flex-direction:column; gap:10px;">
+      <div style="color:#fff; font-size:14px; font-weight:bold; font-family:Verdana;">Create room</div>
       <div style="height:2px; background:#e53e3e; margin-bottom:4px;"></div>
       
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <span style="color:#cbd5e0; font-size:12px;">Room Name:</span>
-        <input type="text" id="_haxCreateRoomName" style="background:#14161d; border:1px solid #2d3748; color:#fff; padding:4px 8px; border-radius:3px; font-size:12px; outline:none;" />
+      <!-- Room Name Row -->
+      <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#cbd5e0; margin-top:4px;">
+        <span style="width:90px; text-align:left;">Room name:</span>
+        <input type="text" id="_haxCreateRoomName" style="flex:1; background:#14161d; border:1px solid #2d3748; color:#fff; padding:4px 8px; border-radius:3px; font-size:13px; outline:none;" />
       </div>
 
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <span style="color:#cbd5e0; font-size:12px;">Password (optional):</span>
-        <input type="text" id="_haxCreateRoomPass" style="background:#14161d; border:1px solid #2d3748; color:#fff; padding:4px 8px; border-radius:3px; font-size:12px; outline:none;" />
+      <!-- Password Row -->
+      <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#cbd5e0;">
+        <span style="width:90px; text-align:left;">Password:</span>
+        <input type="text" id="_haxCreateRoomPass" style="flex:1; background:#14161d; border:1px solid #2d3748; color:#fff; padding:4px 8px; border-radius:3px; font-size:13px; outline:none;" />
       </div>
 
+      <!-- Max Players Row -->
+      <div style="display:flex; align-items:center; justify-content:space-between; font-size:13px; color:#cbd5e0;">
+        <span style="width:90px; text-align:left;">Max players:</span>
+        <input type="text" id="_haxCreateRoomMax" value="12" style="flex:1; background:#14161d; border:1px solid #2d3748; color:#fff; padding:4px 8px; border-radius:3px; font-size:13px; outline:none;" />
+      </div>
+
+      <!-- Show in Room List Toggle -->
+      <button id="_haxCreateShowList" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:6px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:3px; width:100%; text-align:center; margin-top:4px;">Show in room list: Yes</button>
+
+      <!-- Bottom Actions -->
       <div style="display:flex; justify-content:space-between; gap:10px; margin-top:8px;">
-        <button id="_haxCreateSubmit" style="flex:1; background:#48bb78; border:none; color:#fff; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Create</button>
-        <button id="_haxCreateCancel" style="background:#4a5568; border:none; color:#fff; padding:6px 12px; font-size:12px; cursor:pointer; border-radius:3px;">Cancel</button>
+        <button id="_haxCreateCancel" style="flex:1; background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:6px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:3px;">Cancel</button>
+        <button id="_haxCreateSubmit" style="flex:1; background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:6px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:3px;">Create</button>
       </div>
     </div>
   </div>
@@ -384,7 +396,7 @@
       }
     }
 
-    function createRoomWithParams(name, pass) {
+    function createRoomWithParams(name, pass, maxPlayers, showInList) {
       const charOpts = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
       let code = '';
       for (let i = 0; i < 4; i++) {
@@ -423,7 +435,9 @@
                 room: this.roomCode, 
                 name: nick,
                 roomName: name || `${nick}'s room`,
-                password: pass || ''
+                password: pass || '',
+                maxPlayers: maxPlayers || 12,
+                showInList: showInList !== false
               }));
             };
             this.ws.onmessage = originalJoin.bind(this).prototype || ((ev) => {
@@ -527,11 +541,23 @@
       };
 
       // Create Room modal bindings
+      let createShowInList = true;
+      const toggleShowBtn = document.getElementById('_haxCreateShowList');
+      if (toggleShowBtn) {
+        toggleShowBtn.onclick = () => {
+          createShowInList = !createShowInList;
+          toggleShowBtn.textContent = `Show in room list: ${createShowInList ? 'Yes' : 'No'}`;
+        };
+      }
+
       document.getElementById('_haxBtnCreate').onclick = () => {
         document.getElementById('_haxCreateRoomDialog').style.display = 'flex';
         const nick = localStorage.getItem('haxNickname') || 'Player';
         document.getElementById('_haxCreateRoomName').value = `${nick}'s room`;
         document.getElementById('_haxCreateRoomPass').value = '';
+        document.getElementById('_haxCreateRoomMax').value = '12';
+        createShowInList = true;
+        if (toggleShowBtn) toggleShowBtn.textContent = 'Show in room list: Yes';
         document.getElementById('_haxCreateRoomName').focus();
       };
       document.getElementById('_haxCreateCancel').onclick = () => {
@@ -540,7 +566,9 @@
       document.getElementById('_haxCreateSubmit').onclick = () => {
         const name = document.getElementById('_haxCreateRoomName').value.trim();
         const pass = document.getElementById('_haxCreateRoomPass').value.trim();
-        createRoomWithParams(name, pass);
+        const maxStr = document.getElementById('_haxCreateRoomMax').value.trim();
+        const maxPlayers = parseInt(maxStr, 10) || 12;
+        createRoomWithParams(name, pass, maxPlayers, createShowInList);
       };
 
       // Periodic check in case canvas loads late

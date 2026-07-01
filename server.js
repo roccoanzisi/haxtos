@@ -12,14 +12,16 @@ app.use(express.static(path.join(__dirname)));
 const rooms = new Map();
 const bannedIps = new Set();
 
-function createRoom(id, name, password) {
+function createRoom(id, name, password, maxPlayers, showInList) {
     return { 
         id, 
         players: [], 
         state: null, 
         teamsLocked: false,
         name: name || `${id}'s room`,
-        password: password || ''
+        password: password || '',
+        maxPlayers: maxPlayers || 12,
+        showInList: showInList !== false
     };
 }
 
@@ -61,12 +63,15 @@ wss.on('connection', (ws, req) => {
             let totalPlayers = 0;
             rooms.forEach(r => {
                 totalPlayers += r.players.length;
-                list.push({
-                    code: r.id,
-                    name: r.name || `${r.id}'s room`,
-                    players: r.players.length,
-                    hasPass: !!r.password
-                });
+                if (r.showInList !== false) {
+                    list.push({
+                        code: r.id,
+                        name: r.name || `${r.id}'s room`,
+                        players: r.players.length,
+                        maxPlayers: r.maxPlayers || 12,
+                        hasPass: !!r.password
+                    });
+                }
             });
             ws.send(JSON.stringify({ 
                 type: 'room_list', 
@@ -81,10 +86,12 @@ wss.on('connection', (ws, req) => {
             const roomCode = msg.room.toUpperCase();
             let room = rooms.get(roomCode);
             if (!room) {
-                room = createRoom(roomCode, msg.roomName, msg.password);
+                room = createRoom(roomCode, msg.roomName, msg.password, msg.maxPlayers, msg.showInList);
+                rooms.set(roomCode, room); // CRITICAL: Save new room in the rooms Map!
             }
 
-            if (room.players.length >= 2) {
+            const limit = room.maxPlayers || 12;
+            if (room.players.length >= limit) {
                 ws.send(JSON.stringify({ type: 'error', text: 'Sala llena' }));
                 return;
             }
