@@ -75,6 +75,7 @@ class GameScene extends Phaser.Scene {
     create() {
         this._forceKick = false;
         this._forceKickRed = false;
+        this.physicsAccumulator = 0;
         const nav = document.getElementById('_haxNavBar');
         if (nav) nav.style.display = 'none';
         soundManager.startAmbient();
@@ -344,25 +345,22 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        // Goal net cage — black bracket outline, rounded at the back, open at the posts
-        const netCr = 10;
+        // Goal net cage — black bracket outline (sharp 90-degree corners matching Haxball classic)
         g.lineStyle(3, 0x000000, 1.0);
 
+        // Left goal net
         g.beginPath();
         g.moveTo(F.X, F.GOAL_TOP);
-        g.lineTo(F.X - F.GOAL_D + netCr, F.GOAL_TOP);
-        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, Math.PI, true);
-        g.lineTo(F.X - F.GOAL_D, F.GOAL_BOT - netCr);
-        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_BOT - netCr, netCr, Math.PI, Math.PI / 2, true);
+        g.lineTo(F.X - F.GOAL_D, F.GOAL_TOP);
+        g.lineTo(F.X - F.GOAL_D, F.GOAL_BOT);
         g.lineTo(F.X, F.GOAL_BOT);
         g.strokePath();
 
+        // Right goal net
         g.beginPath();
         g.moveTo(F.X + F.W, F.GOAL_TOP);
-        g.lineTo(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP);
-        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, 0, false);
-        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_BOT - netCr);
-        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_BOT - netCr, netCr, 0, Math.PI / 2, false);
+        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_TOP);
+        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_BOT);
         g.lineTo(F.X + F.W, F.GOAL_BOT);
         g.strokePath();
 
@@ -2739,7 +2737,7 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    update() {
+    update(time, delta) {
         // Apply mouse wheel zoom
         if (window._gameZoom !== this.cameras.main.zoom) {
             this.cameras.main.setZoom(window._gameZoom);
@@ -2748,6 +2746,23 @@ class GameScene extends Phaser.Scene {
 
         if (this.paused) return;
 
+        if (this.physicsAccumulator === undefined) {
+            this.physicsAccumulator = 0;
+        }
+        this.physicsAccumulator += delta;
+        const timestep = 1000 / 60; // 16.667 ms per frame
+
+        if (this.physicsAccumulator > 200) {
+            this.physicsAccumulator = timestep;
+        }
+
+        while (this.physicsAccumulator >= timestep) {
+            this._runPhysicsTick();
+            this.physicsAccumulator -= timestep;
+        }
+    }
+
+    _runPhysicsTick() {
         if (this.isOnline) {
             if (this.isHost) this._updateHost();
             else             this._updateGuest();
