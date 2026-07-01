@@ -502,15 +502,15 @@ class GameScene extends Phaser.Scene {
         }
 
         if (hasBlue) {
-            this.players.blue = this._makePlayer(F.CX - 200, F.CY, 'player_blue');
+            this.players.blue = this._makePlayer(F.CX + 200, F.CY, 'player_blue');
             if (this.is2v2) {
-                this.players.blue2 = this._makePlayer(F.CX - 280, F.CY - 80, 'player_blue2');
+                this.players.blue2 = this._makePlayer(F.CX + 280, F.CY + 80, 'player_blue2');
             }
         }
         if (hasRed) {
-            this.players.red  = this._makePlayer(F.CX + 200, F.CY, 'player_red');
+            this.players.red  = this._makePlayer(F.CX - 200, F.CY, 'player_red');
             if (this.is2v2) {
-                this.players.red2  = this._makePlayer(F.CX + 280, F.CY + 80, 'player_red2');
+                this.players.red2  = this._makePlayer(F.CX - 280, F.CY - 80, 'player_red2');
             }
         }
         this._buildPlayerLabels();
@@ -593,8 +593,8 @@ class GameScene extends Phaser.Scene {
             fontSize: '34px', fontFamily: 'Verdana, Arial Black, sans-serif',
             color, stroke: '#000', strokeThickness: 5
         });
-        this.hudBlue = sf(this.add.text(GW / 2 - 80, 8, '0', scoreStyle('#8888ff')).setOrigin(0.5, 0));
-        this.hudRed  = sf(this.add.text(GW / 2 + 80, 8, '0', scoreStyle('#ff4444')).setOrigin(0.5, 0));
+        this.hudRed  = sf(this.add.text(GW / 2 - 80, 8, '0', scoreStyle('#ff4444')).setOrigin(0.5, 0));
+        this.hudBlue = sf(this.add.text(GW / 2 + 80, 8, '0', scoreStyle('#8888ff')).setOrigin(0.5, 0));
         sf(this.add.text(GW / 2, 8, '–', {
             fontSize: '28px', fontFamily: 'Verdana, Arial, sans-serif',
             color: '#ffffff', stroke: '#000', strokeThickness: 4
@@ -2736,8 +2736,8 @@ class GameScene extends Phaser.Scene {
         }
 
         const inY = by > F.GOAL_TOP + br && by < F.GOAL_BOT - br;
-        if (bx < F.X - br && inY) this._goal('red');
-        else if (bx > F.X + F.W + br && inY) this._goal('blue');
+        if (bx < F.X - br && inY) this._goal('blue');
+        else if (bx > F.X + F.W + br && inY) this._goal('red');
     }
 
     _goal(team) {
@@ -2775,13 +2775,13 @@ class GameScene extends Phaser.Scene {
         const sd = (this._hbsField && this._hbsField.spawnDist) ? this._hbsField.spawnDist : 150;
 
         if (this.is2v2) {
-            place(this.players.blue,  F.CX - sd, F.CY - 55);
-            place(this.players.blue2, F.CX - sd, F.CY + 55);
-            place(this.players.red,   F.CX + sd, F.CY - 55);
-            place(this.players.red2,  F.CX + sd, F.CY + 55);
+            place(this.players.red,   F.CX - sd, F.CY - 55);
+            place(this.players.red2,  F.CX - sd, F.CY + 55);
+            place(this.players.blue,  F.CX + sd, F.CY - 55);
+            place(this.players.blue2, F.CX + sd, F.CY + 55);
         } else {
-            place(this.players.blue, F.CX - sd, F.CY);
-            place(this.players.red,  F.CX + sd, F.CY);
+            place(this.players.red,  F.CX - sd, F.CY);
+            place(this.players.blue, F.CX + sd, F.CY);
         }
 
         for (const p of Object.values(this.players)) {
