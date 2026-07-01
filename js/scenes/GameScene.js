@@ -288,12 +288,10 @@ class GameScene extends Phaser.Scene {
         clipShape.fillRect(F.X, F.Y, F.W, F.H);
         stripes.setMask(clipShape.createGeometryMask());
 
-        // Foreground layer — goal boxes, boundary lines, center circle, net, posts
+        // Foreground layer — boundary lines, center circle, net, posts
+        // (no separate goal-box background fill: the outer bgColor already shows through
+        // behind the net, matching Haxball's uniform out-of-bounds area with no box artifact)
         const g = this.add.graphics();
-
-        g.fillStyle(s.goalBgColor, 1);
-        g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
         // Field boundary — four sides with a gap at each goal mouth (posts round the corners)
         g.lineStyle(3, s.lineColor, 1);
@@ -668,21 +666,85 @@ class GameScene extends Phaser.Scene {
         const GH = window.innerHeight;
         const sf = (obj) => obj.setScrollFactor(0).setDepth(20);
 
-        const scoreStyle = (color) => ({
-            fontSize: '34px', fontFamily: 'Verdana, Arial Black, sans-serif',
-            color, stroke: '#000', strokeThickness: 5
-        });
-        this.hudRed  = sf(this.add.text(GW / 2 - 80, 8, '0', scoreStyle('#ff4444')).setOrigin(0.5, 0));
-        this.hudBlue = sf(this.add.text(GW / 2 + 80, 8, '0', scoreStyle('#8888ff')).setOrigin(0.5, 0));
-        sf(this.add.text(GW / 2, 8, '–', {
-            fontSize: '28px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#ffffff', stroke: '#000', strokeThickness: 4
-        }).setOrigin(0.5, 0));
+        // ── Top bar (exact Haxball layout): score+timer panel (center) ──
+        const barY = 8, barH = 32;
+        const scoreW = Math.min(340, GW * 0.32);
+        const scoreX = GW / 2 - scoreW / 2;
 
-        this.hudTime = sf(this.add.text(GW / 2, GH - 26, this._fmt(this.timeLeft), {
-            fontSize: '17px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#eeeeee', stroke: '#000', strokeThickness: 3
-        }).setOrigin(0.5, 0));
+        const scoreBg = this.add.graphics().setScrollFactor(0).setDepth(19);
+        scoreBg.fillStyle(0x14161f, 0.92);
+        scoreBg.fillRoundedRect(scoreX, barY, scoreW, barH, 6);
+
+        const midY = barY + barH / 2;
+        const redSwX = scoreX + 12;
+        scoreBg.fillStyle(0xe0604a, 1);
+        scoreBg.fillRoundedRect(redSwX, midY - 11, 22, 22, 5);
+
+        this.hudRed = sf(this.add.text(redSwX + 30, midY, '0', {
+            fontSize: '18px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0, 0.5));
+
+        sf(this.add.text(redSwX + 56, midY, '-', {
+            fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0.5));
+
+        const blueSwX = redSwX + 70;
+        scoreBg.fillStyle(0x5588e0, 1);
+        scoreBg.fillRoundedRect(blueSwX, midY - 11, 22, 22, 5);
+
+        this.hudBlue = sf(this.add.text(blueSwX + 30, midY, '0', {
+            fontSize: '18px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0, 0.5));
+
+        this.hudTime = sf(this.add.text(scoreX + scoreW - 12, midY, this._fmt(this.timeLeft), {
+            fontSize: '17px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(1, 0.5));
+
+        // ── Top-right button panel: sound / menu / camera (exact Haxball layout) ──
+        const btnH = 32, btnGap = 4, btnPad = 5;
+        const soundW = 36, menuW = 84, gearW = 36;
+        const panelW = btnPad * 2 + soundW + menuW + gearW + btnGap * 2;
+        const panelX = GW - panelW - 8;
+
+        const btnBg = this.add.graphics().setScrollFactor(0).setDepth(19);
+        btnBg.fillStyle(0x14161f, 0.92);
+        btnBg.fillRoundedRect(panelX, barY, panelW, btnH, 6);
+
+        let bx = panelX + btnPad;
+        const mkBtn = (w) => {
+            const bg = this.add.graphics().setScrollFactor(0).setDepth(20);
+            bg.fillStyle(0x2c5577, 1);
+            bg.fillRoundedRect(bx, barY + 3, w, btnH - 6, 5);
+            const hit = this.add.rectangle(bx + w / 2, barY + btnH / 2, w, btnH - 6, 0, 0)
+                .setScrollFactor(0).setDepth(21).setInteractive({ useHandCursor: true });
+            const cx = bx + w / 2;
+            bx += w + btnGap;
+            return { hit, cx };
+        };
+
+        const soundSlot = mkBtn(soundW);
+        this._hudSoundIcon = sf(this.add.text(soundSlot.cx, barY + btnH / 2,
+            soundManager.enabled ? '\u{1F50A}' : '\u{1F507}', { fontSize: '14px' }).setOrigin(0.5).setDepth(21));
+        soundSlot.hit.on('pointerdown', () => {
+            const on = soundManager.toggle();
+            this._hudSoundIcon.setText(on ? '\u{1F50A}' : '\u{1F507}');
+        });
+
+        const menuSlot = mkBtn(menuW);
+        sf(this.add.text(menuSlot.cx, barY + btnH / 2, '☰ Menú', {
+            fontSize: '13px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0.5).setDepth(21));
+        menuSlot.hit.on('pointerdown', () => {
+            this._escVisible ? this._hideEscPanel() : this._showEscPanel();
+        });
+
+        const gearSlot = mkBtn(gearW);
+        this.hudCam = sf(this.add.text(gearSlot.cx, barY + btnH / 2, '⚙️', {
+            fontSize: '14px'
+        }).setOrigin(0.5).setDepth(21));
+        gearSlot.hit.on('pointerdown', () => {
+            this._setCameraMode((this._cameraMode % 3) + 1);
+        });
 
         this.add.text(F.X + 20, F.Y - 16, 'ROJO', {
             fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
@@ -719,20 +781,6 @@ class GameScene extends Phaser.Scene {
         sf(this.add.text(GW / 2, GH - 42, hint, {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
         }).setOrigin(0.5, 0));
-
-        // Camera mode indicator
-        this.hudCam = sf(this.add.text(GW - 6, 8, '📷3', {
-            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
-        }).setOrigin(1, 0));
-
-        // Menu button (fallback for ESC key)
-        const menuBtn = sf(this.add.text(GW - 6, 24, '≡ menú', {
-            fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#aaaacc', backgroundColor: '#111122', padding: { x: 4, y: 2 }
-        }).setOrigin(1, 0).setInteractive({ useHandCursor: true }));
-        menuBtn.on('pointerdown', () => {
-            this._escVisible ? this._hideEscPanel() : this._showEscPanel();
-        });
 
         if (this.isOnline) {
             const code = (this.scene.get('OnlineScene') || {}).roomCode || '—';
@@ -2047,7 +2095,6 @@ class GameScene extends Phaser.Scene {
             cam.setZoom(1.9);
             window._gameZoom = 1.9;
         }
-        if (this.hudCam) this.hudCam.setText('📷' + mode);
     }
 
     // ── Goal posts (Haxball: 4 static discs radius=8, invMass=0) ──
