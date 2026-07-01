@@ -1,6 +1,15 @@
 class OnlineScene extends Phaser.Scene {
     constructor() { super('OnlineScene'); }
 
+    init(data) {
+        this.roomCode = (data && data.roomCode) || '';
+        this.autoJoin = (data && data.autoJoin) || false;
+        this.roomName = (data && data.roomName) || '';
+        this.password = (data && data.password) || '';
+        this.maxPlayers = (data && data.maxPlayers) || 12;
+        this.showInList = (data && data.showInList !== false);
+    }
+
     create() {
         const W = this.scale.width;
         const H = this.scale.height;
@@ -31,7 +40,12 @@ class OnlineScene extends Phaser.Scene {
             backgroundColor: '#333333', padding: { x: 20, y: 8 }
         }).setOrigin(0.5);
 
-        this.roomCode = '';
+        if (this.roomCode) {
+            this.roomInput.setText(this.roomCode);
+        } else {
+            this.roomCode = '';
+        }
+
         this.input.keyboard.on('keydown', (ev) => {
             if (ev.key === 'Escape') {
                 this._disconnect();
@@ -75,6 +89,13 @@ class OnlineScene extends Phaser.Scene {
         this.add.text(W / 2, 510, 'ESC: Volver al menú', {
             fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#666'
         }).setOrigin(0.5);
+
+        // Auto trigger connection if autoJoin is true
+        if (this.autoJoin && this.roomCode) {
+            this.time.delayedCall(100, () => {
+                this._joinRoom();
+            });
+        }
     }
 
     _randomCode() {
@@ -96,7 +117,15 @@ class OnlineScene extends Phaser.Scene {
 
         this.ws.onopen = () => {
             const nick = localStorage.getItem('haxNickname') || '';
-            this.ws.send(JSON.stringify({ type: 'join', room: this.roomCode, name: nick }));
+            this.ws.send(JSON.stringify({ 
+                type: 'join', 
+                room: this.roomCode, 
+                name: nick,
+                roomName: this.roomName || `${nick}'s room`,
+                password: this.password || '',
+                maxPlayers: this.maxPlayers || 12,
+                showInList: this.showInList !== false
+            }));
         };
 
         this.ws.onmessage = (ev) => {
