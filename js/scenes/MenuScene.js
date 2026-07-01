@@ -214,7 +214,7 @@ class MenuScene extends Phaser.Scene {
 
     _drawControls(W, H) {
         const y = H - 26;
-        this.add.text(W / 2, y, 'Azul: WASD + Espacio  ·  Rojo: ↑↓←→ + Shift  ·  2v2 añade TGFH e IJKL', {
+        this.add.text(W / 2, y, 'Rojo: WASD + Espacio  ·  Azul: ↑↓←→ + Shift  ·  2v2 añade TGFH e IJKL', {
             fontSize: '12px', fontFamily: 'Arial, sans-serif', color: '#334466'
         }).setOrigin(0.5);
     }
