@@ -95,7 +95,8 @@ class OnlineScene extends Phaser.Scene {
         this.ws = new WebSocket(`${proto}//${host}`);
 
         this.ws.onopen = () => {
-            this.ws.send(JSON.stringify({ type: 'join', room: this.roomCode }));
+            const nick = localStorage.getItem('haxNickname') || '';
+            this.ws.send(JSON.stringify({ type: 'join', room: this.roomCode, name: nick }));
         };
 
         this.ws.onmessage = (ev) => {

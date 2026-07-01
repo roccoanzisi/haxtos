@@ -141,9 +141,15 @@ class GameScene extends Phaser.Scene {
                 }
             });
         } else {
-            // Local: start game immediately, ESC opens settings
-            this.gameStarted = true;
-            this._reset();
+            // Local: start in lobby too, using local nickname
+            this.gameStarted = false;
+            this.paused = true;
+            this._despawnPlayers();
+            
+            const myNick = localStorage.getItem('haxNickname') || 'Player';
+            this.roomPlayers = [{ index: 0, id: 1, name: myNick, admin: true, team: 'spec' }];
+            
+            this._showEscPanel();
         }
     }
 
@@ -1205,12 +1211,19 @@ class GameScene extends Phaser.Scene {
         const requestMove = (team) => {
             if (this.isOnline && this.ws && this.ws.readyState === 1) {
                 this.ws.send(JSON.stringify({ type: 'move_team', team }));
+            } else if (!this.isOnline) {
+                if (this.roomPlayers && this.roomPlayers[0]) {
+                    this.roomPlayers[0].team = team;
+                    this._updateLobbyPlayers();
+                }
             }
         };
 
         document.getElementById('_joinRedBtn').onclick = () => requestMove('red');
+        document.getElementById('_joinRedTitleBtn').onclick = () => requestMove('red');
         document.getElementById('_joinSpecBtn').onclick = () => requestMove('spec');
         document.getElementById('_joinBlueBtn').onclick = () => requestMove('blue');
+        document.getElementById('_joinBlueTitleBtn').onclick = () => requestMove('blue');
 
         const autoBtn = document.getElementById('_escAuto');
         if (autoBtn) {

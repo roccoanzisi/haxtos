@@ -26,7 +26,7 @@ const game = new Phaser.Game({
     type: Phaser.AUTO,
     width: GAME_W,
     height: GAME_H,
-    backgroundColor: '#111111',
+    transparent: true,
     input: { keyboard: true, activePointers: 3 },
     physics: {
         default: 'arcade',

@@ -6,18 +6,145 @@
   <title>Haxtos</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body {
-      background: #111;
+      background-color: #5c7b41;
+      background-image: repeating-linear-gradient(45deg, #5c7b41, #5c7b41 40px, #6c8c4f 40px, #6c8c4f 80px);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
+      margin: 0;
       overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
     }
-    canvas { display: block; }
+
+    canvas { 
+      display: none; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border-radius: 4px;
+    }
+
+    /* Input text style */
+    input[type="text"] {
+      border: 1px solid #2d3748;
+      background: #14161d;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: #4a5568;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Top Navigation Bar -->
+  <div id="_haxNavBar" style="position: fixed; top: 0; left: 0; right: 0; height: 40px; background: #0d0d0d; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10000; font-family: Arial, sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5); user-select: none;">
+    <div style="display: flex; align-items: center; height: 100%;">
+      <span style="color: #fff; font-weight: bold; font-size: 15px; background: #1a2b4c; padding: 0 15px; height: 100%; display: flex; align-items: center; border-bottom: 2px solid #3182ce; cursor: pointer;" onclick="window.location.reload()">HaxBall</span>
+      <span style="color: #888; font-size: 13px; margin-left: 18px; cursor: pointer;" onclick="alert('News: Haxtos 2.0 implementation complete!')">News</span>
+      <span style="color: #fff; font-size: 13px; margin-left: 18px; cursor: pointer; font-weight: bold;" onclick="window.location.reload()">Play</span>
+      <span style="color: #888; font-size: 13px; margin-left: 18px; cursor: pointer;" onclick="alert('Haxtos - A clone of Haxball')">About</span>
+      <span style="color: #888; font-size: 13px; margin-left: 18px; cursor: pointer;" onclick="alert('Join the community!')">Community</span>
+    </div>
+    <div id="_haxNickDisplay" style="color: #fff; font-size: 13px; display: none; align-items: center; gap: 8px;">
+      <span>Nick: <strong id="_haxNickVal" style="color: #e53e3e;"></strong></span>
+      <button style="background: #4a5568; border: 1px solid #5a6578; color: #fff; padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: 3px; font-weight: bold;" onclick="changeNickname()">Change</button>
+    </div>
+  </div>
+
+  <!-- Nickname Dialog Overlay -->
+  <div id="_haxNickOverlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; z-index: 10010; background: transparent; user-select: none;">
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+      <!-- Haxball Logo -->
+      <img src="https://www.haxball.com/images/logo.png" style="width: 320px; display: block;" alt="HaxBall" />
+      
+      <!-- Box -->
+      <div style="background: #1a202c; border: 1px solid #2d3748; border-radius: 4px; width: 280px; padding: 12px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: Arial, sans-serif;">
+        <div style="color: #fff; font-size: 14px; font-weight: bold; font-family: Verdana;">Choose nickname</div>
+        <div style="height: 2px; background: #e53e3e; margin-top: 5px; margin-bottom: 12px;"></div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #cbd5e0; font-size: 13px;">Nick:</span>
+          <input type="text" id="_haxNickInput" maxlength="15" style="flex: 1; background: #14161d; border: 1px solid #2d3748; color: #fff; padding: 4px 8px; border-radius: 3px; font-size: 13px; font-weight: bold; outline: none;" />
+        </div>
+        <div style="display: flex; justify-content: center; margin-top: 14px;">
+          <button id="_haxNickSubmit" style="background: #4a5568; border: 1px solid #5a6578; color: #fff; padding: 5px 24px; font-size: 13px; font-weight: bold; cursor: pointer; border-radius: 3px;">Ok</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function checkNickname() {
+      const nick = localStorage.getItem('haxNickname');
+      const overlay = document.getElementById('_haxNickOverlay');
+      const nickDisplay = document.getElementById('_haxNickDisplay');
+      const nickVal = document.getElementById('_haxNickVal');
+      const input = document.getElementById('_haxNickInput');
+      const canvas = document.querySelector('canvas');
+      
+      if (!nick) {
+        overlay.style.display = 'flex';
+        nickDisplay.style.display = 'none';
+        if (canvas) canvas.style.display = 'none';
+        input.focus();
+      } else {
+        overlay.style.display = 'none';
+        nickDisplay.style.display = 'flex';
+        nickVal.textContent = nick;
+        window.haxNickname = nick;
+        if (canvas) canvas.style.display = 'block';
+      }
+    }
+
+    function changeNickname() {
+      localStorage.removeItem('haxNickname');
+      checkNickname();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      checkNickname();
+      
+      const submit = document.getElementById('_haxNickSubmit');
+      const input = document.getElementById('_haxNickInput');
+      
+      const doSubmit = () => {
+        const val = input.value.trim();
+        if (val.length > 0) {
+          localStorage.setItem('haxNickname', val);
+          checkNickname();
+          // Notify Phaser if game already loaded
+          if (window.game && window.game.scene) {
+            const menuScene = window.game.scene.keys['MenuScene'];
+            if (menuScene && menuScene.scene.isActive()) {
+              menuScene.scene.restart();
+            }
+          }
+        }
+      };
+
+      submit.onclick = doSubmit;
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') doSubmit();
+      };
+
+      // Periodic check in case canvas loads late
+      const interval = setInterval(() => {
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+          const nick = localStorage.getItem('haxNickname');
+          canvas.style.display = nick ? 'block' : 'none';
+          clearInterval(interval);
+        }
+      }, 100);
+    });
+  </script>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <script src="js/utils/SoundManager.js"></script>
   <script src="js/HBSLoader.js"></script>

@@ -61,7 +61,7 @@ wss.on('connection', (ws, req) => {
             ws.roomId = roomCode;
             ws.playerIndex = room.players.length;
             ws.id = ws.playerIndex + 1;
-            ws.name = ws.playerIndex === 0 ? "Host" : "Invitado";
+            ws.name = msg.name || (ws.playerIndex === 0 ? "Host" : "Invitado");
             ws.admin = ws.playerIndex === 0;
             ws.team = ws.playerIndex === 0 ? "blue" : "red";
             ws.ip = ip;
