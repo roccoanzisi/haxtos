@@ -75,6 +75,8 @@ class GameScene extends Phaser.Scene {
     create() {
         this._forceKick = false;
         this._forceKickRed = false;
+        const nav = document.getElementById('_haxNavBar');
+        if (nav) nav.style.display = 'none';
         soundManager.startAmbient();
         soundManager.whistle();
 
@@ -2527,6 +2529,8 @@ class GameScene extends Phaser.Scene {
 
     // ── Update ─────────────────────────────────────────────────────
     shutdown() {
+        const nav = document.getElementById('_haxNavBar');
+        if (nav) nav.style.display = 'flex';
         const p = document.getElementById('_haxEscPanel');
         if (p) p.remove();
         if (this._escKeyHandler) {
