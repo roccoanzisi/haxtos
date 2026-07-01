@@ -37,6 +37,7 @@ const game = new Phaser.Game({
         mode: Phaser.Scale.RESIZE
     }
 });
+window.game = game;
 
 // Mouse wheel zoom via Phaser camera
 window._gameZoom = 1;
