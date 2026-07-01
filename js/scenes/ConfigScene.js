@@ -7,7 +7,7 @@ const STADIUMS = {
         bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
-        goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
     big: {
         name: 'Big',
@@ -17,7 +17,7 @@ const STADIUMS = {
         bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
-        goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
     hockey: {
         name: 'Hockey',
@@ -27,7 +27,7 @@ const STADIUMS = {
         bgColor: 0x1a1a1a, goalBgColor: 0x222222,
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
-        goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
     big_hockey: {
         name: 'Big Hockey',
@@ -37,7 +37,7 @@ const STADIUMS = {
         bgColor: 0x1a1a1a, goalBgColor: 0x222222,
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
-        goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
     rounded: {
         name: 'Rounded',
@@ -47,7 +47,7 @@ const STADIUMS = {
         bgColor: 0x4a6741, goalBgColor: 0x3a5530,
         grass1: 0x718C5A, grass2: 0x7A9660,
         lineColor: 0xC7E6BD,
-        goalColor1: 0xCCCCFF, goalColor2: 0xFFCCCC,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
         cornerRadius: 50,
     },
 };

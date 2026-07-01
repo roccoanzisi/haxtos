@@ -255,47 +255,64 @@ class GameScene extends Phaser.Scene {
     // ── Field (stadium-aware) ──────────────────────────────────────
     _drawField() {
         if (this.hbsData && this._hbsField) { this._drawHBSField(); return; }
-        const g = this.add.graphics();
+
+        // Clean up any previously drawn field graphics (e.g. after a map change)
+        if (this._fieldGfx) {
+            this._fieldGfx.forEach(o => o && o.destroy());
+        }
+        this._fieldGfx = [];
+
         const s = this.stadiumCfg;
+        const cr = s.cornerRadius || 0;
 
-        // Outer background — full window
-        g.fillStyle(s.bgColor, 1);
-        g.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        // Background layer — full window bg + solid grass base
+        const bg = this.add.graphics();
+        bg.fillStyle(s.bgColor, 1);
+        bg.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        bg.fillStyle(s.grass1, 1);
+        bg.fillRect(F.X, F.Y, F.W, F.H);
 
-        for (let i = 0; i < 8; i++) {
-            g.fillStyle(i % 2 === 0 ? s.grass1 : s.grass2, 1);
-            g.fillRect(F.X, F.Y + i * (F.H / 8), F.W, F.H / 8);
+        // Diagonal stripe overlay (Haxball look), clipped to the field rect
+        const stripes = this.add.graphics();
+        stripes.fillStyle(s.grass2, 1);
+        const period = 80, half = 40;
+        for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
+            stripes.fillPoints([
+                { x: sx,              y: F.Y },
+                { x: sx + half,       y: F.Y },
+                { x: sx + half + F.H, y: F.Y + F.H },
+                { x: sx + F.H,        y: F.Y + F.H }
+            ], true);
         }
+        const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
+        clipShape.fillRect(F.X, F.Y, F.W, F.H);
+        stripes.setMask(clipShape.createGeometryMask());
 
-        // Rounded stadium: mask sharp corners with bgColor notch shapes
-        if (s.cornerRadius) {
-            const cr = s.cornerRadius;
-            g.fillStyle(s.bgColor, 1);
-            // Top-left notch
-            g.beginPath(); g.moveTo(F.X, F.Y); g.lineTo(F.X + cr, F.Y);
-            g.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
-            g.closePath(); g.fillPath();
-            // Top-right notch
-            g.beginPath(); g.moveTo(F.X + F.W, F.Y); g.lineTo(F.X + F.W, F.Y + cr);
-            g.arc(F.X + F.W - cr, F.Y + cr, cr, 0, -Math.PI / 2, true);
-            g.closePath(); g.fillPath();
-            // Bottom-right notch
-            g.beginPath(); g.moveTo(F.X + F.W, F.Y + F.H); g.lineTo(F.X + F.W - cr, F.Y + F.H);
-            g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, Math.PI / 2, 0, true);
-            g.closePath(); g.fillPath();
-            // Bottom-left notch
-            g.beginPath(); g.moveTo(F.X, F.Y + F.H); g.lineTo(F.X, F.Y + F.H - cr);
-            g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI, Math.PI / 2, true);
-            g.closePath(); g.fillPath();
-        }
+        // Foreground layer — goal boxes, boundary lines, center circle, net, posts
+        const g = this.add.graphics();
 
         g.fillStyle(s.goalBgColor, 1);
         g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
         g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
 
+        // Field boundary — four sides with a gap at each goal mouth (posts round the corners)
         g.lineStyle(3, s.lineColor, 1);
-        if (s.cornerRadius) g.strokeRoundedRect(F.X, F.Y, F.W, F.H, s.cornerRadius);
-        else g.strokeRect(F.X, F.Y, F.W, F.H);
+        g.beginPath();
+        g.moveTo(F.X, F.GOAL_TOP);
+        g.lineTo(F.X, F.Y + cr);
+        g.arc(F.X + cr, F.Y + cr, cr, Math.PI, -Math.PI / 2, false);
+        g.lineTo(F.X + F.W - cr, F.Y);
+        g.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
+        g.lineTo(F.X + F.W, F.GOAL_TOP);
+        g.strokePath();
+        g.beginPath();
+        g.moveTo(F.X, F.GOAL_BOT);
+        g.lineTo(F.X, F.Y + F.H - cr);
+        g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI, Math.PI / 2, true);
+        g.lineTo(F.X + F.W - cr, F.Y + F.H);
+        g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, Math.PI / 2, 0, true);
+        g.lineTo(F.X + F.W, F.GOAL_BOT);
+        g.strokePath();
 
         g.lineStyle(2, s.lineColor, 0.9);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
@@ -304,31 +321,42 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        g.lineStyle(3, s.goalColor1, 1);
-        g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.lineStyle(1, s.goalColor1, 0.28);
-        for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14)
-            g.lineBetween(F.X - F.GOAL_D, y, F.X, y);
-        for (let x = F.X - F.GOAL_D + 18; x < F.X; x += 18)
-            g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
+        // Goal net cage — black bracket outline, rounded at the back, open at the posts
+        const netCr = Math.min(F.GOAL_D, F.GOAL_H / 2);
+        g.lineStyle(2, 0x000000, 0.85);
 
-        g.lineStyle(3, s.goalColor2, 1);
-        g.strokeRect(F.X + F.W, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.lineStyle(1, s.goalColor2, 0.28);
-        for (let y = F.GOAL_TOP + 14; y < F.GOAL_BOT; y += 14)
-            g.lineBetween(F.X + F.W, y, F.X + F.W + F.GOAL_D, y);
-        for (let x = F.X + F.W + 18; x < F.X + F.W + F.GOAL_D; x += 18)
-            g.lineBetween(x, F.GOAL_TOP, x, F.GOAL_BOT);
+        g.beginPath();
+        g.moveTo(F.X, F.GOAL_TOP);
+        g.lineTo(F.X - F.GOAL_D + netCr, F.GOAL_TOP);
+        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, Math.PI, true);
+        g.lineTo(F.X - F.GOAL_D, F.GOAL_BOT - netCr);
+        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_BOT - netCr, netCr, Math.PI, Math.PI / 2, true);
+        g.lineTo(F.X, F.GOAL_BOT);
+        g.strokePath();
 
-        // Goal posts — circles matching Haxball physics discs (radius=8)
-        g.fillStyle(0xffffff, 1);
-        g.lineStyle(2, 0x000000, 1);
-        [F.X, F.X + F.W].forEach(px => {
+        g.beginPath();
+        g.moveTo(F.X + F.W, F.GOAL_TOP);
+        g.lineTo(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP);
+        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, 0, false);
+        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_BOT - netCr);
+        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_BOT - netCr, netCr, 0, Math.PI / 2, false);
+        g.lineTo(F.X + F.W, F.GOAL_BOT);
+        g.strokePath();
+
+        // Goal posts — team-colored discs matching Haxball physics discs (radius=8)
+        g.lineStyle(1.5, 0x000000, 0.6);
+        [
+            { px: F.X,       color: s.goalColor1 },
+            { px: F.X + F.W, color: s.goalColor2 },
+        ].forEach(({ px, color }) => {
+            g.fillStyle(color, 1);
             [F.GOAL_TOP, F.GOAL_BOT].forEach(py => {
                 g.fillCircle(px, py, POST_RADIUS);
                 g.strokeCircle(px, py, POST_RADIUS);
             });
         });
+
+        this._fieldGfx = [bg, stripes, clipShape, g];
     }
 
     _drawHBSField() {
@@ -2308,7 +2336,7 @@ class GameScene extends Phaser.Scene {
     _resolveBallWall(b, radius) {
         const r = radius;
 
-        // Field outer walls — ballArea bCoef = 1.0 (perfect bounce)
+        // Field outer walls (top/bottom) — ballArea bCoef = 1.0 (perfect bounce)
         if (b.y < F.Y + r) {
             b.y = F.Y + r;
             if (b._vy < 0) b._vy = -b._vy * WALL_BOUNCE;
@@ -2318,36 +2346,63 @@ class GameScene extends Phaser.Scene {
             if (b._vy > 0) b._vy = -b._vy * WALL_BOUNCE;
         }
 
-        const inGoalY = b.y > F.GOAL_TOP && b.y < F.GOAL_BOT;
+        // Side walls — split above/below the goal mouth as real segments so the post
+        // corner is always rounded correctly. The old version gated the sidewall check
+        // on a single boolean "is the ball's y inside the mouth range", which silently
+        // disabled the wall the instant the ball's center crossed that line — letting a
+        // fast/diagonal shot slip past the post into (or out of) the goal without ever
+        // registering a collision. Segment collision is continuous, so there's no gap.
+        this._resolveSegmentWall(b, r, F.X, F.Y, F.X, F.GOAL_TOP, WALL_BOUNCE);
+        this._resolveSegmentWall(b, r, F.X, F.GOAL_BOT, F.X, F.Y + F.H, WALL_BOUNCE);
+        this._resolveSegmentWall(b, r, F.X + F.W, F.Y, F.X + F.W, F.GOAL_TOP, WALL_BOUNCE);
+        this._resolveSegmentWall(b, r, F.X + F.W, F.GOAL_BOT, F.X + F.W, F.Y + F.H, WALL_BOUNCE);
 
-        if (b.x < F.X - r && !inGoalY) {
-            b.x = F.X - r;
-            if (b._vx < 0) b._vx = -b._vx * WALL_BOUNCE;
+        // Goal net (back + top/bottom arms) — only reachable once past the goal line
+        if (b.x < F.X) {
+            this._resolveSegmentWall(b, r, F.X, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
+            this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
+            this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_BOT, F.X, F.GOAL_BOT, NET_BOUNCE);
         }
-        if (b.x > F.X + F.W + r && !inGoalY) {
-            b.x = F.X + F.W + r;
-            if (b._vx > 0) b._vx = -b._vx * WALL_BOUNCE;
+        if (b.x > F.X + F.W) {
+            this._resolveSegmentWall(b, r, F.X + F.W, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
+            this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
+            this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_BOT, F.X + F.W, F.GOAL_BOT, NET_BOUNCE);
+        }
+    }
+
+    // Generic point-to-segment disc collision (straight-line version of _resolveDiscSegment,
+    // used for the classic/standard field boundary instead of an ad hoc AABB clamp)
+    _resolveSegmentWall(disc, radius, x0, y0, x1, y1, bCoef) {
+        const dx = x1 - x0, dy = y1 - y0;
+        const lenSq = dx * dx + dy * dy;
+        let cx, cy;
+        if (lenSq < 0.0001) {
+            cx = x0; cy = y0;
+        } else {
+            const t = ((disc.x - x0) * dx + (disc.y - y0) * dy) / lenSq;
+            const tc = Math.max(0, Math.min(1, t));
+            cx = x0 + tc * dx;
+            cy = y0 + tc * dy;
         }
 
-        // Goal back wall — goalNet bCoef = 0.1 (ball slows down in goal)
-        if (inGoalY) {
-            const leftBack  = F.X - F.GOAL_D + r;
-            const rightBack = F.X + F.W + F.GOAL_D - r;
-            if (b.x < leftBack)  { b.x = leftBack;  if (b._vx < 0) b._vx = -b._vx * NET_BOUNCE; }
-            if (b.x > rightBack) { b.x = rightBack; if (b._vx > 0) b._vx = -b._vx * NET_BOUNCE; }
-        }
+        const ndx = disc.x - cx;
+        const ndy = disc.y - cy;
+        const dist = Math.hypot(ndx, ndy);
+        if (dist >= radius || dist < 0.0001) return;
 
-        // Goal net top/bottom (inside goal X range) — net bCoef = 0.1
-        const inGoalXL = b.x < F.X - r;
-        const inGoalXR = b.x > F.X + F.W + r;
-        if (inGoalXL || inGoalXR) {
-            if (b.y < F.GOAL_TOP + r) {
-                b.y = F.GOAL_TOP + r;
-                if (b._vy < 0) b._vy = -b._vy * NET_BOUNCE;
-            }
-            if (b.y > F.GOAL_BOT - r) {
-                b.y = F.GOAL_BOT - r;
-                if (b._vy > 0) b._vy = -b._vy * NET_BOUNCE;
+        const nx = ndx / dist, ny = ndy / dist;
+        const overlap = radius - dist;
+        disc.x += nx * overlap;
+        disc.y += ny * overlap;
+
+        const vn = disc._vx * nx + disc._vy * ny;
+        if (vn < 0) {
+            const bounce = (disc._bCoef || 0.5) * bCoef;
+            disc._vx -= (1 + bounce) * vn * nx;
+            disc._vy -= (1 + bounce) * vn * ny;
+            if (disc === this.ball) {
+                const speed = Math.hypot(disc._vx, disc._vy);
+                if (speed > 30) soundManager.wallHit(speed);
             }
         }
     }
