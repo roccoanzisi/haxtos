@@ -622,21 +622,21 @@ class GameScene extends Phaser.Scene {
 
         this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
+            color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootBlueBtn.on('pointerdown', () => { this._forceKick = true; });
         this.shootBlueBtn.on('pointerup',   () => { this._forceKick = false; });
 
         this.shootRedBtn = this.add.text(GW - 175, GH - 26, '⚡ SHOOT (SHIFT)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#ffaaaa', backgroundColor: '#330a0a', padding: { x: 5, y: 3 }
+            color: '#aaaaff', backgroundColor: '#0a0a33', padding: { x: 5, y: 3 }
         }).setScrollFactor(0).setDepth(20).setInteractive({ useHandCursor: true });
         this.shootRedBtn.on('pointerdown', () => { this._forceKickRed = true; });
         this.shootRedBtn.on('pointerup',   () => { this._forceKickRed = false; });
 
         const hint = this.is2v2
-            ? 'A/D:Az1  F/H:Az2  ←→:Rj1  J/L:Rj2  |  1/2/3: cámara  ENTER: chat'
-            : 'WASD: Azul   ↑↓←→: Rojo   |   1/2/3: cámara   ENTER: chat   ESC: Menú';
+            ? 'WASD:Rj1  F/H:Rj2  ←→:Az1  J/L:Az2  |  1/2/3: cámara  ENTER: chat'
+            : 'WASD: Rojo   ↑↓←→: Azul   |   1/2/3: cámara   ENTER: chat   ESC: Menú';
         sf(this.add.text(GW / 2, GH - 42, hint, {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif', color: '#888888'
         }).setOrigin(0.5, 0));
@@ -2555,22 +2555,22 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._chatOpen) {
-            if (this.players.blue) {
-                this.players.blue._isKicking = this.kick1.isDown || this._forceKick;
-                this._movePlayer(this.players.blue, this.keys1, 'blue');
-            }
             if (this.players.red) {
-                this.players.red._isKicking = this.kick2.isDown || this._forceKickRed;
-                this._movePlayer(this.players.red, this.keys2, 'red');
+                this.players.red._isKicking = this.kick1.isDown || this._forceKick;
+                this._movePlayer(this.players.red, this.keys1, 'red');
+            }
+            if (this.players.blue) {
+                this.players.blue._isKicking = this.kick2.isDown || this._forceKickRed;
+                this._movePlayer(this.players.blue, this.keys2, 'blue');
             }
             if (this.is2v2) {
-                if (this.players.blue2) {
-                    this.players.blue2._isKicking = this.kick1.isDown || this._forceKick;
-                    this._movePlayer(this.players.blue2, this.keys3, 'blue2');
-                }
                 if (this.players.red2) {
-                    this.players.red2._isKicking = this.kick2.isDown || this._forceKickRed;
-                    this._movePlayer(this.players.red2, this.keys4, 'red2');
+                    this.players.red2._isKicking = this.kick1.isDown || this._forceKick;
+                    this._movePlayer(this.players.red2, this.keys3, 'red2');
+                }
+                if (this.players.blue2) {
+                    this.players.blue2._isKicking = this.kick2.isDown || this._forceKickRed;
+                    this._movePlayer(this.players.blue2, this.keys4, 'blue2');
                 }
             }
         }
