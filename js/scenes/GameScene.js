@@ -2469,7 +2469,8 @@ class GameScene extends Phaser.Scene {
 
             if (isKicking) {
                 // Own half + full center circle. If in opponent's half AND outside circle → push to circle edge
-                const inOpponentHalf = isBlue ? (p.x > cx) : (p.x < cx);
+                // Blue is on RIGHT, so blue's opponent half is LEFT (p.x < cx). Red on LEFT → opponent half is RIGHT.
+                const inOpponentHalf = isBlue ? (p.x < cx) : (p.x > cx);
                 if (inOpponentHalf && dist > CR - r && dist > 0.01) {
                     const sc = (CR - r) / dist;
                     p.x = cx + dx * sc; p.y = cy + dy * sc;
@@ -2478,9 +2479,10 @@ class GameScene extends Phaser.Scene {
                     if (vn > 0) { p._vx -= vn * nx; p._vy -= vn * ny; }
                 }
             } else {
-                // Non-kicking team: own half + outside center circle
-                if (isBlue  && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
-                if (!isBlue && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
+                // Non-kicking team: stay in own half + outside center circle
+                // Blue on RIGHT → kept right of center. Red on LEFT → kept left of center.
+                if (isBlue  && p.x < cx + r) { p.x = cx + r; if (p._vx < 0) p._vx = 0; }
+                if (!isBlue && p.x > cx - r) { p.x = cx - r; if (p._vx > 0) p._vx = 0; }
                 if (dist < CR + r && dist > 0.01) {
                     const sc = (CR + r) / dist;
                     p.x = cx + dx * sc; p.y = cy + dy * sc;
