@@ -118,7 +118,6 @@ class GameScene extends Phaser.Scene {
             this.paused = true;
             this._despawnPlayers();
             this._showEscPanel();
-            this._initWebRTC();
             if (this.ws && this.ws.readyState === 1) {
                 this.ws.send(JSON.stringify({ type: 'request_players' }));
             }
@@ -1686,6 +1685,9 @@ class GameScene extends Phaser.Scene {
                     this.isAdmin = me.admin;
                 }
                 this._updateLobbyPlayers();
+                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                    this._initWebRTC();
+                }
             }
             if (msg.type === 'start_game') {
                 this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;
@@ -1774,6 +1776,9 @@ class GameScene extends Phaser.Scene {
                     this.isAdmin = me.admin;
                 }
                 this._updateLobbyPlayers();
+                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                    this._initWebRTC();
+                }
             }
             if (msg.type === 'start_game') {
                 this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;

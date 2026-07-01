@@ -132,11 +132,8 @@ class OnlineScene extends Phaser.Scene {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'joined') {
                 this.playerIndex = msg.index;
-                this.status.setText(`Sala ${this.roomCode} — Esperando rival...`);
-            }
-            if (msg.type === 'start') {
-                this.status.setText('¡Rival conectado!');
-                this.time.delayedCall(500, () => {
+                this.status.setText(`¡Conectado! Entrando a la sala...`);
+                this.time.delayedCall(150, () => {
                     this.scene.start('GameScene', {
                         mode: 'online',
                         ws: this.ws,
