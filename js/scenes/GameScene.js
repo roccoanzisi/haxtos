@@ -488,6 +488,54 @@ class GameScene extends Phaser.Scene {
         if (this.ball) this.ball.setVisible(false);
     }
 
+    _applyMidGameTeamChanges(prevList, newList) {
+        if (!this.gameStarted || !prevList || !newList) return;
+
+        let anyChanged = false;
+        for (const np of newList) {
+            const op = prevList.find(p => p.index === np.index);
+            if (op && op.team !== np.team) { anyChanged = true; break; }
+        }
+        if (!anyChanged) return;
+
+        // Build playerIndex → sprite from old list
+        const indexToSprite = {};
+        for (const op of prevList) {
+            if (op.team !== 'spec' && this.players[op.team]) {
+                indexToSprite[op.index] = this.players[op.team];
+            }
+        }
+
+        // Destroy old labels
+        if (this._playerLabels) {
+            Object.keys(this._playerLabels).forEach(k => {
+                if (this._playerLabels[k]) this._playerLabels[k].destroy();
+            });
+            this._playerLabels = {};
+        }
+
+        // Clear team slots
+        ['red', 'blue', 'red2', 'blue2'].forEach(k => delete this.players[k]);
+
+        // Re-assign sprites with updated textures
+        const texMap = { red: 'player_red', blue: 'player_blue', red2: 'player_red2', blue2: 'player_blue2' };
+        for (const np of newList) {
+            if (np.team === 'spec') continue;
+            const sprite = indexToSprite[np.index];
+            if (!sprite) continue;
+            const newKey = texMap[np.team];
+            if (newKey) {
+                sprite.setTexture(newKey);
+                sprite._normalTexture = newKey;
+                sprite._kickTexture   = newKey.replace('player_', 'kick_');
+                sprite.cGroup = np.team.includes('blue') ? ['blue'] : ['red'];
+            }
+            this.players[np.team] = sprite;
+        }
+
+        this._buildPlayerLabels();
+    }
+
     _spawnPlayers() {
         this._despawnPlayers();
 
@@ -1540,10 +1588,11 @@ class GameScene extends Phaser.Scene {
                         const pidx = parseInt(e.dataTransfer.getData('text/plain'));
                         if (isNaN(pidx)) return;
 
-                        // Optimistic local update so UI responds immediately
                         const target = this.roomPlayers.find(p => p.index === pidx);
                         if (target && target.team !== team) {
+                            const prevList = this.roomPlayers.map(p => Object.assign({}, p));
                             target.team = team;
+                            this._applyMidGameTeamChanges(prevList, this.roomPlayers);
                             this._updateLobbyPlayers();
                         }
 
@@ -1695,12 +1744,14 @@ class GameScene extends Phaser.Scene {
                 this._redrawPlayerTexture(msg.playerKey);
             }
             if (msg.type === 'players_list') {
+                const prevList = this.roomPlayers ? this.roomPlayers.map(p => Object.assign({}, p)) : [];
                 this.roomPlayers = msg.list;
                 this.teamsLocked = msg.teamsLocked || false;
                 const me = msg.list.find(p => p.index === this.playerIndex);
                 if (me) {
                     this.isAdmin = me.admin;
                 }
+                this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 if (this.roomPlayers.length === 2 && !this.peerConnection) {
                     this._initWebRTC();
@@ -1786,12 +1837,14 @@ class GameScene extends Phaser.Scene {
                 this._redrawPlayerTexture(msg.playerKey);
             }
             if (msg.type === 'players_list') {
+                const prevList = this.roomPlayers ? this.roomPlayers.map(p => Object.assign({}, p)) : [];
                 this.roomPlayers = msg.list;
                 this.teamsLocked = msg.teamsLocked || false;
                 const me = msg.list.find(p => p.index === this.playerIndex);
                 if (me) {
                     this.isAdmin = me.admin;
                 }
+                this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 if (this.roomPlayers.length === 2 && !this.peerConnection) {
                     this._initWebRTC();
