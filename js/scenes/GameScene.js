@@ -98,6 +98,7 @@ class GameScene extends Phaser.Scene {
 
         this._buildChatUI();
         this._buildEscPanel();
+        this._setupUICamera();
 
         this.timerEvent = this.time.addEvent({
             delay: 1000,
@@ -225,6 +226,30 @@ class GameScene extends Phaser.Scene {
         window._gameZoom = 1;
         window._baseZoom = 1;
         this._baseZoom = 1;
+    }
+
+    // Dedicated zoom-1 camera for hudObjects (score bar, buttons, chat, ping, shoot
+    // buttons...) so 1/2/3 camera-mode zoom/follow on cameras.main never scales or
+    // shifts them off-screen. Must run once, after every initial object (world + HUD)
+    // for this scene has been created.
+    _setupUICamera() {
+        const cw = window.innerWidth;
+        const ch = window.innerHeight;
+        this.uiCamera = this.cameras.add(0, 0, cw, ch, false);
+        this.uiCamera.setScroll(0, 0);
+        this.uiCamera.setZoom(1);
+        this.cameras.main.ignore(this.hudObjects);
+        this._refreshUICameraIgnore();
+    }
+
+    // Re-scan for world objects created after _setupUICamera() ran (respawned
+    // players/labels, redrawn field on map change, etc.) and add them to uiCamera's
+    // ignore list too — otherwise they'd render a second, undistorted "ghost" copy
+    // through uiCamera on top of the correctly-zoomed mainCamera copy.
+    _refreshUICameraIgnore() {
+        if (!this.uiCamera) return;
+        const worldObjects = this.children.list.filter(o => !this.hudObjects.includes(o));
+        this.uiCamera.ignore(worldObjects);
     }
 
     _applyHBSBallPhysics() {
@@ -355,6 +380,7 @@ class GameScene extends Phaser.Scene {
         });
 
         this._fieldGfx = [bg, stripes, clipShape, g];
+        this._refreshUICameraIgnore();
     }
 
     _drawHBSField() {
@@ -442,6 +468,7 @@ class GameScene extends Phaser.Scene {
                 });
             });
         }
+        this._refreshUICameraIgnore();
     }
 
     // ── Walls (for player collision, not ball) ─────────────────────
@@ -591,6 +618,7 @@ class GameScene extends Phaser.Scene {
         }
         this._buildPlayerLabels();
         if (this.ball) this.ball.setVisible(true);
+        this._refreshUICameraIgnore();
     }
 
     _makePlayer(x, y, key) {
@@ -664,14 +692,18 @@ class GameScene extends Phaser.Scene {
     _buildHUD() {
         const GW = window.innerWidth;
         const GH = window.innerHeight;
-        const sf = (obj) => obj.setScrollFactor(0).setDepth(20);
+        // hudObjects is rendered by a dedicated zoom-1 uiCamera (see _setupUICamera) so it
+        // never gets scaled/misplaced by the main camera's zoom/follow (1/2/3 camera modes).
+        this.hudObjects = [];
+        const track = (obj) => { this.hudObjects.push(obj); return obj; };
+        const sf = (obj) => track(obj.setScrollFactor(0).setDepth(20));
 
         // ── Top bar (exact Haxball layout): score+timer panel (center) ──
         const barY = 8, barH = 32;
         const scoreW = Math.min(340, GW * 0.32);
         const scoreX = GW / 2 - scoreW / 2;
 
-        const scoreBg = this.add.graphics().setScrollFactor(0).setDepth(19);
+        const scoreBg = track(this.add.graphics().setScrollFactor(0).setDepth(19));
         scoreBg.fillStyle(0x14161f, 0.92);
         scoreBg.fillRoundedRect(scoreX, barY, scoreW, barH, 6);
 
@@ -706,17 +738,17 @@ class GameScene extends Phaser.Scene {
         const panelW = btnPad * 2 + soundW + menuW + gearW + btnGap * 2;
         const panelX = GW - panelW - 8;
 
-        const btnBg = this.add.graphics().setScrollFactor(0).setDepth(19);
+        const btnBg = track(this.add.graphics().setScrollFactor(0).setDepth(19));
         btnBg.fillStyle(0x14161f, 0.92);
         btnBg.fillRoundedRect(panelX, barY, panelW, btnH, 6);
 
         let bx = panelX + btnPad;
         const mkBtn = (w) => {
-            const bg = this.add.graphics().setScrollFactor(0).setDepth(20);
+            const bg = track(this.add.graphics().setScrollFactor(0).setDepth(20));
             bg.fillStyle(0x2c5577, 1);
             bg.fillRoundedRect(bx, barY + 3, w, btnH - 6, 5);
-            const hit = this.add.rectangle(bx + w / 2, barY + btnH / 2, w, btnH - 6, 0, 0)
-                .setScrollFactor(0).setDepth(21).setInteractive({ useHandCursor: true });
+            const hit = track(this.add.rectangle(bx + w / 2, barY + btnH / 2, w, btnH - 6, 0, 0)
+                .setScrollFactor(0).setDepth(21).setInteractive({ useHandCursor: true }));
             const cx = bx + w / 2;
             bx += w + btnGap;
             return { hit, cx };
@@ -839,21 +871,22 @@ class GameScene extends Phaser.Scene {
     _buildChatUI() {
         const H = this._stadCanvasH;
         const LOG = 5;
-        this._chatLogBg = this.add.rectangle(0, H - 130, 440, LOG * 20 + 10, 0x000000, 0.55)
-            .setOrigin(0, 0).setDepth(49).setVisible(false);
+        const track = (obj) => { this.hudObjects.push(obj); return obj; };
+        this._chatLogBg = track(this.add.rectangle(0, H - 130, 440, LOG * 20 + 10, 0x000000, 0.55)
+            .setOrigin(0, 0).setDepth(49).setScrollFactor(0).setVisible(false));
         this._chatLogTexts = [];
         for (let i = 0; i < LOG; i++) {
             this._chatLogTexts.push(
-                this.add.text(8, H - 125 + i * 20, '', {
+                track(this.add.text(8, H - 125 + i * 20, '', {
                     fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffffff'
-                }).setDepth(50).setVisible(false)
+                }).setDepth(50).setScrollFactor(0).setVisible(false))
             );
         }
-        this._chatInputBg = this.add.rectangle(0, H - 24, 440, 24, 0x111111, 0.92)
-            .setOrigin(0, 0).setDepth(49).setVisible(false);
-        this._chatInputText = this.add.text(8, H - 22, '', {
+        this._chatInputBg = track(this.add.rectangle(0, H - 24, 440, 24, 0x111111, 0.92)
+            .setOrigin(0, 0).setDepth(49).setScrollFactor(0).setVisible(false));
+        this._chatInputText = track(this.add.text(8, H - 22, '', {
             fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffff88'
-        }).setDepth(50).setVisible(false);
+        }).setDepth(50).setScrollFactor(0).setVisible(false));
     }
 
     _handleChatKey(ev) {
@@ -2985,6 +3018,9 @@ class GameScene extends Phaser.Scene {
             fontSize: '36px', fontFamily: 'Verdana, Arial Black, sans-serif',
             color: '#ffff00', stroke: '#000', strokeThickness: 6, align: 'center'
         }).setOrigin(0.5).setDepth(30).setScrollFactor(0);
+        // Created after _setupUICamera's snapshot, so main camera must ignore it explicitly
+        // to avoid a zoomed duplicate; uiCamera shows it by default (not in its ignore list).
+        this.cameras.main.ignore(txt);
         this.time.delayedCall(3500, () => { if (txt && txt.active) txt.destroy(); });
         this.hudTime.setText('∞');
         soundManager.whistle();
