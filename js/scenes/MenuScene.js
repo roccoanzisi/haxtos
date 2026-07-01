@@ -32,7 +32,7 @@ class MenuScene extends Phaser.Scene {
 
     _drawPanel(W, H) {
         const PW = 400;
-        const PH = 308;
+        const PH = 278;
         const px = Math.round((W - PW) / 2);
         const py = Math.round((H - PH) / 2);
         const cx = W / 2;
@@ -79,15 +79,8 @@ class MenuScene extends Phaser.Scene {
         acc.fillStyle(0xe53e3e, 1);
         acc.fillRect(px + 14, lineY, PW - 28, 2);
 
-        // Nick
-        const nick = localStorage.getItem('haxNickname') || '';
-        this.add.text(cx, lineY + 14, nick ? `Nick: ${nick}` : '', {
-            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#718096'
-        }).setOrigin(0.5, 0);
-
         // Buttons
-        const btn1Y = lineY + 50;
+        const btn1Y = lineY + 22;
         const btn2Y = btn1Y + 62;
 
         this._button(cx, btn1Y, '⚽', 'LOCAL', 'Partida local en el mismo equipo', '#2b6cb0', '#3182ce',
