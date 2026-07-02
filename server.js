@@ -11,6 +11,7 @@ app.use(express.static(path.join(__dirname)));
 
 const rooms = new Map();
 const bannedIps = new Set();
+const EXTRAPOLATION_LIMIT_MS = 250;
 
 function createRoom(id, name, password, maxPlayers, showInList) {
     return { 
@@ -215,6 +216,19 @@ wss.on('connection', (ws, req) => {
                     room.hbs = msg.hbs;
                     broadcast(room, { type: 'map_changed', hbs: msg.hbs });
                 }
+            } else if (msg.type === 'report_extrapolation') {
+                // Anti-cheat: clients self-report their local extrapolation value on a
+                // timer. A patched client could set window.HAXTOS_EXTRAPOLATION directly,
+                // bypassing the /extrapolation command entirely — so validate every report,
+                // not just command input, and force-revert anyone over the room limit.
+                const reported = Number(msg.ms);
+                if (!Number.isFinite(reported) || reported < 0) return;
+                if (reported > EXTRAPOLATION_LIMIT_MS) {
+                    ws.extrapolationMs = EXTRAPOLATION_LIMIT_MS;
+                    ws.send(JSON.stringify({ type: 'set_extrapolation', ms: EXTRAPOLATION_LIMIT_MS }));
+                } else {
+                    ws.extrapolationMs = reported;
+                }
             } else if (msg.type === 'command') {
                 const text = (msg.text || '').trim();
                 if (!text.startsWith('/')) return;
@@ -278,13 +292,13 @@ wss.on('connection', (ws, req) => {
                         return;
                     }
                     const ms = parseInt(valorStr, 10);
-                    if (!isNaN(ms) && ms >= 0 && ms <= 250) {
+                    if (!isNaN(ms) && ms >= 0 && ms <= EXTRAPOLATION_LIMIT_MS) {
                         ws.extrapolationMs = ms;
                         ws.send(JSON.stringify({ type: 'chat', text: `[Red] Extrapolación ajustada a ${ms} ms.`, color: '#aaffaa' }));
                         ws.send(JSON.stringify({ type: 'set_extrapolation', ms }));
                         sendRoomPlayersUpdate(room);
                     } else {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Error. Usa un número válido entre 0 y 250. Ejemplo: /extrapolation 100`, color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Error. Usa un número válido entre 0 y ${EXTRAPOLATION_LIMIT_MS}. Ejemplo: /extrapolation 100`, color: '#ffaaaa' }));
                     }
                 }
             } else {

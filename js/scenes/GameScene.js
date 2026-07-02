@@ -1838,8 +1838,7 @@ class GameScene extends Phaser.Scene {
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'state') {
-                this.serverState = msg.data;
-                this.newServerState = true;
+                this._onStateReceived(msg.data);
             }
             if (msg.type === 'pong') {
                 const lat = Date.now() - msg.time;
@@ -1935,6 +1934,7 @@ class GameScene extends Phaser.Scene {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'input') {
                 this._guestInputs = msg.keys;
+                this._lastGuestSeq = msg.seq;
                 if (msg.keys && msg.keys.pingTime) {
                     if (this.ws && this.ws.readyState === 1) {
                         this.ws.send(JSON.stringify({ type: 'pong', time: msg.keys.pingTime }));
@@ -2071,9 +2071,9 @@ class GameScene extends Phaser.Scene {
             const msg = JSON.parse(event.data);
             if (msg.type === 'input') {
                 this._guestInputs = msg.keys;
+                this._lastGuestSeq = msg.seq;
             } else if (msg.type === 'state') {
-                this.serverState = msg.data;
-                this.newServerState = true;
+                this._onStateReceived(msg.data);
             } else if (msg.type === 'ping') {
                 if (this.isHost && this.dataChannel && this.dataChannel.readyState === 'open') {
                     this.dataChannel.send(JSON.stringify({ type: 'pong', time: msg.time }));
@@ -2102,11 +2102,25 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    // Ring buffer of the last 60 authoritative states received (~1s at the 60Hz tick
+    // rate). Reconciliation always uses the freshest entry (this.serverState); the
+    // buffer itself exists for desync auditing/debugging of the netcode.
+    _onStateReceived(data) {
+        if (!this._stateHistory) this._stateHistory = [];
+        this._stateHistory.push({ receivedAt: Date.now(), ...data });
+        if (this._stateHistory.length > 60) this._stateHistory.shift();
+        this.serverState = data;
+        this.newServerState = true;
+    }
+
     _sendState() {
         const state = {
             ballX: this.ball.x, ballY: this.ball.y,
             ballVX: this.ball._vx, ballVY: this.ball._vy,
-            ballRot: this.ball.rotation, players: {}
+            ballRot: this.ball.rotation, players: {},
+            // Last input sequence number from the guest reflected in this snapshot —
+            // lets the guest know which of its buffered inputs to replay after a warp.
+            guestAckSeq: this._lastGuestSeq || 0
         };
         Object.keys(this.players).forEach(k => {
             const p = this.players[k];
@@ -2776,6 +2790,19 @@ class GameScene extends Phaser.Scene {
 
     _runPhysicsTick() {
         if (this.isOnline) {
+            // Anti-cheat heartbeat: every ~90 ticks (1.5s at 60Hz) report our local
+            // extrapolation value to the server so it can force-revert a patched client
+            // that bypasses the /extrapolation command (see server.js). Driven from this
+            // fixed-timestep loop rather than a Phaser this.time.addEvent — the latter
+            // does not fire reliably for this scene's custom accumulator-driven update.
+            this._extrapReportCounter = (this._extrapReportCounter || 0) + 1;
+            if (this._extrapReportCounter >= 90) {
+                this._extrapReportCounter = 0;
+                if (this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'report_extrapolation', ms: window.HAXTOS_EXTRAPOLATION || 0 }));
+                }
+            }
+
             if (this.isHost) this._updateHost();
             else             this._updateGuest();
             return;
@@ -2836,11 +2863,12 @@ class GameScene extends Phaser.Scene {
 
     _updateGuest() {
         const keys = this._getInputKeys();
+        const seq = (this._inputSeq = (this._inputSeq || 0) + 1);
         if (this.isP2P && this.dataChannel && this.dataChannel.readyState === 'open') {
-            this.dataChannel.send(JSON.stringify({ type: 'input', keys }));
+            this.dataChannel.send(JSON.stringify({ type: 'input', keys, seq }));
         } else {
             if (this.ws && this.ws.readyState === 1) {
-                this.ws.send(JSON.stringify({ type: 'input', keys }));
+                this.ws.send(JSON.stringify({ type: 'input', keys, seq }));
             }
         }
 
@@ -2860,7 +2888,13 @@ class GameScene extends Phaser.Scene {
             const myKeys = { up, down, left, right };
             this._movePlayer(myPlayer, myKeys, myKey);
             myPlayer._isKicking = kick;
-            
+
+            // Buffer this input (by seq) so it can be replayed on top of the host's
+            // authoritative echo if a reconciliation warp is needed later this tick.
+            if (!this._localInputBuffer) this._localInputBuffer = [];
+            this._localInputBuffer.push({ seq, dx: myPlayer._inputDx, dy: myPlayer._inputDy, kicking: myPlayer._isKicking });
+            if (this._localInputBuffer.length > 300) this._localInputBuffer.shift();
+
             const accel = myPlayer._isKicking ? PK_ACCEL : P_ACCEL;
             myPlayer._vx += myPlayer._inputDx * accel;
             myPlayer._vy += myPlayer._inputDy * accel;
@@ -2898,15 +2932,35 @@ class GameScene extends Phaser.Scene {
                             this.players[k]._vx = pState.vx;
                             this.players[k]._vy = pState.vy;
                         } else {
-                            // Threshold-based reconciliation for ourselves (no rubberband pulling when delta is small!)
+                            // Hard-warp + input replay: the host's echo of our own player is
+                            // always ~1 RTT stale, so warping straight to it would reintroduce
+                            // the input lag local prediction exists to avoid. Instead we discard
+                            // the inputs the host has already acked, then if there's a genuine
+                            // desync (a collision our naive local prediction doesn't simulate),
+                            // we hard-warp to the authoritative snapshot and replay every
+                            // still-unacked buffered input on top of it to land back at an
+                            // accurate present-tick position — no lerp, no stale rubberbanding.
+                            const ackSeq = this.serverState.guestAckSeq || 0;
+                            this._localInputBuffer = (this._localInputBuffer || []).filter(e => e.seq > ackSeq);
+
                             const dx = pState.x - this.players[k].x;
                             const dy = pState.y - this.players[k].y;
-                            const dist = Math.hypot(dx, dy);
-                            if (dist > 20) {
-                                this.players[k].x = pState.x;
-                                this.players[k].y = pState.y;
-                                this.players[k]._vx = pState.vx;
-                                this.players[k]._vy = pState.vy;
+                            if (Math.hypot(dx, dy) > 0.05) {
+                                let x = pState.x, y = pState.y, vx = pState.vx, vy = pState.vy;
+                                for (const inp of this._localInputBuffer) {
+                                    const accel = inp.kicking ? PK_ACCEL : P_ACCEL;
+                                    const damp = inp.kicking ? PK_DAMPING : P_DAMPING;
+                                    vx += inp.dx * accel;
+                                    vy += inp.dy * accel;
+                                    x += vx;
+                                    y += vy;
+                                    vx *= damp;
+                                    vy *= damp;
+                                }
+                                this.players[k].x = x;
+                                this.players[k].y = y;
+                                this.players[k]._vx = vx;
+                                this.players[k]._vy = vy;
                             }
                         }
                     }
