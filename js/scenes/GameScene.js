@@ -52,6 +52,7 @@ class GameScene extends Phaser.Scene {
         this.isHost = this.playerIndex === 0;
         this.isAdmin = this.isHost;
         if (window.HAXTOS_EXTRAPOLATION === undefined) window.HAXTOS_EXTRAPOLATION = 100;
+        this.roomPlayers = [];
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.hbsData = (data && data.hbs) || null;
