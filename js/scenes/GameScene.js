@@ -537,6 +537,10 @@ class GameScene extends Phaser.Scene {
             this._playerLabels = {};
         }
         if (this.ball) this.ball.setVisible(false);
+        if (this._guestGhost) {
+            this._guestGhost.destroy();
+            this._guestGhost = null;
+        }
     }
 
     _applyMidGameTeamChanges(prevList, newList) {
@@ -2786,6 +2790,57 @@ class GameScene extends Phaser.Scene {
             this._runPhysicsTick();
             this.physicsAccumulator -= timestep;
         }
+
+        this._updateHostGuestGhost();
+    }
+
+    // Host-side visual-only extrapolation of the guest's disc: real Haxball applies
+    // extrapolation symmetrically (everyone projects everyone else ahead by their own
+    // setting), which is what makes fakes/amagues readable from both sides. The host
+    // is physics authority for itself, so it can't extrapolate its own disc or the
+    // ball (it always has the true value with zero delay) — the guest's disc is the
+    // one entity the host doesn't control directly. Collisions/goals above already
+    // resolved using the real position; this only offsets a separate ghost image for
+    // display, so it can never desync the actual physics/collision outcome.
+    _updateHostGuestGhost() {
+        if (!(this.isOnline && this.isHost)) {
+            if (this._guestGhost) this._guestGhost.setVisible(false);
+            // Ensure all player objects are visible
+            Object.keys(this.players).forEach(key => {
+                if (this.players[key]) this.players[key].setVisible(true);
+            });
+            return;
+        }
+
+        const guestObj = this.roomPlayers && this.roomPlayers.find(p => p.index === 1);
+        const gk = guestObj ? guestObj.team : null;
+        const gp = gk && this.players[gk];
+        const extFrames = (window.HAXTOS_EXTRAPOLATION || 0) / 16.667;
+
+        // Ensure player objects that are NOT the extrapolated guest are visible
+        Object.keys(this.players).forEach(key => {
+            if (this.players[key] && key !== gk) {
+                this.players[key].setVisible(true);
+            }
+        });
+
+        if (!gp || extFrames <= 0) {
+            if (this._guestGhost) this._guestGhost.setVisible(false);
+            if (gp) gp.setVisible(true);
+            return;
+        }
+
+        if (!this._guestGhost) {
+            this._guestGhost = this.add.image(gp.x, gp.y, gp.texture.key).setDepth(gp.depth);
+            this._refreshUICameraIgnore();
+        }
+        this._guestGhost.setTexture(gp.texture.key);
+        this._guestGhost.setPosition(gp.x + gp._vx * extFrames, gp.y + gp._vy * extFrames);
+        this._guestGhost.setVisible(true);
+        gp.setVisible(false);
+
+        const lbl = this._playerLabels[gk];
+        if (lbl) { lbl.x = this._guestGhost.x; lbl.y = this._guestGhost.y - P_RADIUS - 2; }
     }
 
     _runPhysicsTick() {
