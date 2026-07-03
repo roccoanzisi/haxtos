@@ -53,6 +53,7 @@ class GameScene extends Phaser.Scene {
         this.isAdmin = this.isHost;
         if (window.HAXTOS_EXTRAPOLATION === undefined) window.HAXTOS_EXTRAPOLATION = 100;
         this.roomPlayers = [];
+        this._customAvatars = {};
         this.serverState = null;
         this.stadium = (data && data.stadium) ? data.stadium : 'classic';
         this.hbsData = (data && data.hbs) || null;
@@ -97,6 +98,7 @@ class GameScene extends Phaser.Scene {
 
         // Draw numbers inside player jerseys (Haxball style)
         this._resetTeamColors();
+        this._updatePlayerAvatarsFromNames();
 
         this._buildChatUI();
         this._buildEscPanel();
@@ -825,14 +827,7 @@ class GameScene extends Phaser.Scene {
             this._setCameraMode((this._cameraMode % 3) + 1);
         });
 
-        this.add.text(F.X + 20, F.Y - 16, 'ROJO', {
-            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#ff4444', stroke: '#000', strokeThickness: 3
-        }).setOrigin(0, 0.5).setDepth(20);
-        this.add.text(F.X + F.W - 20, F.Y - 16, 'AZUL', {
-            fontSize: '15px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#8888ff', stroke: '#000', strokeThickness: 3
-        }).setOrigin(1, 0.5).setDepth(20);
+
 
         this.pingText = sf(this.add.text(GW - 20, 16, 'Ping: 0 ms', {
             fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif',
@@ -1022,20 +1017,24 @@ class GameScene extends Phaser.Scene {
             }
             case 'avatar': {
                 const av = args.join(' ').slice(0, 3);
+                let localKey = 'blue';
+                if (this.isOnline) {
+                    const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
+                    localKey = myPlayerObj ? myPlayerObj.team : 'blue';
+                    if (localKey === 'spec') localKey = 'blue';
+                }
+                if (!this._customAvatars) this._customAvatars = {};
                 if (av) {
-                    let localKey = 'blue';
-                    if (this.isOnline) {
-                        const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
-                        localKey = myPlayerObj ? myPlayerObj.team : 'blue';
-                        if (localKey === 'spec') localKey = 'blue';
-                    }
-                    this._playerUniforms[localKey].avatar = av;
-                    this._redrawPlayerTexture(localKey);
+                    this._customAvatars[localKey] = av;
                     this._addChatMessage(`Avatar: "${av}"`, '#aaffaa');
-                    if (this.isOnline && this.ws && this.ws.readyState === 1) {
-                        this.ws.send(JSON.stringify({ type: 'avatar', playerKey: localKey, avatar: av }));
-                    }
-                } else this._addChatMessage('Uso: /avatar <texto>', '#ffaaaa');
+                } else {
+                    delete this._customAvatars[localKey];
+                    this._addChatMessage(`Avatar reset`, '#aaffaa');
+                }
+                this._updatePlayerAvatarsFromNames();
+                if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'avatar', playerKey: localKey, avatar: av || '' }));
+                }
                 break;
             }
             case 'zoom': {
@@ -1201,12 +1200,54 @@ class GameScene extends Phaser.Scene {
         });
     }
 
+    _updatePlayerAvatarsFromNames() {
+        if (!this._playerUniforms) return;
+        const slotToPlayer = {};
+        if (this.isOnline) {
+            const players = this.roomPlayers || [];
+            players.forEach(p => {
+                if (p.team !== 'spec') {
+                    slotToPlayer[p.team] = p;
+                }
+            });
+        } else {
+            const myNick = localStorage.getItem('haxNickname') || 'Player';
+            slotToPlayer.red = { name: myNick };
+            slotToPlayer.blue = { name: 'Guest' };
+            if (this.is2v2) {
+                slotToPlayer.red2 = { name: 'Player 3' };
+                slotToPlayer.blue2 = { name: 'Player 4' };
+            }
+        }
+
+        if (!this._customAvatars) this._customAvatars = {};
+
+        ['red', 'red2', 'blue', 'blue2'].forEach(slot => {
+            const u = this._playerUniforms[slot];
+            if (!u) return;
+            const p = slotToPlayer[slot];
+            if (p) {
+                const defaultAvatar = p.name ? p.name.charAt(0).toUpperCase() : '';
+                const newAvatar = this._customAvatars[slot] !== undefined ? this._customAvatars[slot] : defaultAvatar;
+                if (u.avatar !== newAvatar) {
+                    u.avatar = newAvatar;
+                    this._redrawPlayerTexture(slot);
+                }
+            } else {
+                if (u.avatar !== '') {
+                    u.avatar = '';
+                    this._redrawPlayerTexture(slot);
+                }
+            }
+        });
+    }
+
     _resetTeamColors() {
         this._playerUniforms = {
-            blue:  { angle: 0, textColor: '#ffffff', colors: [0x0000F8], avatar: '1' },
-            blue2: { angle: 0, textColor: '#ffffff', colors: [0x0000C0], avatar: '3' },
-            red:   { angle: 0, textColor: '#ffffff', colors: [0xF00000], avatar: '2' },
-            red2:  { angle: 0, textColor: '#ffffff', colors: [0xC00000], avatar: '4' }
+            blue:  { angle: 0, textColor: '#ffffff', colors: [0x0000F8], avatar: '' },
+            blue2: { angle: 0, textColor: '#ffffff', colors: [0x0000C0], avatar: '' },
+            red:   { angle: 0, textColor: '#ffffff', colors: [0xF00000], avatar: '' },
+            red2:  { angle: 0, textColor: '#ffffff', colors: [0xC00000], avatar: '' }
         };
         Object.keys(this._playerUniforms).forEach(k => this._redrawPlayerTexture(k));
     }
@@ -1898,12 +1939,20 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
-                if (msg.action === 'reset') this._resetTeamColors();
+                if (msg.action === 'reset') {
+                    this._resetTeamColors();
+                    this._updatePlayerAvatarsFromNames();
+                }
                 else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
             }
             if (msg.type === 'avatar') {
-                this._playerUniforms[msg.playerKey].avatar = msg.avatar;
-                this._redrawPlayerTexture(msg.playerKey);
+                if (!this._customAvatars) this._customAvatars = {};
+                if (msg.avatar) {
+                    this._customAvatars[msg.playerKey] = msg.avatar;
+                } else {
+                    delete this._customAvatars[msg.playerKey];
+                }
+                this._updatePlayerAvatarsFromNames();
             }
             if (msg.type === 'players_list') {
                 const prevList = this.roomPlayers ? this.roomPlayers.map(p => Object.assign({}, p)) : [];
@@ -1915,6 +1964,7 @@ class GameScene extends Phaser.Scene {
                 }
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
+                this._updatePlayerAvatarsFromNames();
                 if (this.roomPlayers.length === 2 && !this.peerConnection) {
                     this._initWebRTC();
                 }
@@ -1995,12 +2045,20 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
-                if (msg.action === 'reset') this._resetTeamColors();
+                if (msg.action === 'reset') {
+                    this._resetTeamColors();
+                    this._updatePlayerAvatarsFromNames();
+                }
                 else this._updateTeamColors(msg.team, msg.angle, msg.textColor, msg.colors);
             }
             if (msg.type === 'avatar') {
-                this._playerUniforms[msg.playerKey].avatar = msg.avatar;
-                this._redrawPlayerTexture(msg.playerKey);
+                if (!this._customAvatars) this._customAvatars = {};
+                if (msg.avatar) {
+                    this._customAvatars[msg.playerKey] = msg.avatar;
+                } else {
+                    delete this._customAvatars[msg.playerKey];
+                }
+                this._updatePlayerAvatarsFromNames();
             }
             if (msg.type === 'players_list') {
                 const prevList = this.roomPlayers ? this.roomPlayers.map(p => Object.assign({}, p)) : [];
@@ -2012,6 +2070,7 @@ class GameScene extends Phaser.Scene {
                 }
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
+                this._updatePlayerAvatarsFromNames();
                 if (this.roomPlayers.length === 2 && !this.peerConnection) {
                     this._initWebRTC();
                 }
