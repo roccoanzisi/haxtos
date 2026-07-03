@@ -2570,7 +2570,7 @@ class GameScene extends Phaser.Scene {
         this._resolveSegmentWall(b, r, F.X + F.W, F.GOAL_BOT, F.X + F.W, F.Y + F.H, WALL_BOUNCE);
 
         // Goal net (back + top/bottom arms) — only reachable once past the goal line
-        if (b.x < F.X) {
+        if (b.x < F.X && b.y > F.GOAL_TOP - r && b.y < F.GOAL_BOT + r) {
             this._resolveSegmentWall(b, r, F.X, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_BOT, F.X, F.GOAL_BOT, NET_BOUNCE);
@@ -2590,7 +2590,7 @@ class GameScene extends Phaser.Scene {
                 if (b._vy > 0) b._vy = -b._vy * NET_BOUNCE;
             }
         }
-        if (b.x > F.X + F.W) {
+        if (b.x > F.X + F.W && b.y > F.GOAL_TOP - r && b.y < F.GOAL_BOT + r) {
             this._resolveSegmentWall(b, r, F.X + F.W, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_BOT, F.X + F.W, F.GOAL_BOT, NET_BOUNCE);
@@ -2827,7 +2827,7 @@ class GameScene extends Phaser.Scene {
         this._resolveSegmentWall(p, r, F.X + F.W, F.GOAL_BOT, F.X + F.W, F.Y + F.H, bCoef);
 
         // 4. Collide with goal net (if they go past the goal line)
-        if (p.x < F.X) {
+        if (p.x < F.X && p.y > F.GOAL_TOP - r && p.y < F.GOAL_BOT + r) {
             this._resolveSegmentWall(p, r, F.X, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_TOP, bCoef * 0.1);
             this._resolveSegmentWall(p, r, F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT, bCoef * 0.1);
             this._resolveSegmentWall(p, r, F.X - F.GOAL_D, F.GOAL_BOT, F.X, F.GOAL_BOT, bCoef * 0.1);
@@ -2847,7 +2847,7 @@ class GameScene extends Phaser.Scene {
                 if (p._vy > 0) p._vy = 0;
             }
         }
-        if (p.x > F.X + F.W) {
+        if (p.x > F.X + F.W && p.y > F.GOAL_TOP - r && p.y < F.GOAL_BOT + r) {
             this._resolveSegmentWall(p, r, F.X + F.W, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_TOP, bCoef * 0.1);
             this._resolveSegmentWall(p, r, F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT, bCoef * 0.1);
             this._resolveSegmentWall(p, r, F.X + F.W + F.GOAL_D, F.GOAL_BOT, F.X + F.W, F.GOAL_BOT, bCoef * 0.1);
