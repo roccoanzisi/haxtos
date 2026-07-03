@@ -866,7 +866,7 @@ class GameScene extends Phaser.Scene {
         });
 
         const menuSlot = mkBtn(menuW);
-        sf(this.add.text(menuSlot.cx, barY + btnH / 2, '☰ Menú', {
+        sf(this.add.text(menuSlot.cx, barY + btnH / 2, 'Menu', {
             fontSize: '13px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0.5).setDepth(21));
         menuSlot.hit.on('pointerdown', () => {
