@@ -220,6 +220,13 @@
     let listWs = null;
     let selectedRoomCode = null;
 
+    function refreshGameScale() {
+      // Phaser's ScaleManager caches canvas bounds while the canvas is display:none;
+      // toggling it back to display:block never recomputes them on its own, which
+      // leaves pointer/click input dead until a real window resize happens.
+      if (window.game && window.game.scale) window.game.scale.refresh();
+    }
+
     function checkNickname() {
       const nick = localStorage.getItem('haxNickname');
       const overlay = document.getElementById('_haxNickOverlay');
@@ -242,6 +249,7 @@
         const listOverlay = document.getElementById('_haxRoomListOverlay');
         if (canvas && listOverlay && listOverlay.style.display !== 'flex') {
           canvas.style.display = 'block';
+          refreshGameScale();
         }
       }
     }
@@ -264,6 +272,7 @@
       const canvas = document.querySelector('canvas');
       if (canvas && localStorage.getItem('haxNickname')) {
         canvas.style.display = 'block';
+        refreshGameScale();
       }
       if (listWs) {
         listWs.close();
@@ -384,7 +393,7 @@
       }
 
       const canvas = document.querySelector('canvas');
-      if (canvas) canvas.style.display = 'block';
+      if (canvas) { canvas.style.display = 'block'; refreshGameScale(); }
 
       if (window.game && window.game.scene) {
         window.game.scene.start('OnlineScene', {
@@ -409,7 +418,7 @@
       }
 
       const canvas = document.querySelector('canvas');
-      if (canvas) canvas.style.display = 'block';
+      if (canvas) { canvas.style.display = 'block'; refreshGameScale(); }
 
       if (window.game && window.game.scene) {
         window.game.scene.start('OnlineScene', {
@@ -521,6 +530,7 @@
         if (canvas) {
           const nick = localStorage.getItem('haxNickname');
           canvas.style.display = nick ? 'block' : 'none';
+          if (nick) refreshGameScale();
           clearInterval(interval);
         }
       }, 100);

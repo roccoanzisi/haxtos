@@ -1495,6 +1495,10 @@ class GameScene extends Phaser.Scene {
                 if (this.isOnline && !this.isAdmin) return;
                 if (this.isOnline && this.ws && this.ws.readyState === 1) {
                     this.ws.send(JSON.stringify({ type: 'auto_teams' }));
+                } else if (!this.isOnline) {
+                    const active = this.roomPlayers.filter(p => p.team === 'red' || p.team === 'blue');
+                    active.forEach((p, idx) => { p.team = idx % 2 === 0 ? 'red' : 'blue'; });
+                    this._updateLobbyPlayers();
                 }
             };
         }
@@ -1505,6 +1509,13 @@ class GameScene extends Phaser.Scene {
                 if (this.isOnline && !this.isAdmin) return;
                 if (this.isOnline && this.ws && this.ws.readyState === 1) {
                     this.ws.send(JSON.stringify({ type: 'rand_teams' }));
+                } else if (!this.isOnline) {
+                    const active = this.roomPlayers.filter(p => p.team === 'red' || p.team === 'blue');
+                    for (let i = active.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [active[i].team, active[j].team] = [active[j].team, active[i].team];
+                    }
+                    this._updateLobbyPlayers();
                 }
             };
         }
@@ -1515,6 +1526,9 @@ class GameScene extends Phaser.Scene {
                 if (this.isOnline && !this.isAdmin) return;
                 if (this.isOnline && this.ws && this.ws.readyState === 1) {
                     this.ws.send(JSON.stringify({ type: 'lock_teams', locked: !this.teamsLocked }));
+                } else if (!this.isOnline) {
+                    this.teamsLocked = !this.teamsLocked;
+                    this._updateLobbyPlayers();
                 }
             };
         }
