@@ -107,7 +107,7 @@ class GameScene extends Phaser.Scene {
             repeat: this.timeLimit > 0 ? this.timeLimit - 1 : 99999,
             callback: () => {
                 if (this.timeLimit === 0) return;
-                if (this.paused || (this.isOnline && !this.isHost)) return;
+                if (this.paused || this.goalLock || (this.isOnline && !this.isHost)) return;
                 this.timeLeft = Math.max(0, this.timeLeft - 1);
                 this._updateHUD();
                 if (this.timeLeft === 0) this._endGame();
@@ -552,6 +552,10 @@ class GameScene extends Phaser.Scene {
             const op = prevList.find(p => p.index === np.index);
             if (op && op.team !== np.team) { anyChanged = true; break; }
         }
+        for (const op of prevList) {
+            const np = newList.find(p => p.index === op.index);
+            if (!np) { anyChanged = true; break; }
+        }
         if (!anyChanged) return;
 
         // Build playerIndex → sprite from old list
@@ -570,26 +574,59 @@ class GameScene extends Phaser.Scene {
             this._playerLabels = {};
         }
 
-        // Clear team slots
-        ['red', 'blue', 'red2', 'blue2'].forEach(k => delete this.players[k]);
+        const newPlayers = {};
 
-        // Re-assign sprites with updated textures
+        // Destroy sprites for players who went to spec or left
+        for (const op of prevList) {
+            const np = newList.find(p => p.index === op.index);
+            if (op.team !== 'spec' && (!np || np.team === 'spec')) {
+                const sprite = indexToSprite[op.index];
+                if (sprite) sprite.destroy();
+            }
+        }
+
+        // Spawn sprites for players who came from spec or change teams
         const texMap = { red: 'player_red', blue: 'player_blue', red2: 'player_red2', blue2: 'player_blue2' };
         for (const np of newList) {
             if (np.team === 'spec') continue;
-            const sprite = indexToSprite[np.index];
-            if (!sprite) continue;
-            const newKey = texMap[np.team];
-            if (newKey) {
-                sprite.setTexture(newKey);
-                sprite._normalTexture = newKey;
-                sprite._kickTexture   = newKey.replace('player_', 'kick_');
-                sprite.cGroup = np.team.includes('blue') ? ['blue'] : ['red'];
+            const op = prevList.find(p => p.index === np.index);
+            const isFromSpec = !op || op.team === 'spec';
+            
+            if (isFromSpec) {
+                const isBlue = np.team.includes('blue');
+                const spawnX = isBlue ? F.CX + 200 : F.CX - 200;
+                const spawnY = F.CY;
+                const newKey = texMap[np.team];
+                if (newKey) {
+                    const sprite = this._makePlayer(spawnX, spawnY, newKey);
+                    newPlayers[np.team] = sprite;
+                }
+            } else {
+                const sprite = indexToSprite[np.index];
+                if (sprite) {
+                    const newKey = texMap[np.team];
+                    if (newKey) {
+                        sprite.setTexture(newKey);
+                        sprite._normalTexture = newKey;
+                        sprite._kickTexture   = newKey.replace('player_', 'kick_');
+                        sprite.cGroup = np.team.includes('blue') ? ['blue'] : ['red'];
+                    }
+                    newPlayers[np.team] = sprite;
+                }
             }
-            this.players[np.team] = sprite;
         }
 
+        // Destroy any leftover player sprites that are no longer in newPlayers
+        Object.keys(this.players).forEach(k => {
+            const s = this.players[k];
+            if (s && !Object.values(newPlayers).includes(s)) {
+                s.destroy();
+            }
+        });
+
+        this.players = newPlayers;
         this._buildPlayerLabels();
+        this._refreshUICameraIgnore();
     }
 
     _spawnPlayers() {
@@ -3081,23 +3118,22 @@ class GameScene extends Phaser.Scene {
 
     _goal(team) {
         this.goalLock = true;
-        this.paused = true;
         this.score[team]++;
         this._kickoffTeam = team === 'blue' ? 'red' : 'blue'; // scored-against team kicks off
         this._updateHUD();
         soundManager.goal();
 
-        if ((this.scoreWin > 0 && this.score[team] >= this.scoreWin) || this._overtime) {
-            this.time.delayedCall(600, () => this._endGame());
-            return;
-        }
+        const isGameOver = (this.scoreWin > 0 && this.score[team] >= this.scoreWin) || this._overtime;
 
-        this.scene.launch('GoalScene', { team, score: { ...this.score } });
-        this.time.delayedCall(2200, () => {
+        this.scene.launch('GoalScene', { team });
+        this.time.delayedCall(3000, () => {
             this.scene.stop('GoalScene');
-            this._reset();
-            this.paused = false;
-            this.goalLock = false;
+            if (isGameOver) {
+                this._endGame();
+            } else {
+                this._reset();
+                this.goalLock = false;
+            }
         });
     }
 
