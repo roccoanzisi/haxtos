@@ -119,7 +119,7 @@ wss.on('connection', (ws, req) => {
             }));
 
             // Announce join to chat
-            broadcast(room, { type: 'chat', text: `${ws.name} se ha unido a la sala`, color: '#ffffaa' });
+            broadcast(room, { type: 'chat', text: `* ${ws.name} joined`, color: '#bcf085' });
 
             // Send updated player list
             sendRoomPlayersUpdate(room);
@@ -243,62 +243,62 @@ wss.on('connection', (ws, req) => {
 
                 if (cmd === 'kick' || cmd === 'ban' || cmd === 'admin') {
                     if (!ws.admin) {
-                        ws.send(JSON.stringify({ type: 'chat', text: 'No tienes permisos de administrador', color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: 'You are not an admin', color: '#ffaaaa' }));
                         return;
                     }
 
                     if (args.length === 0) {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Uso: /${cmd} <nombre_o_id>`, color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Usage: /${cmd} <name_or_id>`, color: '#ffaaaa' }));
                         return;
                     }
 
                     const target = findTarget(args[0]);
                     if (!target) {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Jugador "${args[0]}" no encontrado`, color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Player "${args[0]}" not found`, color: '#ffaaaa' }));
                         return;
                     }
 
                     if (cmd === 'kick') {
-                        broadcast(room, { type: 'chat', text: `El administrador expulsó a ${target.name}`, color: '#ffaaaa' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was kicked by admin`, color: '#bcf085' });
                         target.close();
                     } else if (cmd === 'ban') {
-                        broadcast(room, { type: 'chat', text: `El administrador baneó a ${target.name}`, color: '#ffaaaa' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was banned by admin`, color: '#bcf085' });
                         bannedIps.add(target.ip);
                         target.close();
                     } else if (cmd === 'admin') {
                         target.admin = true;
-                        broadcast(room, { type: 'chat', text: `${target.name} ahora es administrador de la sala`, color: '#aaffaa' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was given admin rights`, color: '#bcf085' });
                         sendRoomPlayersUpdate(room);
                     }
                 } else if (cmd === 'w') {
                     if (args.length < 2) {
-                        ws.send(JSON.stringify({ type: 'chat', text: 'Uso: /w <nombre_o_id> <mensaje>', color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: 'Usage: /w <name_or_id> <message>', color: '#ffaaaa' }));
                         return;
                     }
 
                     const target = findTarget(args[0]);
                     if (!target) {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Jugador "${args[0]}" no encontrado`, color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Player "${args[0]}" not found`, color: '#ffaaaa' }));
                         return;
                     }
 
                     const whisperMsg = args.slice(1).join(' ');
-                    target.send(JSON.stringify({ type: 'chat', text: `De ${ws.name} (privado): ${whisperMsg}`, color: '#ff88ff' }));
-                    ws.send(JSON.stringify({ type: 'chat', text: `A ${target.name} (privado): ${whisperMsg}`, color: '#ff88ff' }));
+                    target.send(JSON.stringify({ type: 'chat', text: `From ${ws.name}: ${whisperMsg}`, color: '#ff88ff' }));
+                    ws.send(JSON.stringify({ type: 'chat', text: `To ${target.name}: ${whisperMsg}`, color: '#ff88ff' }));
                 } else if (cmd === 'extrapolation') {
                     const valorStr = args[0];
                     if (!valorStr) {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Tu extrapolación actual: ${ws.extrapolationMs || 0} ms.`, color: '#ffffaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Extrapolation is ${ws.extrapolationMs || 0} ms.`, color: '#bcf085' }));
                         return;
                     }
                     const ms = parseInt(valorStr, 10);
                     if (!isNaN(ms) && ms >= 0 && ms <= EXTRAPOLATION_LIMIT_MS) {
                         ws.extrapolationMs = ms;
-                        ws.send(JSON.stringify({ type: 'chat', text: `[Red] Extrapolación ajustada a ${ms} ms.`, color: '#aaffaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `* Extrapolation set to ${ms} ms.`, color: '#bcf085' }));
                         ws.send(JSON.stringify({ type: 'set_extrapolation', ms }));
                         sendRoomPlayersUpdate(room);
                     } else {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Error. Usa un número válido entre 0 y ${EXTRAPOLATION_LIMIT_MS}. Ejemplo: /extrapolation 100`, color: '#ffaaaa' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Error. Use a valid number between 0 and ${EXTRAPOLATION_LIMIT_MS}. Example: /extrapolation 100`, color: '#ffaaaa' }));
                     }
                 }
             } else {
@@ -315,7 +315,7 @@ wss.on('connection', (ws, req) => {
         room.players = room.players.filter((p) => p !== ws);
 
         // Announce leave to chat
-        broadcast(room, { type: 'chat', text: `${ws.name} ha abandonado la sala`, color: '#ffaaaa' });
+        broadcast(room, { type: 'chat', text: `* ${ws.name} left`, color: '#bcf085' });
 
         if (room.players.length === 0) {
             rooms.delete(ws.roomId);

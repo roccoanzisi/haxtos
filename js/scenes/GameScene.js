@@ -3189,7 +3189,7 @@ class GameScene extends Phaser.Scene {
         this._reset();
         const GW = this.scale.width;
         const GH = this.scale.height;
-        const txt = this.add.text(GW / 2, GH / 2 - 50, '¡PRÓRROGA!\nMuerte súbita', {
+        const txt = this.add.text(GW / 2, GH / 2 - 50, 'OVERTIME!', {
             fontSize: '36px', fontFamily: 'Verdana, Arial Black, sans-serif',
             color: '#ffff00', stroke: '#000', strokeThickness: 6, align: 'center'
         }).setOrigin(0.5).setDepth(30).setScrollFactor(0);
