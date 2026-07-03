@@ -2746,6 +2746,15 @@ class GameScene extends Phaser.Scene {
             }
         }
 
+        // Player-to-ball collision (runs before static walls so walls have the final say on position)
+        for (const p of players) {
+            const isBlue = p._normalTexture.includes('blue');
+            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
+            if (!this._kickoffActive || isKicking) {
+                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
+            }
+        }
+
         // Static obstacle collisions (planes, segments, vertexes)
         if (this.hbsData && this._hbsField) {
             const fd = this._hbsField;
@@ -2793,15 +2802,6 @@ class GameScene extends Phaser.Scene {
                 if (this._canCollide(p.cGroup, p.cMask, post.cGroup, post.cMask)) {
                     this._resolveDiscDisc(p, post, P_RADIUS, post.radius || POST_RADIUS, P_INV_M, 0, P_BOUNCE, post.bCoef != null ? post.bCoef : POST_BOUNCE);
                 }
-            }
-        }
-
-        // Player-to-ball collision
-        for (const p of players) {
-            const isBlue = p._normalTexture.includes('blue');
-            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
-            if (!this._kickoffActive || isKicking) {
-                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
             }
         }
     }
