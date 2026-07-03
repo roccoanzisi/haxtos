@@ -346,22 +346,25 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(s.lineColor, 1);
         g.fillCircle(F.CX, F.CY, 4);
 
-        // Goal net cage — black bracket outline (sharp 90-degree corners matching Haxball classic)
+        // Goal net cage — black bracket outline, rounded at the back, open at the posts (matching Haxball classic exactly)
+        const netCr = Math.min(F.GOAL_D, F.GOAL_H / 2);
         g.lineStyle(3, 0x000000, 1.0);
 
-        // Left goal net
         g.beginPath();
         g.moveTo(F.X, F.GOAL_TOP);
-        g.lineTo(F.X - F.GOAL_D, F.GOAL_TOP);
-        g.lineTo(F.X - F.GOAL_D, F.GOAL_BOT);
+        g.lineTo(F.X - F.GOAL_D + netCr, F.GOAL_TOP);
+        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, Math.PI, true);
+        g.lineTo(F.X - F.GOAL_D, F.GOAL_BOT - netCr);
+        g.arc(F.X - F.GOAL_D + netCr, F.GOAL_BOT - netCr, netCr, Math.PI, Math.PI / 2, true);
         g.lineTo(F.X, F.GOAL_BOT);
         g.strokePath();
 
-        // Right goal net
         g.beginPath();
         g.moveTo(F.X + F.W, F.GOAL_TOP);
-        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_TOP);
-        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_BOT);
+        g.lineTo(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP);
+        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_TOP + netCr, netCr, -Math.PI / 2, 0, false);
+        g.lineTo(F.X + F.W + F.GOAL_D, F.GOAL_BOT - netCr);
+        g.arc(F.X + F.W + F.GOAL_D - netCr, F.GOAL_BOT - netCr, netCr, 0, Math.PI / 2, false);
         g.lineTo(F.X + F.W, F.GOAL_BOT);
         g.strokePath();
 
@@ -744,34 +747,36 @@ class GameScene extends Phaser.Scene {
         const scoreX = GW / 2 - scoreW / 2;
 
         const scoreBg = track(this.add.graphics().setScrollFactor(0).setDepth(19));
-        scoreBg.fillStyle(0x14161f, 0.92);
-        scoreBg.fillRoundedRect(scoreX, barY, scoreW, barH, 6);
+        scoreBg.fillStyle(0x1d2024, 1.0); // Exact Haxball top bar color
+        scoreBg.fillRoundedRect(scoreX, barY, scoreW, barH, 4); // sharp-ish rounded corner (radius 4)
 
         const midY = barY + barH / 2;
-        const swatchW = 34, swatchH = 22;
+        const sqSize = 16;
 
-        const redSwX = scoreX + 8;
-        scoreBg.fillStyle(0xe0604a, 1);
-        scoreBg.fillRoundedRect(redSwX, midY - swatchH / 2, swatchW, swatchH, 4);
+        // Red team square
+        const redSqX = scoreX + 12;
+        scoreBg.fillStyle(0xe53e3e, 1);
+        scoreBg.fillRoundedRect(redSqX, midY - sqSize / 2, sqSize, sqSize, 3);
 
-        this.hudRed = sf(this.add.text(redSwX + swatchW / 2, midY, '0', {
-            fontSize: '14px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        this.hudRed = sf(this.add.text(redSqX + sqSize + 12, midY, '0', {
+            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0.5));
 
-        sf(this.add.text(scoreX + 54, midY, '-', {
-            fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
+        sf(this.add.text(scoreX + 68, midY, '-', {
+            fontSize: '16px', fontFamily: 'Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0.5));
 
-        const blueSwX = scoreX + 62;
-        scoreBg.fillStyle(0x5588e0, 1);
-        scoreBg.fillRoundedRect(blueSwX, midY - swatchH / 2, swatchW, swatchH, 4);
-
-        this.hudBlue = sf(this.add.text(blueSwX + swatchW / 2, midY, '0', {
-            fontSize: '14px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        this.hudBlue = sf(this.add.text(scoreX + 96, midY, '0', {
+            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0.5));
+
+        // Blue team square
+        const blueSqX = scoreX + 112;
+        scoreBg.fillStyle(0x3182ce, 1);
+        scoreBg.fillRoundedRect(blueSqX, midY - sqSize / 2, sqSize, sqSize, 3);
 
         this.hudTime = sf(this.add.text(scoreX + scoreW - 16, midY, this._fmt(this.timeLeft), {
-            fontSize: '15px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
         }).setOrigin(1, 0.5));
 
         // ── Top-right button panel: sound / menu / camera (exact Haxball layout) ──
@@ -781,8 +786,8 @@ class GameScene extends Phaser.Scene {
         const panelX = GW - panelW - 8;
 
         const btnBg = track(this.add.graphics().setScrollFactor(0).setDepth(19));
-        btnBg.fillStyle(0x14161f, 0.92);
-        btnBg.fillRoundedRect(panelX, barY, panelW, btnH, 6);
+        btnBg.fillStyle(0x1d2024, 1.0);
+        btnBg.fillRoundedRect(panelX, barY, panelW, btnH, 4);
 
         let bx = panelX + btnPad;
         const mkBtn = (w) => {
