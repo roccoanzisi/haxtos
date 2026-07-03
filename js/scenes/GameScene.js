@@ -2574,11 +2574,41 @@ class GameScene extends Phaser.Scene {
             this._resolveSegmentWall(b, r, F.X, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X - F.GOAL_D, F.GOAL_BOT, F.X, F.GOAL_BOT, NET_BOUNCE);
+
+            // Hard clamp to prevent tunneling through the left goal net
+            const leftLimit = F.X - F.GOAL_D + r;
+            if (b.x < leftLimit) {
+                b.x = leftLimit;
+                if (b._vx < 0) b._vx = -b._vx * NET_BOUNCE;
+            }
+            if (b.y < F.GOAL_TOP + r) {
+                b.y = F.GOAL_TOP + r;
+                if (b._vy < 0) b._vy = -b._vy * NET_BOUNCE;
+            }
+            if (b.y > F.GOAL_BOT - r) {
+                b.y = F.GOAL_BOT - r;
+                if (b._vy > 0) b._vy = -b._vy * NET_BOUNCE;
+            }
         }
         if (b.x > F.X + F.W) {
             this._resolveSegmentWall(b, r, F.X + F.W, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_TOP, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT, NET_BOUNCE);
             this._resolveSegmentWall(b, r, F.X + F.W + F.GOAL_D, F.GOAL_BOT, F.X + F.W, F.GOAL_BOT, NET_BOUNCE);
+
+            // Hard clamp to prevent tunneling through the right goal net
+            const rightLimit = F.X + F.W + F.GOAL_D - r;
+            if (b.x > rightLimit) {
+                b.x = rightLimit;
+                if (b._vx > 0) b._vx = -b._vx * NET_BOUNCE;
+            }
+            if (b.y < F.GOAL_TOP + r) {
+                b.y = F.GOAL_TOP + r;
+                if (b._vy < 0) b._vy = -b._vy * NET_BOUNCE;
+            }
+            if (b.y > F.GOAL_BOT - r) {
+                b.y = F.GOAL_BOT - r;
+                if (b._vy > 0) b._vy = -b._vy * NET_BOUNCE;
+            }
         }
     }
 
@@ -2772,11 +2802,71 @@ class GameScene extends Phaser.Scene {
 
     _resolvePlayerWall(p) {
         const r = P_RADIUS;
-        const b = P_BOUNCE * 0.1; // outer plane bCoef=0.1 → combined = 0.5×0.1 = 0.05
-        if (p.y < F.OUTER_Y_MIN + r) { p.y = F.OUTER_Y_MIN + r; if (p._vy < 0) p._vy *= -b; }
-        if (p.y > F.OUTER_Y_MAX - r) { p.y = F.OUTER_Y_MAX - r; if (p._vy > 0) p._vy *= -b; }
-        if (p.x < F.OUTER_X_MIN + r) { p.x = F.OUTER_X_MIN + r; if (p._vx < 0) p._vx *= -b; }
-        if (p.x > F.OUTER_X_MAX - r) { p.x = F.OUTER_X_MAX - r; if (p._vx > 0) p._vx *= -b; }
+        const bCoef = P_BOUNCE;
+
+        // 1. Clamp to outer bounds (fail-safe)
+        if (p.y < F.OUTER_Y_MIN + r) { p.y = F.OUTER_Y_MIN + r; if (p._vy < 0) p._vy = 0; }
+        if (p.y > F.OUTER_Y_MAX - r) { p.y = F.OUTER_Y_MAX - r; if (p._vy > 0) p._vy = 0; }
+        if (p.x < F.OUTER_X_MIN + r) { p.x = F.OUTER_X_MIN + r; if (p._vx < 0) p._vx = 0; }
+        if (p.x > F.OUTER_X_MAX - r) { p.x = F.OUTER_X_MAX - r; if (p._vx > 0) p._vx = 0; }
+
+        // 2. Collide with top and bottom lines of the field
+        if (p.y < F.Y + r) {
+            p.y = F.Y + r;
+            if (p._vy < 0) p._vy = 0;
+        }
+        if (p.y > F.Y + F.H - r) {
+            p.y = F.Y + F.H - r;
+            if (p._vy > 0) p._vy = 0;
+        }
+
+        // 3. Collide with side walls (above/below goal mouth)
+        this._resolveSegmentWall(p, r, F.X, F.Y, F.X, F.GOAL_TOP, bCoef);
+        this._resolveSegmentWall(p, r, F.X, F.GOAL_BOT, F.X, F.Y + F.H, bCoef);
+        this._resolveSegmentWall(p, r, F.X + F.W, F.Y, F.X + F.W, F.GOAL_TOP, bCoef);
+        this._resolveSegmentWall(p, r, F.X + F.W, F.GOAL_BOT, F.X + F.W, F.Y + F.H, bCoef);
+
+        // 4. Collide with goal net (if they go past the goal line)
+        if (p.x < F.X) {
+            this._resolveSegmentWall(p, r, F.X, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_TOP, bCoef * 0.1);
+            this._resolveSegmentWall(p, r, F.X - F.GOAL_D, F.GOAL_TOP, F.X - F.GOAL_D, F.GOAL_BOT, bCoef * 0.1);
+            this._resolveSegmentWall(p, r, F.X - F.GOAL_D, F.GOAL_BOT, F.X, F.GOAL_BOT, bCoef * 0.1);
+
+            // Hard clamp to prevent tunneling through the left goal net
+            const leftLimit = F.X - F.GOAL_D + r;
+            if (p.x < leftLimit) {
+                p.x = leftLimit;
+                if (p._vx < 0) p._vx = 0;
+            }
+            if (p.y < F.GOAL_TOP + r) {
+                p.y = F.GOAL_TOP + r;
+                if (p._vy < 0) p._vy = 0;
+            }
+            if (p.y > F.GOAL_BOT - r) {
+                p.y = F.GOAL_BOT - r;
+                if (p._vy > 0) p._vy = 0;
+            }
+        }
+        if (p.x > F.X + F.W) {
+            this._resolveSegmentWall(p, r, F.X + F.W, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_TOP, bCoef * 0.1);
+            this._resolveSegmentWall(p, r, F.X + F.W + F.GOAL_D, F.GOAL_TOP, F.X + F.W + F.GOAL_D, F.GOAL_BOT, bCoef * 0.1);
+            this._resolveSegmentWall(p, r, F.X + F.W + F.GOAL_D, F.GOAL_BOT, F.X + F.W, F.GOAL_BOT, bCoef * 0.1);
+
+            // Hard clamp to prevent tunneling through the right goal net
+            const rightLimit = F.X + F.W + F.GOAL_D - r;
+            if (p.x > rightLimit) {
+                p.x = rightLimit;
+                if (p._vx > 0) p._vx = 0;
+            }
+            if (p.y < F.GOAL_TOP + r) {
+                p.y = F.GOAL_TOP + r;
+                if (p._vy < 0) p._vy = 0;
+            }
+            if (p.y > F.GOAL_BOT - r) {
+                p.y = F.GOAL_BOT - r;
+                if (p._vy > 0) p._vy = 0;
+            }
+        }
     }
 
     _resolveKickoffBarrier(players) {
