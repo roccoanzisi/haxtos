@@ -2736,71 +2736,73 @@ class GameScene extends Phaser.Scene {
             p._vy *= damp;
         }
 
-        // 5. Collisions
-        this._resolveKickoffBarrier(players);
+        // 5. Collisions (Runs in 2 iterations for perfect constraint/squeeze stability, matching Haxball)
+        for (let iter = 0; iter < 2; iter++) {
+            this._resolveKickoffBarrier(players);
 
-        // Player-to-player collision
-        for (let i = 0; i < players.length; i++) {
-            for (let j = i + 1; j < players.length; j++) {
-                this._resolveDiscDisc(players[i], players[j], P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
-            }
-        }
-
-        // Player-to-ball collision (runs before static walls so walls have the final say on position)
-        for (const p of players) {
-            const isBlue = p._normalTexture.includes('blue');
-            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
-            if (!this._kickoffActive || isKicking) {
-                this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, 0, ball._invMass, P_BOUNCE, ball._bCoef);
-            }
-        }
-
-        // Static obstacle collisions (planes, segments, vertexes)
-        if (this.hbsData && this._hbsField) {
-            const fd = this._hbsField;
-
-            // 1) Planes
-            for (const plane of (fd.planes || [])) {
-                this._resolveDiscPlane(ball, plane);
-                for (const p of players) {
-                    this._resolveDiscPlane(p, plane);
+            // Player-to-player collision
+            for (let i = 0; i < players.length; i++) {
+                for (let j = i + 1; j < players.length; j++) {
+                    this._resolveDiscDisc(players[i], players[j], P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
                 }
             }
 
-            // 2) Segments
-            for (const seg of (fd.segments || [])) {
-                this._resolveDiscSegment(ball, seg);
-                for (const p of players) {
-                    this._resolveDiscSegment(p, seg);
+            // Player-to-ball collision (runs before static walls; uses P_INV_M so players are stopped by the ball)
+            for (const p of players) {
+                const isBlue = p._normalTexture.includes('blue');
+                const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
+                if (!this._kickoffActive || isKicking) {
+                    this._resolveDiscDisc(p, ball, P_RADIUS, ball._radius, P_INV_M, ball._invMass, P_BOUNCE, ball._bCoef);
                 }
             }
 
-            // 3) Vertexes (only if they have a collision group)
-            for (const v of (fd.vertexes || [])) {
-                if (v.cGroup && v.cGroup.length > 0) {
-                    this._resolveDiscVertex(ball, v);
+            // Static obstacle collisions (planes, segments, vertexes)
+            if (this.hbsData && this._hbsField) {
+                const fd = this._hbsField;
+
+                // 1) Planes
+                for (const plane of (fd.planes || [])) {
+                    this._resolveDiscPlane(ball, plane);
                     for (const p of players) {
-                        this._resolveDiscVertex(p, v);
+                        this._resolveDiscPlane(p, plane);
                     }
                 }
-            }
-        } else {
-            // Standard fallback boundaries
-            this._resolveBallWall(ball, ball._radius);
-            for (const p of players) this._resolvePlayerWall(p);
-            for (const cd of this._cornerDiscs) {
-                this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
-            }
-        }
 
-        // Static discs / Goal posts (runs for both HBS and standard mode)
-        for (const post of this._goalPosts) {
-            if (this._canCollide(ball.cGroup, ball.cMask, post.cGroup, post.cMask)) {
-                this._resolveDiscDisc(ball, post, ball._radius, post.radius || POST_RADIUS, ball._invMass, 0, ball._bCoef, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+                // 2) Segments
+                for (const seg of (fd.segments || [])) {
+                    this._resolveDiscSegment(ball, seg);
+                    for (const p of players) {
+                        this._resolveDiscSegment(p, seg);
+                    }
+                }
+
+                // 3) Vertexes (only if they have a collision group)
+                for (const v of (fd.vertexes || [])) {
+                    if (v.cGroup && v.cGroup.length > 0) {
+                        this._resolveDiscVertex(ball, v);
+                        for (const p of players) {
+                            this._resolveDiscVertex(p, v);
+                        }
+                    }
+                }
+            } else {
+                // Standard fallback boundaries
+                this._resolveBallWall(ball, ball._radius);
+                for (const p of players) this._resolvePlayerWall(p);
+                for (const cd of this._cornerDiscs) {
+                    this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
+                }
             }
-            for (const p of players) {
-                if (this._canCollide(p.cGroup, p.cMask, post.cGroup, post.cMask)) {
-                    this._resolveDiscDisc(p, post, P_RADIUS, post.radius || POST_RADIUS, P_INV_M, 0, P_BOUNCE, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+
+            // Static discs / Goal posts (runs for both HBS and standard mode)
+            for (const post of this._goalPosts) {
+                if (this._canCollide(ball.cGroup, ball.cMask, post.cGroup, post.cMask)) {
+                    this._resolveDiscDisc(ball, post, ball._radius, post.radius || POST_RADIUS, ball._invMass, 0, ball._bCoef, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+                }
+                for (const p of players) {
+                    if (this._canCollide(p.cGroup, p.cMask, post.cGroup, post.cMask)) {
+                        this._resolveDiscDisc(p, post, P_RADIUS, post.radius || POST_RADIUS, P_INV_M, 0, P_BOUNCE, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+                    }
                 }
             }
         }
