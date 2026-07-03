@@ -32,7 +32,7 @@ const game = new Phaser.Game({
         default: 'arcade',
         arcade: { gravity: { y: 0 }, debug: false, fps: 60 }
     },
-    scene: [PreloadScene, MenuScene, ConfigScene, OnlineScene, GameScene, GoalScene, WinScene],
+    scene: [PreloadScene, MenuScene, OnlineScene, GameScene, GoalScene],
     scale: {
         mode: Phaser.Scale.RESIZE
     }

@@ -33,6 +33,60 @@ const NET_BOUNCE    = 0.1;   // goalNet bCoef (back wall + crossbars)
 const POST_RADIUS   = 8;     // goal post disc radius (Haxball exact)
 const SUB_STEPS     = 1;     // 1 physics step per frame (Haxball exact, verified from source)
 
+const STADIUMS = {
+    classic: {
+        name: 'Classic',
+        canvasW: 1000, canvasH: 560,
+        W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    big: {
+        name: 'Big',
+        canvasW: 1200, canvasH: 600,
+        W: 1100, H: 480, GOAL_H: 180, GOAL_D: 30,
+        camW: 600, camH: 300,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    hockey: {
+        name: 'Hockey',
+        canvasW: 1000, canvasH: 560,
+        W: 740, H: 340, GOAL_H: 136, GOAL_D: 30,
+        camW: 420, camH: 204,
+        bgColor: 0x1a1a1a, goalBgColor: 0x222222,
+        grass1: 0x555555, grass2: 0x505050,
+        lineColor: 0xE9CC6E,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    big_hockey: {
+        name: 'Big Hockey',
+        canvasW: 1200, canvasH: 600,
+        W: 1100, H: 480, GOAL_H: 180, GOAL_D: 60,
+        camW: 600, camH: 300,
+        bgColor: 0x1a1a1a, goalBgColor: 0x222222,
+        grass1: 0x555555, grass2: 0x505050,
+        lineColor: 0xE9CC6E,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    rounded: {
+        name: 'Rounded',
+        canvasW: 1000, canvasH: 560,
+        W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+        cornerRadius: 50,
+    },
+};
+
 class GameScene extends Phaser.Scene {
     constructor() { super('GameScene'); }
 
@@ -1303,7 +1357,7 @@ class GameScene extends Phaser.Scene {
           <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#2d3748; border-top-left-radius:3px; border-top-right-radius:3px;">
             <span style="color:#f7fafc; font-size:14px; font-weight:bold; font-family:Verdana, Geneva, sans-serif;">${this.roomCode ? this.roomCode + "'s room" : "Local Match"}</span>
             <div style="display:flex; gap:6px;">
-              <button style="background:#718096; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;">● Rec</button>
+              <button style="background:#718096; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold;">Record</button>
               <button style="background:#2b6cb0; border:none; color:#fff; padding:4px 12px; font-size:12px; cursor:pointer; border-radius:3px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px;" onclick="navigator.clipboard.writeText(window.location.href); alert('Room link copied!')">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .786 3.486L6.802 11.6a2 2 0 1 1-2.829-2.83l1.393-1.393a.5.5 0 0 0-.708-.708zm3.71-3.226a.5.5 0 0 0-.708.708l1.393 1.393a2 2 0 0 1-.786 3.486L6.802 7.1a2 2 0 0 1 2.829 2.83l1.393-1.393a3 3 0 1 0-4.243-4.242L4.914 6.126a1.002 1.002 0 0 0 .154-.199 2 2 0 0 1 .786-3.486L7.198 1.1a2 2 0 0 1 2.829 2.83l-1.393 1.393a.5.5 0 0 0 .708.708z"/></svg>Link
               </button>
@@ -1319,11 +1373,11 @@ class GameScene extends Phaser.Scene {
             <!-- Left Sidebar buttons -->
             <div style="width:75px; display:flex; flex-direction:column; gap:6px;">
               <button id="_escAuto" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Auto</button>
-              <button id="_escRand" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Rand</button>
+              <button id="_escRand" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold;">Random</button>
               <button id="_escLock" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; font-size:12px; cursor:pointer; border-radius:4px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:4px; width:100%;">
                 <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M11 4.5A3.5 3.5 0 0 0 7.5 1 3.5 3.5 0 0 0 4 4.5V6H3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5V4.5a2.5 2.5 0 0 1 5 0V6a.5.5 0 0 0 1 0V4.5z"/></svg>Unlock
               </button>
-              <button id="_escReset" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; cursor:pointer; font-size:12px; border-radius:4px; font-weight:bold;">Reset</button>
+              <button id="_escReset" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:5px 0; cursor:pointer; font-size:12px; border-radius:4px; font-weight:bold;">Reset all</button>
             </div>
 
             <!-- Player Columns Container -->
@@ -1391,9 +1445,9 @@ class GameScene extends Phaser.Scene {
 
             <!-- Start Game Controls -->
             <div style="display:flex; flex-direction:column; align-items:center; gap:8px; width:100%;">
-              <button id="_escStart" style="background:#48bb78; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px;">▶ Start game</button>
-              <button id="_escStop" style="background:#f56565; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">■ Stop game</button>
-              <button id="_escResume" style="background:#4a5568; border:none; color:#fff; padding:8px 30px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">Pause / Resume</button>
+              <button id="_escStart" style="background:#48bb78; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px;">Start</button>
+              <button id="_escStop" style="background:#f56565; border:none; color:#fff; padding:8px 30px; font-size:14px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">Stop</button>
+              <button id="_escResume" style="background:#4a5568; border:none; color:#fff; padding:8px 30px; font-size:13px; font-weight:bold; cursor:pointer; border-radius:4px; min-width:180px; display:none;">Pause (P)</button>
               <span id="_escWaitMsg" style="color:#718096; font-size:12px; display:none; padding:8px; background:#14161d; border-radius:4px; width:280px; text-align:center;">Waiting for Host to start the match...</span>
             </div>
           </div>
@@ -1441,25 +1495,29 @@ class GameScene extends Phaser.Scene {
                 this.gameStarted = false;
                 this._despawnPlayers();
                 this._showEscPanel();
+                this._addChatMessage('Game stopped', '#aaaaaa');
             }
         };
 
         document.getElementById('_escStart').onclick = () => {
             if (this.isOnline) {
                 if (this.isAdmin) {
-                    this.ws.send(JSON.stringify({ 
-                        type: 'start_game', 
-                        scoreWin: this.scoreWin, 
-                        timeLimit: this.timeLimit 
+                    this.ws.send(JSON.stringify({
+                        type: 'start_game',
+                        scoreWin: this.scoreWin,
+                        timeLimit: this.timeLimit
                     }));
                 }
             } else {
+                this.timeLeft = this.timeLimit;
+                this._updateHUD();
                 this._recalcF();
                 this.gameStarted = true;
                 this.paused = false;
                 this._hideEscPanel();
                 this._spawnPlayers();
                 this._reset();
+                this._addChatMessage('Game started', '#aaaaaa');
             }
         };
 
@@ -1994,12 +2052,14 @@ class GameScene extends Phaser.Scene {
                 this.ball.setVisible(true);
                 this._spawnPlayers();
                 this._reset();
+                this._addChatMessage('Game started', '#aaaaaa');
             }
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
                 this._despawnPlayers();
                 this._showEscPanel();
+                this._addChatMessage('Game stopped', '#aaaaaa');
             }
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
@@ -2100,12 +2160,14 @@ class GameScene extends Phaser.Scene {
                 this.ball.setVisible(true);
                 this._spawnPlayers();
                 this._reset();
+                this._addChatMessage('Game started', '#aaaaaa');
             }
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
                 this._despawnPlayers();
                 this._showEscPanel();
+                this._addChatMessage('Game stopped', '#aaaaaa');
             }
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
@@ -3283,7 +3345,6 @@ class GameScene extends Phaser.Scene {
 
     _endGame() {
         this.paused = true;
-        this.timerEvent.remove();
         this.scene.stop('GoalScene');
 
         if (this.timeLimit > 0 && this.score.blue === this.score.red && !this._overtime) {
@@ -3295,7 +3356,20 @@ class GameScene extends Phaser.Scene {
         const winner = this.score.blue > this.score.red ? 'blue'
                      : this.score.red > this.score.blue ? 'red' : null;
         if (winner) soundManager.win();
-        this.scene.start('WinScene', { score: { ...this.score }, time: this.timeLeft });
+
+        // Haxball itself has no dedicated "win screen" — the match just stops and
+        // the result is announced in the chat log, same as any other room message.
+        const winText  = winner === 'blue' ? 'Blue team won the match' : winner === 'red' ? 'Red team won the match' : 'Draw!';
+        const winColor = winner === 'blue' ? '#88aaff' : winner === 'red' ? '#ff8888' : '#ffff88';
+        this._addChatMessage(winText, winColor);
+        this._addChatMessage('Game stopped', '#aaaaaa');
+
+        this.score = { blue: 0, red: 0 };
+        this._overtime = false;
+        this._updateHUD();
+        this.gameStarted = false;
+        this._despawnPlayers();
+        this._showEscPanel();
     }
 
     _startOvertime() {

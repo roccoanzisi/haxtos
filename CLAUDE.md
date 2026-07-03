@@ -13,11 +13,9 @@ js/
   scenes/
     PreloadScene.js
     MenuScene.js
-    ConfigScene.js  ← define STADIUMS global, selector de estadio/goles/tiempo
     OnlineScene.js
-    GameScene.js    ← define sus propias constantes (P_RADIUS, B_RADIUS, etc.)
+    GameScene.js    ← define sus propias constantes (P_RADIUS, B_RADIUS, etc.) y STADIUMS
     GoalScene.js
-    WinScene.js
 server.js           ← servidor WebSocket para modo online
 ```
 
@@ -35,7 +33,7 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 | `GAME_W`, `GAME_H` | `main.js` | Resolución del canvas |
 | `F` | `main.js` | Dimensiones del campo (objeto) |
 | `soundManager` | `main.js` | Instancia única del SoundManager |
-| `STADIUMS` | `ConfigScene.js` | Objeto con configuraciones de estadios |
+| `STADIUMS` | `GameScene.js` | Objeto con configuraciones de estadios |
 | `P_RADIUS`, `B_RADIUS` | `GameScene.js` | Radio jugador / pelota |
 | `P_ACCEL`, `P_DAMPING` | `GameScene.js` | Aceleración (4.848 px/s por frame) y damping jugador |
 | `P_MASS`, `P_BOUNCE` | `GameScene.js` | Masa (2) y rebote (0.5) del jugador |
@@ -52,11 +50,9 @@ El proyecto NO usa `import`/`export` ni bundler. Todos los archivos se cargan co
 SoundManager.js     ← primero, soundManager se instancia en main.js
 PreloadScene.js
 MenuScene.js
-ConfigScene.js      ← define STADIUMS, debe ir antes de OnlineScene y GameScene
 OnlineScene.js
-GameScene.js
+GameScene.js        ← define STADIUMS
 GoalScene.js
-WinScene.js
 main.js             ← último, instancia Phaser y soundManager
 ```
 
@@ -81,5 +77,4 @@ Si agregás un archivo nuevo, añadilo en `index.html` ANTES de `main.js`.
 
 ### 7. Errores comunes conocidos (no reintroducir)
 - Teclas no funcionan: usar `keys.right.isDown`, nunca `keys.right` directamente
-- Config resetea al volver: `ConfigScene.init()` debe leer `data.stadium/goals/time` si existen
 - Física arcade: usar damping multiplicativo (`vel *= damping`), no `setDrag` ni `setMaxVelocity`
