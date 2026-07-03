@@ -173,10 +173,10 @@ class GameScene extends Phaser.Scene {
         F.CY = F.Y + F.H / 2;
         F.GOAL_TOP = F.CY - F.GOAL_H / 2;
         F.GOAL_BOT = F.CY + F.GOAL_H / 2;
-        F.OUTER_X_MIN = F.CX - s.camW;
-        F.OUTER_X_MAX = F.CX + s.camW;
-        F.OUTER_Y_MIN = F.CY - s.camH;
-        F.OUTER_Y_MAX = F.CY + s.camH;
+        F.OUTER_X_MIN = F.X - F.GOAL_D;
+        F.OUTER_X_MAX = F.X + F.W + F.GOAL_D;
+        F.OUTER_Y_MIN = F.Y - F.GOAL_D;
+        F.OUTER_Y_MAX = F.Y + F.H + F.GOAL_D;
     }
 
     _applyHBSField() {
