@@ -2781,9 +2781,6 @@ class GameScene extends Phaser.Scene {
             for (const p of players) this._resolvePlayerWall(p);
             for (const cd of this._cornerDiscs) {
                 this._resolveDiscDisc(ball, cd, ball._radius, cd.r, ball._invMass, 0, ball._bCoef, WALL_BOUNCE);
-                for (const p of players) {
-                    this._resolveDiscDisc(p, cd, P_RADIUS, cd.r, P_INV_M, 0, P_BOUNCE, WALL_BOUNCE);
-                }
             }
         }
 
@@ -2811,30 +2808,11 @@ class GameScene extends Phaser.Scene {
 
     _resolvePlayerWall(p) {
         const r = P_RADIUS;
-        const bCoef = P_BOUNCE;
-
-        // 1. Clamp to outer bounds (fail-safe)
+        // Clamp to outer bounds (in Haxball, players can move freely outside the field lines up to the outer walls)
         if (p.y < F.OUTER_Y_MIN + r) { p.y = F.OUTER_Y_MIN + r; if (p._vy < 0) p._vy = 0; }
         if (p.y > F.OUTER_Y_MAX - r) { p.y = F.OUTER_Y_MAX - r; if (p._vy > 0) p._vy = 0; }
         if (p.x < F.OUTER_X_MIN + r) { p.x = F.OUTER_X_MIN + r; if (p._vx < 0) p._vx = 0; }
         if (p.x > F.OUTER_X_MAX - r) { p.x = F.OUTER_X_MAX - r; if (p._vx > 0) p._vx = 0; }
-
-        // 2. Collide with top and bottom lines of the field (players cannot cross these)
-        if (p.y < F.Y + r) {
-            p.y = F.Y + r;
-            if (p._vy < 0) p._vy = 0;
-        }
-        if (p.y > F.Y + F.H - r) {
-            p.y = F.Y + F.H - r;
-            if (p._vy > 0) p._vy = 0;
-        }
-
-        // 3. Collide with side walls (above/below goal mouth)
-        // These segment walls prevent players from entering/leaving the field except through the goal mouth.
-        this._resolveSegmentWall(p, r, F.X, F.Y, F.X, F.GOAL_TOP, bCoef);
-        this._resolveSegmentWall(p, r, F.X, F.GOAL_BOT, F.X, F.Y + F.H, bCoef);
-        this._resolveSegmentWall(p, r, F.X + F.W, F.Y, F.X + F.W, F.GOAL_TOP, bCoef);
-        this._resolveSegmentWall(p, r, F.X + F.W, F.GOAL_BOT, F.X + F.W, F.Y + F.H, bCoef);
     }
 
     _resolveKickoffBarrier(players) {
