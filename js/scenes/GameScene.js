@@ -1059,6 +1059,10 @@ class GameScene extends Phaser.Scene {
         const name  = parts[0].toLowerCase();
         const args  = parts.slice(1);
         switch (name) {
+            case 'store': {
+                this._storeCurrentStadium();
+                break;
+            }
             case 'extrapolation': {
                 if (this.isOnline) {
                     if (this.ws && this.ws.readyState === 1) {
@@ -1117,6 +1121,7 @@ class GameScene extends Phaser.Scene {
                 this._addChatMessage('Comandos disponibles:', '#ffffaa');
                 this._addChatMessage('/help - Muestra esta ayuda', '#ffffaa');
                 this._addChatMessage('/extrapolation <ms> - Configura la extrapolación (0-200)', '#ffffaa');
+                this._addChatMessage('/store - Guarda el mapa custom cargado para el selector de estadio', '#ffffaa');
                 this._addChatMessage('/avatar <texto> - Cambia tu avatar (máx 3 caracteres)', '#ffffaa');
                 this._addChatMessage('/zoom <0.5-4> - Ajusta el zoom de cámara', '#ffffaa');
                 this._addChatMessage('/fps - Muestra los FPS actuales', '#ffffaa');
@@ -1442,7 +1447,6 @@ class GameScene extends Phaser.Scene {
                 <div style="display:flex; align-items:center; gap:6px;">
                   <span id="_escStadVal" style="font-weight:bold; color:#fff;">Classic</span>
                   <button id="_escLoadMap" style="background:#1f3a52; border:1px solid #2b4e6f; color:#fff; padding:3px 10px; font-size:11px; cursor:pointer; border-radius:4px; font-weight:bold;">Pick</button>
-                  <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
                 </div>
               </div>
             </div>
@@ -1457,15 +1461,22 @@ class GameScene extends Phaser.Scene {
           </div>
         </div>
 
-        <!-- Stadium Selector Dialog Modal (Haxball Pick Popup) -->
+        <!-- Stadium Selector Dialog Modal (Haxball "Pick a stadium" popup) -->
         <div id="_haxStadiumDialog" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:10005; font-family:Arial, sans-serif;">
-          <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:300px; padding:15px; box-shadow:0 10px 25px rgba(0,0,0,0.6);">
-            <div style="color:#fff; font-size:14px; font-weight:bold; margin-bottom:12px; border-bottom:1px solid #2d3748; padding-bottom:6px;">Select Stadium</div>
-            <div style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; margin-bottom:12px;" id="_stadiumListWrap"></div>
-            <div style="display:flex; justify-content:space-between; gap:10px;">
-              <button id="_stadiumLoadLocal" style="flex:1; background:#2b6cb0; border:none; color:#fff; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Load .hbs</button>
-              <button id="_stadiumCancel" style="background:#4a5568; border:none; color:#fff; padding:6px 12px; font-size:12px; cursor:pointer; border-radius:3px;">Cancel</button>
+          <div style="background:#1a202c; border:1px solid #2d3748; border-radius:4px; width:420px; padding:15px; box-shadow:0 10px 25px rgba(0,0,0,0.6);">
+            <div style="color:#fff; font-size:14px; font-weight:bold; margin-bottom:12px; border-bottom:1px solid #2d3748; padding-bottom:6px;">Pick a stadium</div>
+            <div style="display:flex; gap:10px;">
+              <div style="flex:1; display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto;" id="_stadiumListWrap"></div>
+              <div style="width:90px; display:flex; flex-direction:column; gap:6px;">
+                <button id="_stadiumPickBtn" style="background:#2b6cb0; border:none; color:#fff; padding:6px 0; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Pick</button>
+                <button id="_stadiumDeleteBtn" style="background:#4a5568; border:none; color:#fff; padding:6px 0; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Delete</button>
+                <button id="_stadiumLoadLocal" style="background:#2b6cb0; border:none; color:#fff; padding:6px 0; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Load</button>
+                <button id="_stadiumExportBtn" style="background:#4a5568; border:none; color:#fff; padding:6px 0; font-size:12px; font-weight:bold; cursor:pointer; border-radius:3px;">Export</button>
+                <div style="flex:1;"></div>
+                <button id="_stadiumCancel" style="background:#4a5568; border:none; color:#fff; padding:6px 0; font-size:12px; cursor:pointer; border-radius:3px;">Cancel</button>
+              </div>
             </div>
+            <input type="file" id="_escMapFile" accept=".hbs" style="display:none;">
           </div>
         </div>`;
 
@@ -1660,58 +1671,146 @@ class GameScene extends Phaser.Scene {
             };
         }
 
-        // Stadium Selection popup dialog (Haxball style Pick)
+        // Stadium Selection popup dialog ("Pick a stadium", matches the real client:
+        // select a row, then Pick/Delete/Load/Export act on the selection)
         const pickBtn = document.getElementById('_escLoadMap');
         const dialog = document.getElementById('_haxStadiumDialog');
         const listWrap = document.getElementById('_stadiumListWrap');
         const cancelBtn = document.getElementById('_stadiumCancel');
         const loadLocalBtn = document.getElementById('_stadiumLoadLocal');
         const fileInput = document.getElementById('_escMapFile');
+        const stadiumPickConfirmBtn = document.getElementById('_stadiumPickBtn');
+        const stadiumDeleteBtn = document.getElementById('_stadiumDeleteBtn');
+        const stadiumExportBtn = document.getElementById('_stadiumExportBtn');
+
+        const getStoredMaps = () => {
+            try { return JSON.parse(localStorage.getItem('haxtos_storedMaps') || '[]'); }
+            catch (_) { return []; }
+        };
+        const setStoredMaps = (maps) => localStorage.setItem('haxtos_storedMaps', JSON.stringify(maps));
+
+        let selectedEntry = null; // { type: 'builtin', key } | { type: 'custom', hbs } | { type: 'stored', hbs, index }
+
+        const applyBuiltinStadium = (k) => {
+            this.hbsData = null;
+            this._hbsField = null;
+            this._hbsGoals = null;
+            this.stadium = k;
+            this.stadiumCfg = STADIUMS[k];
+
+            this._recalcF();
+            this._createGoalPosts();
+            this._buildWalls();
+            this._drawField();
+            this._reset();
+
+            const stadVal = document.getElementById('_escStadVal');
+            if (stadVal) stadVal.textContent = STADIUMS[k].name;
+
+            if (this.isOnline && this.isHost && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'change_map', mapName: k }));
+            }
+        };
+
+        const applyHbsStadium = (hbs) => {
+            if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
+                return;
+            }
+            if (this.isOnline) return;
+            this.hbsData = hbs;
+            this.stadiumCfg = STADIUMS.classic;
+            this._applyHBSField();
+            this._applyHBSBallPhysics();
+            this._createGoalPosts();
+            this._buildWalls();
+            this._drawField();
+            this._reset();
+
+            const stadVal = document.getElementById('_escStadVal');
+            if (stadVal) stadVal.textContent = hbs._fileName || hbs.name || 'Custom Map';
+        };
+
+        const renderStadiumList = () => {
+            listWrap.innerHTML = '';
+            selectedEntry = null;
+
+            const rowStyle = (selected) => `background:${selected ? '#2b6cb0' : '#2d3748'}; border:1px solid ${selected ? '#3182ce' : '#4a5568'}; color:#fff; padding:6px; cursor:pointer; border-radius:3px; font-size:12px; text-align:left;`;
+            const addRow = (label, entry, color) => {
+                const btn = document.createElement('button');
+                btn.textContent = label;
+                btn.style.cssText = rowStyle(false);
+                if (color) btn.style.color = color;
+                btn.onclick = () => {
+                    selectedEntry = entry;
+                    [...listWrap.children].forEach(c => { c.style.background = '#2d3748'; c.style.borderColor = '#4a5568'; });
+                    btn.style.background = '#2b6cb0';
+                    btn.style.borderColor = '#3182ce';
+                };
+                listWrap.appendChild(btn);
+                return btn;
+            };
+
+            // Currently active unsaved custom map, if any
+            if (this.hbsData) {
+                addRow(`⭐ ${this.hbsData._fileName || this.hbsData.name || 'Custom Map'}`, { type: 'custom', hbs: this.hbsData }, '#aaffbb');
+            }
+
+            // Built-in stadiums
+            Object.keys(STADIUMS).forEach(k => {
+                addRow(STADIUMS[k].name, { type: 'builtin', key: k });
+            });
+
+            // Stored custom maps (saved via /store)
+            getStoredMaps().forEach((hbs, index) => {
+                addRow(hbs._fileName || hbs.name || `Stored map ${index + 1}`, { type: 'stored', hbs, index }, '#f0e68c');
+            });
+        };
 
         if (pickBtn && dialog && listWrap) {
             pickBtn.onclick = () => {
                 if (!canEdit) return;
                 dialog.style.display = 'flex';
-                listWrap.innerHTML = '';
+                renderStadiumList();
+            };
+        }
 
-                // Add active custom map if any
-                if (this.hbsData) {
-                    const btn = document.createElement('button');
-                    btn.textContent = `⭐ ${this.hbsData._fileName || 'Custom Map'}`;
-                    btn.style.cssText = 'background:#1a5228; border:1px solid #44cc66; color:#aaffbb; padding:6px; cursor:pointer; border-radius:3px; font-size:12px; font-weight:bold; text-align:left;';
-                    btn.onclick = () => { dialog.style.display = 'none'; };
-                    listWrap.appendChild(btn);
+        if (stadiumPickConfirmBtn) {
+            stadiumPickConfirmBtn.onclick = () => {
+                if (!selectedEntry) return;
+                dialog.style.display = 'none';
+                if (selectedEntry.type === 'builtin') applyBuiltinStadium(selectedEntry.key);
+                else applyHbsStadium(selectedEntry.hbs);
+            };
+        }
+
+        if (stadiumDeleteBtn) {
+            stadiumDeleteBtn.onclick = () => {
+                if (!selectedEntry || selectedEntry.type !== 'stored') return;
+                const maps = getStoredMaps();
+                maps.splice(selectedEntry.index, 1);
+                setStoredMaps(maps);
+                renderStadiumList();
+            };
+        }
+
+        if (stadiumExportBtn) {
+            stadiumExportBtn.onclick = () => {
+                if (!selectedEntry || selectedEntry.type === 'builtin') {
+                    this._addChatMessage('Only custom/stored maps can be exported.', '#ffaaaa');
+                    return;
                 }
-
-                // Add built-in maps
-                Object.keys(STADIUMS).forEach(k => {
-                    const isActive = !this.hbsData && this.stadium === k;
-                    const btn = document.createElement('button');
-                    btn.textContent = STADIUMS[k].name;
-                    btn.style.cssText = `background:${isActive ? '#1a5228' : '#2d3748'}; border:1px solid ${isActive ? '#44cc66' : '#4a5568'}; color:${isActive ? '#aaffbb' : '#fff'}; padding:6px; cursor:pointer; border-radius:3px; font-size:12px; text-align:left;`;
-                    btn.onclick = () => {
-                        dialog.style.display = 'none';
-                        this.hbsData = null;
-                        this._hbsField = null;
-                        this._hbsGoals = null;
-                        this.stadium = k;
-                        this.stadiumCfg = STADIUMS[k];
-                        
-                        this._recalcF();
-                        this._createGoalPosts();
-                        this._buildWalls();
-                        this._drawField();
-                        this._reset();
-
-                        const stadVal = document.getElementById('_escStadVal');
-                        if (stadVal) stadVal.textContent = STADIUMS[k].name;
-
-                        if (this.isOnline && this.isHost && this.ws && this.ws.readyState === 1) {
-                            this.ws.send(JSON.stringify({ type: 'change_map', mapName: k }));
-                        }
-                    };
-                    listWrap.appendChild(btn);
-                });
+                const hbs = selectedEntry.hbs;
+                const name = hbs._fileName || hbs.name || 'stadium';
+                const clean = { ...hbs };
+                delete clean._fileName;
+                const blob = new Blob([JSON.stringify(clean, null, 4)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${name}.hbs`;
+                a.click();
+                URL.revokeObjectURL(url);
             };
         }
 
@@ -1733,28 +1832,30 @@ class GameScene extends Phaser.Scene {
                         const hbs = JSON.parse(ev.target.result);
                         hbs._fileName = file.name.replace(/\.hbs$/i, '');
                         if (dialog) dialog.style.display = 'none';
-
-                        if (this.isOnline && this.isAdmin && this.ws && this.ws.readyState === 1) {
-                            this.ws.send(JSON.stringify({ type: 'set_map', hbs }));
-                        } else if (!this.isOnline) {
-                            this.hbsData = hbs;
-                            this.stadiumCfg = STADIUMS.classic;
-                            this._applyHBSField();
-                            this._applyHBSBallPhysics();
-                            this._createGoalPosts();
-                            this._buildWalls();
-                            this._drawField();
-                            this._reset();
-
-                            const stadVal = document.getElementById('_escStadVal');
-                            if (stadVal) stadVal.textContent = hbs._fileName;
-                        }
+                        applyHbsStadium(hbs);
                     } catch (_) {}
                 };
                 reader.readAsText(file);
                 e.target.value = '';
             };
         }
+
+        // /store command support: persists the currently-loaded custom map to
+        // localStorage so it shows up (highlighted) in "Pick a stadium" next time,
+        // like the real client.
+        this._storeCurrentStadium = () => {
+            if (!this.hbsData) {
+                this._addChatMessage('No custom map is currently loaded to store.', '#ffaaaa');
+                return;
+            }
+            const name = this.hbsData._fileName || this.hbsData.name || 'Custom Map';
+            const maps = getStoredMaps();
+            const idx = maps.findIndex(m => (m._fileName || m.name) === name);
+            const toSave = { ...this.hbsData };
+            if (idx >= 0) maps[idx] = toSave; else maps.push(toSave);
+            setStoredMaps(maps);
+            this._addChatMessage(`Stadium "${name}" stored`, '#8ED2AB');
+        };
     }
 
     _updateLobbyPlayers() {
