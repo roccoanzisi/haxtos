@@ -119,7 +119,7 @@ wss.on('connection', (ws, req) => {
             }));
 
             // Announce join to chat
-            broadcast(room, { type: 'chat', text: `* ${ws.name} joined`, color: '#bcf085' });
+            broadcast(room, { type: 'chat', text: `* ${ws.name} joined`, color: '#8ED2AB' });
 
             // Send updated player list
             sendRoomPlayersUpdate(room);
@@ -144,12 +144,16 @@ wss.on('connection', (ws, req) => {
             } else if (msg.type === 'move_team') {
                 ws.team = msg.team;
                 sendRoomPlayersUpdate(room);
+                const teamName = msg.team === 'spec' ? 'Spectators' : msg.team[0].toUpperCase() + msg.team.slice(1);
+                broadcast(room, { type: 'chat', text: `${ws.name} was moved to ${teamName} by ${ws.name}`, color: '#8ED2AB' });
             } else if (msg.type === 'move_player_team') {
                 if (ws.admin) {
                     const target = room.players.find(p => p.playerIndex === msg.playerIndex);
                     if (target) {
                         target.team = msg.team;
                         sendRoomPlayersUpdate(room);
+                        const teamName = msg.team === 'spec' ? 'Spectators' : msg.team[0].toUpperCase() + msg.team.slice(1);
+                        broadcast(room, { type: 'chat', text: `${target.name} was moved to ${teamName} by ${ws.name}`, color: '#8ED2AB' });
                     }
                 }
             } else if (msg.type === 'lock_teams') {
@@ -259,15 +263,15 @@ wss.on('connection', (ws, req) => {
                     }
 
                     if (cmd === 'kick') {
-                        broadcast(room, { type: 'chat', text: `* ${target.name} was kicked by admin`, color: '#bcf085' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was kicked by admin`, color: '#8ED2AB' });
                         target.close();
                     } else if (cmd === 'ban') {
-                        broadcast(room, { type: 'chat', text: `* ${target.name} was banned by admin`, color: '#bcf085' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was banned by admin`, color: '#8ED2AB' });
                         bannedIps.add(target.ip);
                         target.close();
                     } else if (cmd === 'admin') {
                         target.admin = true;
-                        broadcast(room, { type: 'chat', text: `* ${target.name} was given admin rights`, color: '#bcf085' });
+                        broadcast(room, { type: 'chat', text: `* ${target.name} was given admin rights`, color: '#8ED2AB' });
                         sendRoomPlayersUpdate(room);
                     }
                 } else if (cmd === 'w') {
@@ -288,13 +292,13 @@ wss.on('connection', (ws, req) => {
                 } else if (cmd === 'extrapolation') {
                     const valorStr = args[0];
                     if (!valorStr) {
-                        ws.send(JSON.stringify({ type: 'chat', text: `Extrapolation is ${ws.extrapolationMs || 0} ms.`, color: '#bcf085' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Extrapolation is ${ws.extrapolationMs || 0} msec`, color: '#8ED2AB' }));
                         return;
                     }
                     const ms = parseInt(valorStr, 10);
                     if (!isNaN(ms) && ms >= 0 && ms <= EXTRAPOLATION_LIMIT_MS) {
                         ws.extrapolationMs = ms;
-                        ws.send(JSON.stringify({ type: 'chat', text: `* Extrapolation set to ${ms} ms.`, color: '#bcf085' }));
+                        ws.send(JSON.stringify({ type: 'chat', text: `Extrapolation set to ${ms} msec`, color: '#8ED2AB' }));
                         ws.send(JSON.stringify({ type: 'set_extrapolation', ms }));
                         sendRoomPlayersUpdate(room);
                     } else {
@@ -315,7 +319,7 @@ wss.on('connection', (ws, req) => {
         room.players = room.players.filter((p) => p !== ws);
 
         // Announce leave to chat
-        broadcast(room, { type: 'chat', text: `* ${ws.name} left`, color: '#bcf085' });
+        broadcast(room, { type: 'chat', text: `* ${ws.name} left`, color: '#8ED2AB' });
 
         if (room.players.length === 0) {
             rooms.delete(ws.roomId);
