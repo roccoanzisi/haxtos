@@ -65,8 +65,10 @@ window.TextureGenerator = {
         ctx.stroke();
 
         // 3. Draw avatar text (Haxball style inside the circle)
+        // Font verified from game-min.js: "900 34px 'Arial Black','Arial Bold',Gadget,sans-serif"
+        // (34px is relative to Haxball's own disc canvas; scaled down to fit ours).
         if (avatarText) {
-            ctx.font = "bold 18px Arial, sans-serif";
+            ctx.font = "900 18px 'Arial Black', 'Arial Bold', Gadget, sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillStyle = toCssColor(avatarColor || '#ffffff');

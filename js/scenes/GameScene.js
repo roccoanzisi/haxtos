@@ -85,6 +85,57 @@ const STADIUMS = {
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
         cornerRadius: 50,
     },
+    easy: {
+        name: 'Easy',
+        canvasW: 880, canvasH: 440,
+        W: 740, H: 340, GOAL_H: 180, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    small: {
+        name: 'Small',
+        canvasW: 880, canvasH: 440,
+        W: 640, H: 260, GOAL_H: 110, GOAL_D: 30,
+        camW: 420, camH: 200,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    big_easy: {
+        name: 'Big Easy',
+        canvasW: 1240, canvasH: 580,
+        W: 1100, H: 480, GOAL_H: 190, GOAL_D: 30,
+        camW: 600, camH: 270,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
+    big_rounded: {
+        name: 'Big Rounded',
+        canvasW: 1240, canvasH: 580,
+        W: 1100, H: 480, GOAL_H: 160, GOAL_D: 30,
+        camW: 600, camH: 270,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+        cornerRadius: 100,
+    },
+    huge: {
+        name: 'Huge',
+        canvasW: 1540, canvasH: 740,
+        W: 1400, H: 640, GOAL_H: 200, GOAL_D: 30,
+        camW: 750, camH: 350,
+        bgColor: 0x718C5A, goalBgColor: 0x718C5A,
+        grass1: 0x718C5A, grass2: 0x839E6A,
+        lineColor: 0xC7E6BD,
+        goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+    },
 };
 
 class GameScene extends Phaser.Scene {
@@ -1829,7 +1880,12 @@ class GameScene extends Phaser.Scene {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try {
-                        const hbs = JSON.parse(ev.target.result);
+                        // HBSLoader.load() also resolves trait references (e.g. a
+                        // decorative "line" trait with cMask:[""]) — a raw JSON.parse
+                        // here left those segments with no cMask at all, which the
+                        // collision code treats as "collides with everything", turning
+                        // every decoration line into a solid wall.
+                        const hbs = HBSLoader.load(ev.target.result);
                         hbs._fileName = file.name.replace(/\.hbs$/i, '');
                         if (dialog) dialog.style.display = 'none';
                         applyHbsStadium(hbs);
