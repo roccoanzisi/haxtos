@@ -1081,7 +1081,7 @@ class GameScene extends Phaser.Scene {
         const H = this._stadCanvasH;
         const LOG = 5;
         const track = (obj) => { this.hudObjects.push(obj); return obj; };
-        this._chatLogBg = track(this.add.rectangle(0, H - 130, 440, LOG * 20 + 10, 0x000000, 0.55)
+        this._chatLogBg = track(this.add.rectangle(0, H - 130, window.innerWidth, LOG * 20 + 10, 0x000000, 0.55)
             .setOrigin(0, 0).setDepth(49).setScrollFactor(0).setVisible(false));
         this._chatLogTexts = [];
         for (let i = 0; i < LOG; i++) {
@@ -1091,7 +1091,7 @@ class GameScene extends Phaser.Scene {
                 }).setDepth(50).setScrollFactor(0).setVisible(false))
             );
         }
-        this._chatInputBg = track(this.add.rectangle(0, H - 24, 440, 24, 0x111111, 0.92)
+        this._chatInputBg = track(this.add.rectangle(0, H - 24, window.innerWidth, 24, 0x111111, 0.92)
             .setOrigin(0, 0).setDepth(49).setScrollFactor(0).setVisible(false));
         this._chatInputText = track(this.add.text(8, H - 22, '', {
             fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffff88'
