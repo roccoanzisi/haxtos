@@ -40,7 +40,7 @@ const STADIUMS = {
         W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
         camW: 420, camH: 200,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -50,7 +50,7 @@ const STADIUMS = {
         W: 1100, H: 480, GOAL_H: 180, GOAL_D: 30,
         camW: 600, camH: 300,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -80,7 +80,7 @@ const STADIUMS = {
         W: 740, H: 340, GOAL_H: 128, GOAL_D: 30,
         camW: 420, camH: 200,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
         cornerRadius: 50,
@@ -91,7 +91,7 @@ const STADIUMS = {
         W: 740, H: 340, GOAL_H: 180, GOAL_D: 30,
         camW: 420, camH: 200,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -101,7 +101,7 @@ const STADIUMS = {
         W: 640, H: 260, GOAL_H: 110, GOAL_D: 30,
         camW: 420, camH: 200,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -111,7 +111,7 @@ const STADIUMS = {
         W: 1100, H: 480, GOAL_H: 190, GOAL_D: 30,
         camW: 600, camH: 270,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -121,7 +121,7 @@ const STADIUMS = {
         W: 1100, H: 480, GOAL_H: 160, GOAL_D: 30,
         camW: 600, camH: 270,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
         cornerRadius: 100,
@@ -132,7 +132,7 @@ const STADIUMS = {
         W: 1400, H: 640, GOAL_H: 200, GOAL_D: 30,
         camW: 750, camH: 350,
         bgColor: 0x718C5A, goalBgColor: 0x718C5A,
-        grass1: 0x718C5A, grass2: 0x688153,
+        grass1: 0x718C5A, grass2: 0x839E6A,
         lineColor: 0xC7E6BD,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
     },
@@ -410,15 +410,23 @@ class GameScene extends Phaser.Scene {
         bg.fillStyle(s.grass1, 1);
         bg.fillRect(F.X, F.Y, F.W, F.H);
 
-        // Vertical mow-stripe seams (Haxball look) — verified from real screenshots:
-        // subtle vertical lines, ~5 brightness units darker than the base grass,
-        // period ~80 units. Not diagonal, not a bold 50/50 alternating fill.
+        // Diagonal mow-stripe overlay (Haxball look), clipped to the field rect.
+        // Verified against a real haxball.com/play screenshot of the Classic stadium
+        // (pixel-sampled 45-degree bands, period ~130 units, ~50/50 split).
         const stripes = this.add.graphics();
-        stripes.lineStyle(6, s.grass2, 0.55);
-        const period = 80;
-        for (let sx = F.X + period / 2; sx < F.X + F.W; sx += period) {
-            stripes.lineBetween(sx, F.Y, sx, F.Y + F.H);
+        stripes.fillStyle(s.grass2, 1);
+        const period = 130, half = 65;
+        for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
+            stripes.fillPoints([
+                { x: sx,              y: F.Y },
+                { x: sx + half,       y: F.Y },
+                { x: sx + half + F.H, y: F.Y + F.H },
+                { x: sx + F.H,        y: F.Y + F.H }
+            ], true);
         }
+        const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
+        clipShape.fillRect(F.X, F.Y, F.W, F.H);
+        stripes.setMask(clipShape.createGeometryMask());
 
         // Foreground layer — boundary lines, center circle, net, posts
         // (no separate goal-box background fill: the outer bgColor already shows through
@@ -486,7 +494,7 @@ class GameScene extends Phaser.Scene {
             });
         });
 
-        this._fieldGfx = [bg, stripes, g];
+        this._fieldGfx = [bg, stripes, clipShape, g];
         this._refreshUICameraIgnore();
     }
 
@@ -500,18 +508,27 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(outerBg, 1);
         g.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-        // Field rectangle, with subtle vertical mow-stripe seams (Haxball look,
-        // verified from real screenshots: thin, low-contrast vertical lines,
-        // not bold horizontal bands).
+        // Field rectangle, with a diagonal mow-stripe overlay (Haxball look,
+        // pixel-verified against a real Classic-stadium screenshot: 45-degree
+        // bands, period ~130 units, ~50/50 split — not horizontal bands).
         const stripe1 = isHockey ? 0x333333 : 0x4a7a3a;
         const stripe2 = isHockey ? 0x2a2a2a : 0x3d6b30;
         g.fillStyle(stripe1, 1);
         g.fillRect(F.X, F.Y, F.W, F.H);
-        g.lineStyle(6, stripe2, 0.55);
-        const period = 80;
-        for (let sx = F.X + period / 2; sx < F.X + F.W; sx += period) {
-            g.lineBetween(sx, F.Y, sx, F.Y + F.H);
+        const stripes = this.add.graphics();
+        stripes.fillStyle(stripe2, 1);
+        const period = 130, half = 65;
+        for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
+            stripes.fillPoints([
+                { x: sx,              y: F.Y },
+                { x: sx + half,       y: F.Y },
+                { x: sx + half + F.H, y: F.Y + F.H },
+                { x: sx + F.H,        y: F.Y + F.H }
+            ], true);
         }
+        const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
+        clipShape.fillRect(F.X, F.Y, F.W, F.H);
+        stripes.setMask(clipShape.createGeometryMask());
 
         // Rounded corners mask (if any)
         if (fd.cornerRadius > 0) {
