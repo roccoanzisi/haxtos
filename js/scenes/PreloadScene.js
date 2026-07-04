@@ -95,7 +95,27 @@ class PreloadScene extends Phaser.Scene {
         this._makeCircle('kick_red',    15, 0xE56E56, 0xFFFFFF, 4);
         this._makeCircle('kick_blue2',  15, 0x076C97, 0xFFFFFF, 4);
         this._makeCircle('kick_red2',   15, 0xB75845, 0xFFFFFF, 4);
+        // Grain texture for the pitch (Haxball's grass isn't a flat fill — real
+        // screenshots show fine per-pixel noise). Tiled over the field with a
+        // MULTIPLY blend at low alpha in GameScene.
+        this._makeNoiseTexture('grassNoise', 128, 128, 55);
         this.scene.start('MenuScene');
+    }
+
+    _makeNoiseTexture(key, w, h, amplitude) {
+        const tex = this.textures.createCanvas(key, w, h);
+        const ctx = tex.canvas.getContext('2d');
+        const imgData = ctx.createImageData(w, h);
+        for (let i = 0; i < w * h; i++) {
+            const v = 128 + (Math.random() * 2 - 1) * amplitude;
+            const c = Math.max(0, Math.min(255, v)) | 0;
+            imgData.data[i * 4 + 0] = c;
+            imgData.data[i * 4 + 1] = c;
+            imgData.data[i * 4 + 2] = c;
+            imgData.data[i * 4 + 3] = 255;
+        }
+        ctx.putImageData(imgData, 0, 0);
+        tex.refresh();
     }
 
     _makeBall(key, r, lineW) {

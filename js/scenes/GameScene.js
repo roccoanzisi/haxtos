@@ -428,6 +428,12 @@ class GameScene extends Phaser.Scene {
         clipShape.fillRect(F.X, F.Y, F.W, F.H);
         stripes.setMask(clipShape.createGeometryMask());
 
+        // Grain texture (Haxball's grass has visible per-pixel noise, not a flat fill)
+        const noise = this.add.tileSprite(F.CX, F.CY, F.W, F.H, 'grassNoise');
+        noise.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        noise.setAlpha(0.35);
+        noise.setMask(clipShape.createGeometryMask());
+
         // Foreground layer — boundary lines, center circle, net, posts
         // (no separate goal-box background fill: the outer bgColor already shows through
         // behind the net, matching Haxball's uniform out-of-bounds area with no box artifact)
@@ -494,7 +500,7 @@ class GameScene extends Phaser.Scene {
             });
         });
 
-        this._fieldGfx = [bg, stripes, clipShape, g];
+        this._fieldGfx = [bg, stripes, clipShape, noise, g];
         this._refreshUICameraIgnore();
     }
 
@@ -530,22 +536,31 @@ class GameScene extends Phaser.Scene {
         clipShape.fillRect(F.X, F.Y, F.W, F.H);
         stripes.setMask(clipShape.createGeometryMask());
 
-        // Rounded corners mask (if any)
+        // Grain texture (Haxball's grass has visible per-pixel noise, not a flat fill)
+        const noise = this.add.tileSprite(F.CX, F.CY, F.W, F.H, 'grassNoise');
+        noise.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        noise.setAlpha(0.35);
+        noise.setMask(clipShape.createGeometryMask());
+
+        // Rounded corners mask (if any) — drawn on its own layer added after
+        // stripes/noise so it actually paints over them at the corners
+        // (they're added later in the display list than `g`'s earlier fills).
         if (fd.cornerRadius > 0) {
             const cr = fd.cornerRadius;
-            g.fillStyle(outerBg, 1);
-            g.beginPath(); g.moveTo(F.X, F.Y); g.lineTo(F.X + cr, F.Y);
-            g.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
-            g.closePath(); g.fillPath();
-            g.beginPath(); g.moveTo(F.X + F.W, F.Y); g.lineTo(F.X + F.W - cr, F.Y);
-            g.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
-            g.closePath(); g.fillPath();
-            g.beginPath(); g.moveTo(F.X, F.Y + F.H); g.lineTo(F.X + cr, F.Y + F.H);
-            g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI / 2, Math.PI, false);
-            g.closePath(); g.fillPath();
-            g.beginPath(); g.moveTo(F.X + F.W, F.Y + F.H); g.lineTo(F.X + F.W - cr, F.Y + F.H);
-            g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, 0, Math.PI / 2, false);
-            g.closePath(); g.fillPath();
+            const cornerMask = this.add.graphics();
+            cornerMask.fillStyle(outerBg, 1);
+            cornerMask.beginPath(); cornerMask.moveTo(F.X, F.Y); cornerMask.lineTo(F.X + cr, F.Y);
+            cornerMask.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
+            cornerMask.closePath(); cornerMask.fillPath();
+            cornerMask.beginPath(); cornerMask.moveTo(F.X + F.W, F.Y); cornerMask.lineTo(F.X + F.W - cr, F.Y);
+            cornerMask.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
+            cornerMask.closePath(); cornerMask.fillPath();
+            cornerMask.beginPath(); cornerMask.moveTo(F.X, F.Y + F.H); cornerMask.lineTo(F.X + cr, F.Y + F.H);
+            cornerMask.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI / 2, Math.PI, false);
+            cornerMask.closePath(); cornerMask.fillPath();
+            cornerMask.beginPath(); cornerMask.moveTo(F.X + F.W, F.Y + F.H); cornerMask.lineTo(F.X + F.W - cr, F.Y + F.H);
+            cornerMask.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, 0, Math.PI / 2, false);
+            cornerMask.closePath(); cornerMask.fillPath();
         }
 
         // Goal net backgrounds
