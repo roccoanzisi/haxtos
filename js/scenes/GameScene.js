@@ -420,8 +420,8 @@ class GameScene extends Phaser.Scene {
             stripes.fillPoints([
                 { x: sx,              y: F.Y },
                 { x: sx + half,       y: F.Y },
-                { x: sx + half + F.H, y: F.Y + F.H },
-                { x: sx + F.H,        y: F.Y + F.H }
+                { x: sx + half - F.H, y: F.Y + F.H },
+                { x: sx - F.H,        y: F.Y + F.H }
             ], true);
         }
         const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
@@ -522,8 +522,8 @@ class GameScene extends Phaser.Scene {
             stripes.fillPoints([
                 { x: sx,              y: F.Y },
                 { x: sx + half,       y: F.Y },
-                { x: sx + half + F.H, y: F.Y + F.H },
-                { x: sx + F.H,        y: F.Y + F.H }
+                { x: sx + half - F.H, y: F.Y + F.H },
+                { x: sx - F.H,        y: F.Y + F.H }
             ], true);
         }
         const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
