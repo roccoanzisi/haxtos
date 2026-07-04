@@ -1298,10 +1298,10 @@ class GameScene extends Phaser.Scene {
 
     _resetTeamColors() {
         this._playerUniforms = {
-            blue:  { angle: 0, textColor: '#ffffff', colors: [0x0000F8], avatar: '' },
-            blue2: { angle: 0, textColor: '#ffffff', colors: [0x0000C0], avatar: '' },
-            red:   { angle: 0, textColor: '#ffffff', colors: [0xF00000], avatar: '' },
-            red2:  { angle: 0, textColor: '#ffffff', colors: [0xC00000], avatar: '' }
+            blue:  { angle: 0, textColor: '#ffffff', colors: [0x098BC3], avatar: '' },
+            blue2: { angle: 0, textColor: '#ffffff', colors: [0x076C97], avatar: '' },
+            red:   { angle: 0, textColor: '#ffffff', colors: [0xE56E56], avatar: '' },
+            red2:  { angle: 0, textColor: '#ffffff', colors: [0xB75845], avatar: '' }
         };
         Object.keys(this._playerUniforms).forEach(k => this._redrawPlayerTexture(k));
     }
@@ -1495,7 +1495,8 @@ class GameScene extends Phaser.Scene {
                 this.gameStarted = false;
                 this._despawnPlayers();
                 this._showEscPanel();
-                this._addChatMessage('Game stopped', '#aaaaaa');
+                const me = this.roomPlayers && this.roomPlayers[0];
+                this._addChatMessage(`Game stopped by ${me ? me.name : 'Player'}`, '#aaaaaa');
             }
         };
 
@@ -1517,7 +1518,8 @@ class GameScene extends Phaser.Scene {
                 this._hideEscPanel();
                 this._spawnPlayers();
                 this._reset();
-                this._addChatMessage('Game started', '#aaaaaa');
+                const me = this.roomPlayers && this.roomPlayers[0];
+                this._addChatMessage(`Game started by ${me ? me.name : 'Player'}`, '#aaaaaa');
             }
         };
 
@@ -2052,14 +2054,14 @@ class GameScene extends Phaser.Scene {
                 this.ball.setVisible(true);
                 this._spawnPlayers();
                 this._reset();
-                this._addChatMessage('Game started', '#aaaaaa');
+                this._addChatMessage(`Game started by ${msg.by || 'Player'}`, '#aaaaaa');
             }
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
                 this._despawnPlayers();
                 this._showEscPanel();
-                this._addChatMessage('Game stopped', '#aaaaaa');
+                this._addChatMessage(`Game stopped by ${msg.by || 'Player'}`, '#aaaaaa');
             }
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
@@ -2160,14 +2162,14 @@ class GameScene extends Phaser.Scene {
                 this.ball.setVisible(true);
                 this._spawnPlayers();
                 this._reset();
-                this._addChatMessage('Game started', '#aaaaaa');
+                this._addChatMessage(`Game started by ${msg.by || 'Player'}`, '#aaaaaa');
             }
             if (msg.type === 'stop_game') {
                 this.gameStarted = false;
                 this.paused = true;
                 this._despawnPlayers();
                 this._showEscPanel();
-                this._addChatMessage('Game stopped', '#aaaaaa');
+                this._addChatMessage(`Game stopped by ${msg.by || 'Player'}`, '#aaaaaa');
             }
             if (msg.type === 'resume_game') {
                 this._hideEscPanel();
@@ -3362,7 +3364,6 @@ class GameScene extends Phaser.Scene {
         const winText  = winner === 'blue' ? 'Blue team won the match' : winner === 'red' ? 'Red team won the match' : 'Draw!';
         const winColor = winner === 'blue' ? '#88aaff' : winner === 'red' ? '#ff8888' : '#ffff88';
         this._addChatMessage(winText, winColor);
-        this._addChatMessage('Game stopped', '#aaaaaa');
 
         this.score = { blue: 0, red: 0 };
         this._overtime = false;

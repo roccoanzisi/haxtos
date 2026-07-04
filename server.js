@@ -201,11 +201,11 @@ wss.on('connection', (ws, req) => {
                 }
             } else if (msg.type === 'start_game') {
                 if (ws.admin) {
-                    broadcast(room, { type: 'start_game', scoreWin: msg.scoreWin, timeLimit: msg.timeLimit });
+                    broadcast(room, { type: 'start_game', scoreWin: msg.scoreWin, timeLimit: msg.timeLimit, by: ws.name });
                 }
             } else if (msg.type === 'stop_game') {
                 if (ws.admin) {
-                    broadcast(room, { type: 'stop_game' });
+                    broadcast(room, { type: 'stop_game', by: ws.name });
                 }
             } else if (msg.type === 'resume_game') {
                 if (ws.admin) {

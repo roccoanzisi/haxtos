@@ -79,18 +79,20 @@ class PreloadScene extends Phaser.Scene {
     constructor() { super('PreloadScene'); }
 
     create() {
-        // Haxball colors: blue 0x0000F8, red 0xF00000, ball white
+        // Haxball colors verified by sampling pixels from a real haxball.com/play
+        // screenshot: disc red is #E56E56 (not pure red) and ball is pure white.
+        // Blue is cross-checked against the same game-min.js constant batch as red.
         this._makeBall('ball', 10, 2);
         // Normal: borde negro (Haxball default)
-        this._makeCircle('player_blue', 15, 0x0000F8, 0x000000, 2);
-        this._makeCircle('player_red',  15, 0xF00000, 0x000000, 2);
-        this._makeCircle('player_blue2',15, 0x0000C0, 0x000000, 2);
-        this._makeCircle('player_red2', 15, 0xC00000, 0x000000, 2);
+        this._makeCircle('player_blue', 15, 0x098BC3, 0x000000, 2);
+        this._makeCircle('player_red',  15, 0xE56E56, 0x000000, 2);
+        this._makeCircle('player_blue2',15, 0x076C97, 0x000000, 2);
+        this._makeCircle('player_red2', 15, 0xB75845, 0x000000, 2);
         // Kicking: borde blanco grueso (Haxball kicking state)
-        this._makeCircle('kick_blue',   15, 0x0000F8, 0xFFFFFF, 4);
-        this._makeCircle('kick_red',    15, 0xF00000, 0xFFFFFF, 4);
-        this._makeCircle('kick_blue2',  15, 0x0000C0, 0xFFFFFF, 4);
-        this._makeCircle('kick_red2',   15, 0xC00000, 0xFFFFFF, 4);
+        this._makeCircle('kick_blue',   15, 0x098BC3, 0xFFFFFF, 4);
+        this._makeCircle('kick_red',    15, 0xE56E56, 0xFFFFFF, 4);
+        this._makeCircle('kick_blue2',  15, 0x076C97, 0xFFFFFF, 4);
+        this._makeCircle('kick_red2',   15, 0xB75845, 0xFFFFFF, 4);
         this.scene.start('MenuScene');
     }
 
