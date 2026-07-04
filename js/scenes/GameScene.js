@@ -63,6 +63,7 @@ const STADIUMS = {
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+        hockey: true,
     },
     big_hockey: {
         name: 'Big Hockey',
@@ -73,6 +74,7 @@ const STADIUMS = {
         grass1: 0x555555, grass2: 0x505050,
         lineColor: 0xE9CC6E,
         goalColor1: 0xFFCCCC, goalColor2: 0xCCCCFF,
+        hockey: true,
     },
     rounded: {
         name: 'Rounded',
@@ -410,22 +412,33 @@ class GameScene extends Phaser.Scene {
         bg.fillStyle(s.grass1, 1);
         bg.fillRect(F.X, F.Y, F.W, F.H);
 
-        // Diagonal mow-stripe overlay (Haxball look), clipped to the field rect.
-        // Verified against a real haxball.com/play screenshot of the Classic stadium
-        // (pixel-sampled 45-degree bands, period ~130 units, ~50/50 split).
+        // Mow-stripe overlay, clipped to the field rect. Grass-type stadiums use
+        // diagonal 45-degree bands (pixel-verified against a real Classic
+        // stadium screenshot, period ~130 units, ~50/50 split). Hockey-type
+        // stadiums use thin vertical seams instead (pixel-verified against a
+        // real hockey-type custom map, period ~72 units, low contrast) —
+        // real Haxball's ice-rink resurfacing look, not a mowed-lawn look.
         const stripes = this.add.graphics();
-        stripes.fillStyle(s.grass2, 1);
-        const period = 130, half = 65;
-        for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
-            stripes.fillPoints([
-                { x: sx,              y: F.Y },
-                { x: sx + half,       y: F.Y },
-                { x: sx + half - F.H, y: F.Y + F.H },
-                { x: sx - F.H,        y: F.Y + F.H }
-            ], true);
-        }
         const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
         clipShape.fillRect(F.X, F.Y, F.W, F.H);
+        if (s.hockey) {
+            stripes.lineStyle(6, s.grass2, 0.5);
+            const period = 72;
+            for (let sx = F.X + period / 2; sx < F.X + F.W; sx += period) {
+                stripes.lineBetween(sx, F.Y, sx, F.Y + F.H);
+            }
+        } else {
+            stripes.fillStyle(s.grass2, 1);
+            const period = 130, half = 65;
+            for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
+                stripes.fillPoints([
+                    { x: sx,              y: F.Y },
+                    { x: sx + half,       y: F.Y },
+                    { x: sx + half - F.H, y: F.Y + F.H },
+                    { x: sx - F.H,        y: F.Y + F.H }
+                ], true);
+            }
+        }
         stripes.setMask(clipShape.createGeometryMask());
 
         // Grain texture (Haxball's grass has visible per-pixel noise, not a flat fill)
@@ -509,26 +522,37 @@ class GameScene extends Phaser.Scene {
         bg.fillStyle(outerBg, 1);
         bg.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-        // Field rectangle, with a diagonal mow-stripe overlay (Haxball look,
-        // pixel-verified against a real Classic-stadium screenshot: 45-degree
-        // bands, period ~130 units, ~50/50 split — not horizontal bands).
+        // Field rectangle, with a mow-stripe overlay. Grass-type maps use
+        // diagonal 45-degree bands (pixel-verified against a real Classic
+        // stadium screenshot, period ~130 units, ~50/50 split). Hockey-type
+        // maps (bg.type includes "hockey") use thin vertical seams instead —
+        // pixel-verified against a real hockey-type custom map (period ~72
+        // units, low contrast), matching the real client's ice-rink look.
         const stripe1 = isHockey ? 0x333333 : 0x4a7a3a;
         const stripe2 = isHockey ? 0x2a2a2a : 0x3d6b30;
         bg.fillStyle(stripe1, 1);
         bg.fillRect(F.X, F.Y, F.W, F.H);
         const stripes = this.add.graphics();
-        stripes.fillStyle(stripe2, 1);
-        const period = 130, half = 65;
-        for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
-            stripes.fillPoints([
-                { x: sx,              y: F.Y },
-                { x: sx + half,       y: F.Y },
-                { x: sx + half - F.H, y: F.Y + F.H },
-                { x: sx - F.H,        y: F.Y + F.H }
-            ], true);
-        }
         const clipShape = this.make.graphics({ x: 0, y: 0 }, false);
         clipShape.fillRect(F.X, F.Y, F.W, F.H);
+        if (isHockey) {
+            stripes.lineStyle(6, stripe2, 0.5);
+            const period = 72;
+            for (let sx = F.X + period / 2; sx < F.X + F.W; sx += period) {
+                stripes.lineBetween(sx, F.Y, sx, F.Y + F.H);
+            }
+        } else {
+            stripes.fillStyle(stripe2, 1);
+            const period = 130, half = 65;
+            for (let sx = F.X - F.H; sx < F.X + F.W + F.H; sx += period) {
+                stripes.fillPoints([
+                    { x: sx,              y: F.Y },
+                    { x: sx + half,       y: F.Y },
+                    { x: sx + half - F.H, y: F.Y + F.H },
+                    { x: sx - F.H,        y: F.Y + F.H }
+                ], true);
+            }
+        }
         stripes.setMask(clipShape.createGeometryMask());
 
         // Grain texture (Haxball's grass has visible per-pixel noise, not a flat fill)
