@@ -182,6 +182,13 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // Phaser doesn't call a method just because it's named `shutdown` —
+        // it must be wired to the scene's own lifecycle event. Without this,
+        // every scene restart (map change, goal, rejoin) leaked the document-
+        // level Escape-key listener from the previous instance, so multiple
+        // stale handlers fired on every keypress and canceled each other out.
+        this.events.once('shutdown', this.shutdown, this);
+
         this._forceKick = false;
         this._forceKickRed = false;
         this.physicsAccumulator = 0;
@@ -921,7 +928,7 @@ class GameScene extends Phaser.Scene {
         scoreBg.fillRoundedRect(redSqX, midY - sqSize / 2, sqSize, sqSize, 3);
 
         this.hudRed = sf(this.add.text(redSqX + sqSize + 12, midY, '0', {
-            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+            fontSize: '16px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#ffffff'
         }).setOrigin(0.5));
 
         sf(this.add.text(scoreX + 68, midY, '-', {
@@ -929,7 +936,7 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5));
 
         this.hudBlue = sf(this.add.text(scoreX + 96, midY, '0', {
-            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+            fontSize: '16px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#ffffff'
         }).setOrigin(0.5));
 
         // Blue team square
@@ -938,7 +945,7 @@ class GameScene extends Phaser.Scene {
         scoreBg.fillRoundedRect(blueSqX, midY - sqSize / 2, sqSize, sqSize, 3);
 
         this.hudTime = sf(this.add.text(scoreX + scoreW - 16, midY, this._fmt(this.timeLeft), {
-            fontSize: '16px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+            fontSize: '16px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#ffffff'
         }).setOrigin(1, 0.5));
 
         // ── Top-right button panel: sound / menu / camera (exact Haxball layout) ──
@@ -972,8 +979,8 @@ class GameScene extends Phaser.Scene {
         });
 
         const menuSlot = mkBtn(menuW);
-        sf(this.add.text(menuSlot.cx, barY + btnH / 2, 'Menu', {
-            fontSize: '13px', fontFamily: '"Arial Black", Arial, sans-serif', color: '#ffffff'
+        sf(this.add.text(menuSlot.cx, barY + btnH / 2, '☰ Menu', {
+            fontSize: '13px', fontFamily: 'Arial, sans-serif', fontStyle: 'bold', color: '#ffffff'
         }).setOrigin(0.5).setDepth(21));
         menuSlot.hit.on('pointerdown', () => {
             this._escVisible ? this._hideEscPanel() : this._showEscPanel();
@@ -1145,15 +1152,19 @@ class GameScene extends Phaser.Scene {
         const text = this._chatInput.trim();
         this._chatInput = '';
         this._chatInputText.setText('> |');
-        if (!text) { this._closeChat(); return; }
-        if (text.startsWith('/')) {
-            this._runCommand(text.slice(1));
-        } else {
-            this._addChatMessage('» ' + text, '#ffffff');
-            if (this.isOnline && this.ws && this.ws.readyState === 1) {
-                this.ws.send(JSON.stringify({ type: 'chat', text: '» ' + text, color: '#ffffff' }));
+        if (text) {
+            if (text.startsWith('/')) {
+                this._runCommand(text.slice(1));
+            } else {
+                this._addChatMessage('» ' + text, '#ffffff');
+                if (this.isOnline && this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'chat', text: '» ' + text, color: '#ffffff' }));
+                }
             }
         }
+        // Real Haxball closes the input line after every send (command or
+        // message) — you press Enter again to open it for the next one.
+        this._closeChat();
     }
 
     _runCommand(cmd) {
