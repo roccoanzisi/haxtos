@@ -260,7 +260,7 @@ class GameScene extends Phaser.Scene {
                             this.ws.send(JSON.stringify({ type: 'ping', time: now }));
                         }
                     } else {
-                        if (this.pingText) this.pingText.setText('Ping: 0 ms').setColor('#88ff88');
+                        this._updatePingGraph(0);
                     }
                 }
             });
@@ -996,11 +996,24 @@ class GameScene extends Phaser.Scene {
 
 
 
-        this.pingText = sf(this.add.text(GW - 20, 16, 'Ping: 0 ms', {
-            fontSize: '13px', fontFamily: 'Verdana, Arial, sans-serif',
-            color: '#88ff88', stroke: '#000', strokeThickness: 3
-        }).setOrigin(1, 0));
+        // Ping/FPS panel, bottom-left, matching real Haxball's layout: a range
+        // text, an fps counter, and a scrolling bar graph of recent ping samples.
+        const perfW = 110, perfH = 100, perfBottomGap = 46; // leave room for the SHOOT touch button below
+        const perfY = GH - perfH - perfBottomGap;
+        this._pingHistory = [];
+        this._perfBg = track(this.add.rectangle(0, perfY, perfW, perfH, 0x2d2d2d, 0.75)
+            .setOrigin(0, 0).setScrollFactor(0).setDepth(19));
+        this.pingText = sf(this.add.text(6, perfY + 4, 'Ping: 0 - 0', {
+            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0, 0));
+        this.fpsText = sf(this.add.text(6, perfY + 20, 'Fps: 0', {
+            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffffff'
+        }).setOrigin(0, 0));
+        this._perfGraph = track(this.add.graphics().setScrollFactor(0).setDepth(19));
+        this._perfBg.setVisible(this.isOnline);
         this.pingText.setVisible(this.isOnline);
+        this.fpsText.setVisible(this.isOnline);
+        this._perfGraph.setVisible(this.isOnline);
 
         this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
             fontSize: '11px', fontFamily: 'Verdana, Arial, sans-serif',
@@ -1037,6 +1050,27 @@ class GameScene extends Phaser.Scene {
         this.hudTime.setText(this._fmt(this.timeLeft));
     }
 
+    _updatePingGraph(lat) {
+        if (!this._perfGraph) return;
+        this._pingHistory.push(lat);
+        if (this._pingHistory.length > 30) this._pingHistory.shift();
+
+        const lo = Math.min(...this._pingHistory);
+        const hi = Math.max(...this._pingHistory);
+        this.pingText.setText(`Ping: ${lo} - ${hi}`);
+
+        const g = this._perfGraph;
+        g.clear();
+        const graphX = 6, graphY = this.pingText.y + 42, graphW = 98, graphH = 46;
+        const barW = graphW / 30;
+        const scale = hi > 0 ? graphH / hi : 0;
+        g.fillStyle(0x33cc33, 1);
+        this._pingHistory.forEach((v, i) => {
+            const h = Math.max(2, v * scale);
+            g.fillRect(graphX + i * barW, graphY + graphH - h, barW - 1, h);
+        });
+    }
+
     _fmt(secs) {
         if (secs <= 0 && this.timeLimit === 0) return '\u221E';
         const m = Math.floor(secs / 60).toString().padStart(2, '0');
@@ -1046,14 +1080,14 @@ class GameScene extends Phaser.Scene {
 
     // ── Player labels ──────────────────────────────────────────────
     _buildPlayerLabels() {
-        const colors = { blue: '#8888ff', red: '#ff5555', blue2: '#6666dd', red2: '#dd3333' };
-        const nums = { blue: '1', red: '2', blue2: '3', red2: '4' };
+        // Real Haxball shows each player's actual nickname just below their
+        // disc (separate from the 1-letter avatar drawn inside it).
         this._playerLabels = {};
         Object.keys(this.players).forEach(key => {
-            this._playerLabels[key] = this.add.text(0, 0, nums[key], {
+            this._playerLabels[key] = this.add.text(0, 0, '', {
                 fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif',
-                color: colors[key] || '#ffffff', stroke: '#000000', strokeThickness: 3
-            }).setOrigin(0.5, 1).setDepth(15).setVisible(false); // Hidden! Avatar text is inside the circle
+                color: '#ffffff', stroke: '#000000', strokeThickness: 3
+            }).setOrigin(0.5, 0).setDepth(15);
         });
     }
 
@@ -1063,8 +1097,8 @@ class GameScene extends Phaser.Scene {
             const lbl = this._playerLabels[key];
             if (!lbl) return;
             lbl.x = p.x;
-            lbl.y = p.y - P_RADIUS - 2;
-            if (this._avatarOverrides[key]) lbl.setText(this._avatarOverrides[key].slice(0, 3));
+            lbl.y = p.y + P_RADIUS + 4;
+            lbl.setText((this._slotNames && this._slotNames[key]) || '');
         });
     }
 
@@ -1397,8 +1431,10 @@ class GameScene extends Phaser.Scene {
         }
 
         if (!this._customAvatars) this._customAvatars = {};
+        if (!this._slotNames) this._slotNames = {};
 
         ['red', 'red2', 'blue', 'blue2'].forEach(slot => {
+            this._slotNames[slot] = slotToPlayer[slot] ? slotToPlayer[slot].name : '';
             const u = this._playerUniforms[slot];
             if (!u) return;
             const p = slotToPlayer[slot];
@@ -2230,12 +2266,7 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'pong') {
                 const lat = Date.now() - msg.time;
-                if (this.pingText) {
-                    this.pingText.setText(`Ping: ${lat} ms`);
-                    if (lat < 50) this.pingText.setColor('#88ff88');
-                    else if (lat < 120) this.pingText.setColor('#ffff88');
-                    else this.pingText.setColor('#ff8888');
-                }
+                this._updatePingGraph(lat);
             }
             if (msg.type === 'chat') this._addChatMessage(msg.text, msg.color);
             if (msg.type === 'colors') {
@@ -2490,12 +2521,7 @@ class GameScene extends Phaser.Scene {
                 }
             } else if (msg.type === 'pong') {
                 const lat = Date.now() - msg.time;
-                if (this.pingText) {
-                    this.pingText.setText(`Ping: ${lat} ms`);
-                    if (lat < 50) this.pingText.setColor('#88ff88');
-                    else if (lat < 120) this.pingText.setColor('#ffff88');
-                    else this.pingText.setColor('#ff8888');
-                }
+                this._updatePingGraph(lat);
             }
         };
     }
@@ -3212,6 +3238,13 @@ class GameScene extends Phaser.Scene {
     }
 
     update(time, delta) {
+        if (this.isOnline && this.fpsText) {
+            this._fpsTick = (this._fpsTick || 0) + 1;
+            if (this._fpsTick % 20 === 0) {
+                this.fpsText.setText(`Fps: ${Math.round(this.game.loop.actualFps)}`);
+            }
+        }
+
         // Apply mouse wheel zoom
         if (window._gameZoom !== this.cameras.main.zoom) {
             this.cameras.main.setZoom(window._gameZoom);
@@ -3284,7 +3317,7 @@ class GameScene extends Phaser.Scene {
         gp.setVisible(false);
 
         const lbl = this._playerLabels[gk];
-        if (lbl) { lbl.x = this._guestGhost.x; lbl.y = this._guestGhost.y - P_RADIUS - 2; }
+        if (lbl) { lbl.x = this._guestGhost.x; lbl.y = this._guestGhost.y + P_RADIUS + 4; }
     }
 
     _runPhysicsTick() {
