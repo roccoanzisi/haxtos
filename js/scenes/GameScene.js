@@ -439,24 +439,15 @@ class GameScene extends Phaser.Scene {
         // behind the net, matching Haxball's uniform out-of-bounds area with no box artifact)
         const g = this.add.graphics();
 
-        // Field boundary — four sides with a gap at each goal mouth (posts round the corners)
+        // Field boundary — complete rounded rect, no gap at the goal mouth.
+        // Verified from a real haxball.com/play screenshot: the touchline runs
+        // straight through where the goal is; the net bracket sits outside it.
         g.lineStyle(3, s.lineColor, 1);
-        g.beginPath();
-        g.moveTo(F.X, F.GOAL_TOP);
-        g.lineTo(F.X, F.Y + cr);
-        g.arc(F.X + cr, F.Y + cr, cr, Math.PI, -Math.PI / 2, false);
-        g.lineTo(F.X + F.W - cr, F.Y);
-        g.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
-        g.lineTo(F.X + F.W, F.GOAL_TOP);
-        g.strokePath();
-        g.beginPath();
-        g.moveTo(F.X, F.GOAL_BOT);
-        g.lineTo(F.X, F.Y + F.H - cr);
-        g.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI, Math.PI / 2, true);
-        g.lineTo(F.X + F.W - cr, F.Y + F.H);
-        g.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, Math.PI / 2, 0, true);
-        g.lineTo(F.X + F.W, F.GOAL_BOT);
-        g.strokePath();
+        if (cr > 0) {
+            g.strokeRoundedRect(F.X, F.Y, F.W, F.H, cr);
+        } else {
+            g.strokeRect(F.X, F.Y, F.W, F.H);
+        }
 
         g.lineStyle(3, s.lineColor, 1.0);
         g.lineBetween(F.CX, F.Y, F.CX, F.Y + F.H);
@@ -506,21 +497,25 @@ class GameScene extends Phaser.Scene {
 
     _drawHBSField() {
         const fd = this._hbsField;
-        const g = this.add.graphics();
+        // Background layer — created first so it renders below the stripes/
+        // noise/foreground layers added further down (Graphics/Sprite z-order
+        // in Phaser follows add-order, not the order draw calls happen within
+        // an object).
+        const bg = this.add.graphics();
         const isHockey = fd.bgType.includes('hockey');
 
         // Full-window background
         const outerBg = isHockey ? 0x1a1a1a : 0x2d5a1e;
-        g.fillStyle(outerBg, 1);
-        g.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        bg.fillStyle(outerBg, 1);
+        bg.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
         // Field rectangle, with a diagonal mow-stripe overlay (Haxball look,
         // pixel-verified against a real Classic-stadium screenshot: 45-degree
         // bands, period ~130 units, ~50/50 split — not horizontal bands).
         const stripe1 = isHockey ? 0x333333 : 0x4a7a3a;
         const stripe2 = isHockey ? 0x2a2a2a : 0x3d6b30;
-        g.fillStyle(stripe1, 1);
-        g.fillRect(F.X, F.Y, F.W, F.H);
+        bg.fillStyle(stripe1, 1);
+        bg.fillRect(F.X, F.Y, F.W, F.H);
         const stripes = this.add.graphics();
         stripes.fillStyle(stripe2, 1);
         const period = 130, half = 65;
@@ -542,31 +537,31 @@ class GameScene extends Phaser.Scene {
         noise.setAlpha(0.35);
         noise.setMask(clipShape.createGeometryMask());
 
-        // Rounded corners mask (if any) — drawn on its own layer added after
-        // stripes/noise so it actually paints over them at the corners
-        // (they're added later in the display list than `g`'s earlier fills).
+        // Foreground layer — created after stripes/noise so segments, posts and
+        // the rounded-corner overpaint all render on top of them, not under.
+        const fg = this.add.graphics();
+
+        // Rounded corners mask (if any)
         if (fd.cornerRadius > 0) {
             const cr = fd.cornerRadius;
-            const cornerMask = this.add.graphics();
-            cornerMask.fillStyle(outerBg, 1);
-            cornerMask.beginPath(); cornerMask.moveTo(F.X, F.Y); cornerMask.lineTo(F.X + cr, F.Y);
-            cornerMask.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
-            cornerMask.closePath(); cornerMask.fillPath();
-            cornerMask.beginPath(); cornerMask.moveTo(F.X + F.W, F.Y); cornerMask.lineTo(F.X + F.W - cr, F.Y);
-            cornerMask.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
-            cornerMask.closePath(); cornerMask.fillPath();
-            cornerMask.beginPath(); cornerMask.moveTo(F.X, F.Y + F.H); cornerMask.lineTo(F.X + cr, F.Y + F.H);
-            cornerMask.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI / 2, Math.PI, false);
-            cornerMask.closePath(); cornerMask.fillPath();
-            cornerMask.beginPath(); cornerMask.moveTo(F.X + F.W, F.Y + F.H); cornerMask.lineTo(F.X + F.W - cr, F.Y + F.H);
-            cornerMask.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, 0, Math.PI / 2, false);
-            cornerMask.closePath(); cornerMask.fillPath();
+            fg.fillStyle(outerBg, 1);
+            fg.beginPath(); fg.moveTo(F.X, F.Y); fg.lineTo(F.X + cr, F.Y);
+            fg.arc(F.X + cr, F.Y + cr, cr, -Math.PI / 2, Math.PI, true);
+            fg.closePath(); fg.fillPath();
+            fg.beginPath(); fg.moveTo(F.X + F.W, F.Y); fg.lineTo(F.X + F.W - cr, F.Y);
+            fg.arc(F.X + F.W - cr, F.Y + cr, cr, -Math.PI / 2, 0, false);
+            fg.closePath(); fg.fillPath();
+            fg.beginPath(); fg.moveTo(F.X, F.Y + F.H); fg.lineTo(F.X + cr, F.Y + F.H);
+            fg.arc(F.X + cr, F.Y + F.H - cr, cr, Math.PI / 2, Math.PI, false);
+            fg.closePath(); fg.fillPath();
+            fg.beginPath(); fg.moveTo(F.X + F.W, F.Y + F.H); fg.lineTo(F.X + F.W - cr, F.Y + F.H);
+            fg.arc(F.X + F.W - cr, F.Y + F.H - cr, cr, 0, Math.PI / 2, false);
+            fg.closePath(); fg.fillPath();
         }
 
-        // Goal net backgrounds
-        g.fillStyle(isHockey ? 0x222222 : 0x2a4a20, 1);
-        g.fillRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.fillRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        // No synthetic goal-box background fill here: the outer bgColor already
+        // shows through behind the net, matching Haxball's uniform out-of-bounds
+        // area (same reasoning as the built-in stadiums in _drawField).
 
         // Draw all visible HBS segments
         const vtx = fd.vertexes;
@@ -580,14 +575,15 @@ class GameScene extends Phaser.Scene {
             const p0 = { x: F.CX + v0.x, y: F.CY - v0.y };
             const p1 = { x: F.CX + v1.x, y: F.CY - v1.y };
             const color = HBSLoader.parseColor(seg.color);
-            g.lineStyle(2, color != null ? color : lineColor, 1);
-            HBSLoader.drawSegment(g, p0, p1, seg.curve || 0);
+            fg.lineStyle(2, color != null ? color : lineColor, 1);
+            HBSLoader.drawSegment(fg, p0, p1, seg.curve || 0);
         }
 
-        // Goal post outlines
-        g.lineStyle(2, 0xcccccc, 1);
-        g.strokeRect(F.X - F.GOAL_D, F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
-        g.strokeRect(F.X + F.W,      F.GOAL_TOP, F.GOAL_D, F.GOAL_H);
+        // No synthetic goal-post outline rectangle either: real custom maps
+        // define their own goal-net segments (e.g. a "goalNet" trait), and
+        // drawing a generic box on top of those duplicated the back-of-net
+        // line. Trust the map's own segments (drawn above) and static discs
+        // (drawn below) for the goal frame, exactly like the real client.
 
         // Draw static discs (goal posts, etc.)
         for (const disc of fd.staticDiscs) {
@@ -595,20 +591,20 @@ class GameScene extends Phaser.Scene {
             const wy = F.CY - disc.pos[1];
             const r  = disc.radius || POST_RADIUS;
             const color = HBSLoader.parseColor(disc.color) || 0xffffff;
-            g.fillStyle(color, 1);
-            g.fillCircle(wx, wy, r);
-            g.lineStyle(1, 0x000000, 0.5);
-            g.strokeCircle(wx, wy, r);
+            fg.fillStyle(color, 1);
+            fg.fillCircle(wx, wy, r);
+            fg.lineStyle(1, 0x000000, 0.5);
+            fg.strokeCircle(wx, wy, r);
         }
 
         // If no static discs from HBS, draw default goal posts
         if (fd.staticDiscs.length === 0) {
-            g.fillStyle(0xffffff, 1);
-            g.lineStyle(2, 0x000000, 1);
+            fg.fillStyle(0xffffff, 1);
+            fg.lineStyle(2, 0x000000, 1);
             [F.X, F.X + F.W].forEach(px => {
                 [F.GOAL_TOP, F.GOAL_BOT].forEach(py => {
-                    g.fillCircle(px, py, POST_RADIUS);
-                    g.strokeCircle(px, py, POST_RADIUS);
+                    fg.fillCircle(px, py, POST_RADIUS);
+                    fg.strokeCircle(px, py, POST_RADIUS);
                 });
             });
         }
