@@ -339,7 +339,13 @@ class GameScene extends Phaser.Scene {
         const cw = window.innerWidth;
         const ch = window.innerHeight;
         const cam = this.cameras.main;
-        cam.setBounds(0, 0, cw, ch);
+        // Bounds must be centered on the field's world coordinates (F.CX, F.CY), not on
+        // the world origin (0,0) — the field doesn't live at the origin. Anchoring at
+        // (0,0) clamped the camera's view whenever the window was wider/taller than
+        // 2*F.CX/2*F.CY (i.e. almost always), pushing all the "extra" visible world
+        // entirely to one side instead of split evenly, and made the follow camera
+        // reveal huge empty stretches beyond the pitch when nearing that clamped edge.
+        cam.setBounds(F.CX - cw / 2, F.CY - ch / 2, cw, ch);
         cam.stopFollow();
         cam.setZoom(1);
         cam.centerOn(F.CX, F.CY);
