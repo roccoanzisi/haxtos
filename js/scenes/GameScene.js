@@ -2517,6 +2517,8 @@ class GameScene extends Phaser.Scene {
 
     _handleSignal(msg) {
         if (!this.peerConnection) return;
+        if (!this._iceCandidatesBuffer) this._iceCandidatesBuffer = [];
+        
         if (msg.sdp) {
             this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
                 if (msg.sdp.type === 'offer') {
@@ -2528,10 +2530,20 @@ class GameScene extends Phaser.Scene {
                         }
                     });
                 }
+            }).then(() => {
+                while (this._iceCandidatesBuffer.length > 0) {
+                    const candidate = this._iceCandidatesBuffer.shift();
+                    this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                        .catch(err => console.error('[WebRTC] add buffered candidate error:', err));
+                }
             }).catch(err => console.error('[WebRTC] remote sdp error:', err));
         } else if (msg.candidate) {
-            this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
-                .catch(err => console.error('[WebRTC] add candidate error:', err));
+            if (!this.peerConnection.remoteDescription || !this.peerConnection.remoteDescription.type) {
+                this._iceCandidatesBuffer.push(msg.candidate);
+            } else {
+                this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
+                    .catch(err => console.error('[WebRTC] add candidate error:', err));
+            }
         }
     }
 
