@@ -2219,7 +2219,7 @@ class GameScene extends Phaser.Scene {
         const down = this.keys1.down.isDown || this.keys2.down.isDown;
         const left = this.keys1.left.isDown || this.keys2.left.isDown;
         const right = this.keys1.right.isDown || this.keys2.right.isDown;
-        const kick = this.kick1.isDown || this.kick2.isDown;
+        const kick = this.kick1.isDown || this.kick2.isDown || this._forceKick || this._forceKickRed;
 
         if (this.isOnline) {
             if (this.playerIndex === 1) {
@@ -3025,6 +3025,18 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    // Guest-only: extrapolation (ball/other players) is a naive position + velocity*time
+    // projection with no wall awareness at all — a velocity spike right after a kick can
+    // project a point past the field boundary until the next authoritative snapshot snaps
+    // it back, which reads as the ball (or another player) flying off the map for a frame.
+    // This just keeps the extrapolated/glided display position inside the outer bounds.
+    _clampToFieldBounds(obj, radius) {
+        if (obj.x < F.OUTER_X_MIN + radius) obj.x = F.OUTER_X_MIN + radius;
+        if (obj.x > F.OUTER_X_MAX - radius) obj.x = F.OUTER_X_MAX - radius;
+        if (obj.y < F.OUTER_Y_MIN + radius) obj.y = F.OUTER_Y_MIN + radius;
+        if (obj.y > F.OUTER_Y_MAX - radius) obj.y = F.OUTER_Y_MAX - radius;
+    }
+
     _resolvePlayerWall(p) {
         const r = P_RADIUS;
         // Clamp to outer bounds (in Haxball, players can move freely outside the field lines up to the outer walls)
@@ -3259,7 +3271,9 @@ class GameScene extends Phaser.Scene {
             this._refreshUICameraIgnore();
         }
         this._guestGhost.setTexture(gp.texture.key);
-        this._guestGhost.setPosition(gp.x + gp._vx * extFrames, gp.y + gp._vy * extFrames);
+        const ghostPos = { x: gp.x + gp._vx * extFrames, y: gp.y + gp._vy * extFrames };
+        this._clampToFieldBounds(ghostPos, P_RADIUS);
+        this._guestGhost.setPosition(ghostPos.x, ghostPos.y);
         this._guestGhost.setVisible(true);
         gp.setVisible(false);
 
@@ -3326,7 +3340,7 @@ class GameScene extends Phaser.Scene {
             const down = this.keys1.down.isDown || this.keys2.down.isDown;
             const left = this.keys1.left.isDown || this.keys2.left.isDown;
             const right = this.keys1.right.isDown || this.keys2.right.isDown;
-            const kick = this.kick1.isDown || this.kick2.isDown;
+            const kick = this.kick1.isDown || this.kick2.isDown || this._forceKick || this._forceKickRed;
 
             pObj._isKicking = kick;
             this._movePlayer(pObj, { up, down, left, right }, hostTeam);
@@ -3358,7 +3372,7 @@ class GameScene extends Phaser.Scene {
             const down = this.keys1.down.isDown || this.keys2.down.isDown;
             const left = this.keys1.left.isDown || this.keys2.left.isDown;
             const right = this.keys1.right.isDown || this.keys2.right.isDown;
-            const kick = this.kick1.isDown || this.kick2.isDown;
+            const kick = this.kick1.isDown || this.kick2.isDown || this._forceKick || this._forceKickRed;
 
             const myKeys = { up, down, left, right };
             this._movePlayer(myPlayer, myKeys, myKey);
@@ -3392,6 +3406,7 @@ class GameScene extends Phaser.Scene {
                 // A new packet arrived! We update base positions with extrapolation
                 this.ball.x = this.serverState.ballX + this.serverState.ballVX * extFrames;
                 this.ball.y = this.serverState.ballY + this.serverState.ballVY * extFrames;
+                this._clampToFieldBounds(this.ball, this.ball._radius);
                 this.ball._vx = this.serverState.ballVX;
                 this.ball._vy = this.serverState.ballVY;
                 this.ball.rotation = this.serverState.ballRot || 0;
@@ -3406,6 +3421,7 @@ class GameScene extends Phaser.Scene {
                         if (!isOurselves) {
                             this.players[k].x = pState.x + pState.vx * extFrames;
                             this.players[k].y = pState.y + pState.vy * extFrames;
+                            this._clampToFieldBounds(this.players[k], P_RADIUS);
                             this.players[k]._vx = pState.vx;
                             this.players[k]._vy = pState.vy;
                         } else {
@@ -3447,6 +3463,7 @@ class GameScene extends Phaser.Scene {
                 // No new packet. We let them glide naturally based on last known velocity!
                 this.ball.x += this.ball._vx;
                 this.ball.y += this.ball._vy;
+                this._clampToFieldBounds(this.ball, this.ball._radius);
 
                 const myPlayerObj = this.roomPlayers.find(p => p.index === this.playerIndex);
                 const myTeam = myPlayerObj ? myPlayerObj.team : '';
@@ -3456,6 +3473,7 @@ class GameScene extends Phaser.Scene {
                     if (p && !isOurselves) {
                         p.x += p._vx;
                         p.y += p._vy;
+                        this._clampToFieldBounds(p, P_RADIUS);
                     }
                 });
             }
