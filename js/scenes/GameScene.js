@@ -3269,8 +3269,31 @@ class GameScene extends Phaser.Scene {
 
             if (dynamic) {
                 const isBlue = myPlayer._normalTexture.includes('blue');
-                const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
-                if (!this._kickoffActive || isKicking) {
+                const canTouchBall = !this._kickoffActive || this._kickoffTeam === (isBlue ? 'blue' : 'red');
+                if (canTouchBall) {
+                    // Kick impulse (mirrors _physicsSubStep's step 2). Without this the
+                    // guest's own kick only ever produced a plain disc-disc bounce
+                    // locally — a normal push, not the real kick power — so the ball
+                    // barely seemed to move on the guest's own screen until the host's
+                    // authoritative echo arrived ~1 RTT later showing it actually flying.
+                    // Only applied in the real-time (dynamic) pass: during the replay of
+                    // historical buffered inputs the ball's CURRENT position is only an
+                    // approximation of where it was back then, so firing a kick impulse
+                    // off that stale distance check would be more likely wrong than right.
+                    if (myPlayer._isKicking && !myPlayer._hasKicked && !this._chatOpen) {
+                        const kdx = this.ball.x - myPlayer.x;
+                        const kdy = this.ball.y - myPlayer.y;
+                        const kdist = Math.hypot(kdx, kdy);
+                        if (kdist - P_RADIUS - this.ball._radius < 4 && kdist > 0.1) {
+                            const knx = kdx / kdist, kny = kdy / kdist;
+                            this.ball._vx += knx * KICK_POWER * this.ball._invMass;
+                            this.ball._vy += kny * KICK_POWER * this.ball._invMass;
+                            myPlayer._hasKicked = true;
+                        }
+                    } else if (!myPlayer._isKicking) {
+                        myPlayer._hasKicked = false;
+                    }
+
                     this._resolveDiscDisc(myPlayer, this.ball, P_RADIUS, this.ball._radius, P_INV_M, this.ball._invMass, P_BOUNCE, this.ball._bCoef);
                 }
             }
