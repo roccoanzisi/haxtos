@@ -2459,10 +2459,10 @@ class GameScene extends Phaser.Scene {
                 { urls: 'stun:stun1.l.google.com:19302' },
                 {
                     urls: [
-                        'turn:global.relay.metered.ca:80',
-                        'turn:global.relay.metered.ca:80?transport=tcp',
-                        'turn:global.relay.metered.ca:443',
-                        'turns:global.relay.metered.ca:443?transport=tcp'
+                        'turn:openrelay.metered.ca:80',
+                        'turn:openrelay.metered.ca:80?transport=tcp',
+                        'turn:openrelay.metered.ca:443',
+                        'turns:openrelay.metered.ca:443?transport=tcp'
                     ],
                     username: 'openrelayproject',
                     credential: 'openrelayproject'
