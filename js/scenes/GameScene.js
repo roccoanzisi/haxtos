@@ -3205,6 +3205,53 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    // Guest-only: resolves collisions for just OUR OWN player against the ball,
+    // other players, and static field geometry, using their currently-known
+    // (server-extrapolated) positions. The guest never runs the host's full
+    // _physicsStep(), so without this our own disc's local prediction/replay
+    // ignored walls/segments/the ball/other players entirely and could be
+    // seen clipping straight through them from the guest's perspective.
+    _resolveMyPlayerCollisions(myPlayer) {
+        const others = Object.values(this.players).filter(p => p !== myPlayer);
+
+        const isLeftTeam = myPlayer.x < F.CX;
+        const baseMask = ['ball', 'red', 'blue', 'wall'];
+        myPlayer.cMask = this._kickoffActive
+            ? baseMask.concat(isLeftTeam ? ['redKO'] : ['blueKO'])
+            : baseMask;
+
+        for (let iter = 0; iter < 2; iter++) {
+            this._resolveKickoffBarrier([myPlayer]);
+
+            for (const other of others) {
+                this._resolveDiscDisc(myPlayer, other, P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
+            }
+
+            const isBlue = myPlayer._normalTexture.includes('blue');
+            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
+            if (!this._kickoffActive || isKicking) {
+                this._resolveDiscDisc(myPlayer, this.ball, P_RADIUS, this.ball._radius, P_INV_M, this.ball._invMass, P_BOUNCE, this.ball._bCoef);
+            }
+
+            if (this.hbsData && this._hbsField) {
+                const fd = this._hbsField;
+                for (const plane of (fd.planes || [])) this._resolveDiscPlane(myPlayer, plane);
+                for (const seg of (fd.segments || [])) this._resolveDiscSegment(myPlayer, seg);
+                for (const v of (fd.vertexes || [])) {
+                    if (v.cGroup && v.cGroup.length > 0) this._resolveDiscVertex(myPlayer, v);
+                }
+            } else {
+                this._resolvePlayerWall(myPlayer);
+            }
+
+            for (const post of this._goalPosts) {
+                if (this._canCollide(myPlayer.cGroup, myPlayer.cMask, post.cGroup, post.cMask)) {
+                    this._resolveDiscDisc(myPlayer, post, P_RADIUS, post.radius || POST_RADIUS, P_INV_M, 0, P_BOUNCE, post.bCoef != null ? post.bCoef : POST_BOUNCE);
+                }
+            }
+        }
+    }
+
     // Player input → stores normalized direction (physics applied per sub-step)
     _movePlayer(player, keys, id) {
         if (!player) return;
@@ -3436,6 +3483,8 @@ class GameScene extends Phaser.Scene {
             const damp = myPlayer._isKicking ? PK_DAMPING : P_DAMPING;
             myPlayer._vx *= damp;
             myPlayer._vy *= damp;
+
+            this._resolveMyPlayerCollisions(myPlayer);
         }
 
         if (this.serverState) {
@@ -3478,21 +3527,20 @@ class GameScene extends Phaser.Scene {
                             const dx = pState.x - this.players[k].x;
                             const dy = pState.y - this.players[k].y;
                             if (Math.hypot(dx, dy) > 0.05) {
-                                let x = pState.x, y = pState.y, vx = pState.vx, vy = pState.vy;
+                                const myP = this.players[k];
+                                myP.x = pState.x; myP.y = pState.y;
+                                myP._vx = pState.vx; myP._vy = pState.vy;
                                 for (const inp of this._localInputBuffer) {
                                     const accel = inp.kicking ? PK_ACCEL : P_ACCEL;
                                     const damp = inp.kicking ? PK_DAMPING : P_DAMPING;
-                                    vx += inp.dx * accel;
-                                    vy += inp.dy * accel;
-                                    x += vx;
-                                    y += vy;
-                                    vx *= damp;
-                                    vy *= damp;
+                                    myP._vx += inp.dx * accel;
+                                    myP._vy += inp.dy * accel;
+                                    myP.x += myP._vx;
+                                    myP.y += myP._vy;
+                                    myP._vx *= damp;
+                                    myP._vy *= damp;
+                                    this._resolveMyPlayerCollisions(myP);
                                 }
-                                this.players[k].x = x;
-                                this.players[k].y = y;
-                                this.players[k]._vx = vx;
-                                this.players[k]._vy = vy;
                             }
                         }
                     }
