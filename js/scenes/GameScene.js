@@ -3211,8 +3211,19 @@ class GameScene extends Phaser.Scene {
     // _physicsStep(), so without this our own disc's local prediction/replay
     // ignored walls/segments/the ball/other players entirely and could be
     // seen clipping straight through them from the guest's perspective.
-    _resolveMyPlayerCollisions(myPlayer) {
-        const others = Object.values(this.players).filter(p => p !== myPlayer);
+    //
+    // `dynamic` gates collision against the ball/other players (moving targets
+    // whose CURRENT position is only an approximation of where they actually
+    // were at each historical tick being replayed). During the reconciliation
+    // replay (see _updateGuest) we step through several buffered past inputs
+    // in a row, and resolving each of those against the ball's present-day
+    // position — which may by then be far from where it actually was at that
+    // past tick, e.g. right after being kicked — can produce a huge bogus
+    // overlap and fling the player off the map for a frame before the next
+    // snapshot corrects it. Static geometry (walls/segments/posts) doesn't
+    // move, so it's always safe to resolve against at any point in a replay.
+    _resolveMyPlayerCollisions(myPlayer, { dynamic = true } = {}) {
+        const others = dynamic ? Object.values(this.players).filter(p => p !== myPlayer) : [];
 
         const isLeftTeam = myPlayer.x < F.CX;
         const baseMask = ['ball', 'red', 'blue', 'wall'];
@@ -3227,10 +3238,12 @@ class GameScene extends Phaser.Scene {
                 this._resolveDiscDisc(myPlayer, other, P_RADIUS, P_RADIUS, P_INV_M, P_INV_M, P_BOUNCE, P_BOUNCE);
             }
 
-            const isBlue = myPlayer._normalTexture.includes('blue');
-            const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
-            if (!this._kickoffActive || isKicking) {
-                this._resolveDiscDisc(myPlayer, this.ball, P_RADIUS, this.ball._radius, P_INV_M, this.ball._invMass, P_BOUNCE, this.ball._bCoef);
+            if (dynamic) {
+                const isBlue = myPlayer._normalTexture.includes('blue');
+                const isKicking = this._kickoffActive && this._kickoffTeam === (isBlue ? 'blue' : 'red');
+                if (!this._kickoffActive || isKicking) {
+                    this._resolveDiscDisc(myPlayer, this.ball, P_RADIUS, this.ball._radius, P_INV_M, this.ball._invMass, P_BOUNCE, this.ball._bCoef);
+                }
             }
 
             if (this.hbsData && this._hbsField) {
@@ -3539,7 +3552,7 @@ class GameScene extends Phaser.Scene {
                                     myP.y += myP._vy;
                                     myP._vx *= damp;
                                     myP._vy *= damp;
-                                    this._resolveMyPlayerCollisions(myP);
+                                    this._resolveMyPlayerCollisions(myP, { dynamic: false });
                                 }
                             }
                         }
