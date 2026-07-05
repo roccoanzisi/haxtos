@@ -1015,10 +1015,17 @@ class GameScene extends Phaser.Scene {
         this.fpsText = sf(this.add.text(6, perfY + 20, 'Fps: 0', {
             fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', color: '#ffffff'
         }).setOrigin(0, 0));
+        // Permanent P2P/WS indicator — the connected/disconnected chat toast is easy
+        // to miss (it fades in ~3s, often while still in the lobby), so this stays
+        // on screen the whole match instead.
+        this._connTypeText = sf(this.add.text(perfW - 6, perfY + 4, 'WS', {
+            fontSize: '12px', fontFamily: 'Verdana, Arial, sans-serif', fontStyle: 'bold', color: '#aaaaaa'
+        }).setOrigin(1, 0));
         this._perfGraph = track(this.add.graphics().setScrollFactor(0).setDepth(19));
         this._perfBg.setVisible(this.isOnline);
         this.pingText.setVisible(this.isOnline);
         this.fpsText.setVisible(this.isOnline);
+        this._connTypeText.setVisible(this.isOnline);
         this._perfGraph.setVisible(this.isOnline);
 
         this.shootBlueBtn = this.add.text(12, GH - 26, '⚡ SHOOT (ESPACIO)', {
@@ -2475,8 +2482,10 @@ class GameScene extends Phaser.Scene {
             console.log('[WebRTC] State:', this.peerConnection.connectionState);
             if (this.peerConnection.connectionState === 'connected') {
                 this._addChatMessage('Conexión P2P (WebRTC) Establecida (Ultra-bajo lag)', '#8ED2AB');
+                if (this._connTypeText) this._connTypeText.setText('P2P').setColor('#33cc33');
             } else if (this.peerConnection.connectionState === 'failed' || this.peerConnection.connectionState === 'closed') {
                 this._addChatMessage('P2P desconectado. Usando WebSocket de respaldo.', '#ffaaaa');
+                if (this._connTypeText) this._connTypeText.setText('WS').setColor('#aaaaaa');
             }
         };
 
@@ -2527,6 +2536,12 @@ class GameScene extends Phaser.Scene {
     }
 
     _setupDataChannel(channel) {
+        channel.onopen = () => {
+            if (this._connTypeText) this._connTypeText.setText('P2P').setColor('#33cc33');
+        };
+        channel.onclose = () => {
+            if (this._connTypeText) this._connTypeText.setText('WS').setColor('#aaaaaa');
+        };
         channel.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             if (msg.type === 'input') {
