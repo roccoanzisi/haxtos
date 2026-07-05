@@ -254,7 +254,9 @@ class GameScene extends Phaser.Scene {
                 callback: () => {
                     if (!this.isHost) {
                         const now = Date.now();
-                        if (this.ws && this.ws.readyState === 1) {
+                        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+                            this.dataChannel.send(JSON.stringify({ type: 'ping', time: now }));
+                        } else if (this.ws && this.ws.readyState === 1) {
                             this.ws.send(JSON.stringify({ type: 'ping', time: now }));
                         }
                     } else {
@@ -2265,6 +2267,10 @@ class GameScene extends Phaser.Scene {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
+            if (msg.type === 'signal') {
+                this._handleSignal(msg);
+                return;
+            }
             if (msg.type === 'state') {
                 this._onStateReceived(msg.data);
             }
@@ -2300,6 +2306,9 @@ class GameScene extends Phaser.Scene {
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 this._updatePlayerAvatarsFromNames();
+                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                    this._initWebRTC();
+                }
             }
             if (msg.type === 'start_game') {
                 this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;
@@ -2345,6 +2354,10 @@ class GameScene extends Phaser.Scene {
         if (!this.ws) return;
         this.ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
+            if (msg.type === 'signal') {
+                this._handleSignal(msg);
+                return;
+            }
             if (msg.type === 'input') {
                 this._guestInputs = msg.keys;
                 this._lastGuestSeq = msg.seq;
@@ -2387,6 +2400,9 @@ class GameScene extends Phaser.Scene {
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 this._updatePlayerAvatarsFromNames();
+                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                    this._initWebRTC();
+                }
             }
             if (msg.type === 'start_game') {
                 this.scoreWin = msg.scoreWin !== undefined ? msg.scoreWin : this.scoreWin;
@@ -2419,6 +2435,112 @@ class GameScene extends Phaser.Scene {
             }
             if (msg.type === 'set_extrapolation') {
                 window.HAXTOS_EXTRAPOLATION = msg.ms;
+            }
+        };
+    }
+
+    // WebRTC is used only as an optional fast path for the frequent, latency-sensitive
+    // input/state/ping traffic — chat, lobby, goals etc. always stay on the reliable
+    // WebSocket. Includes a TURN relay (not just STUN) so it still connects across
+    // NATs that STUN alone can't traverse; if it never connects (or disconnects),
+    // everything transparently falls back to the WebSocket relay, same as before.
+    _initWebRTC() {
+        console.log('[WebRTC] Initializing connection...');
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                {
+                    urls: [
+                        'turn:global.relay.metered.ca:80',
+                        'turn:global.relay.metered.ca:80?transport=tcp',
+                        'turn:global.relay.metered.ca:443',
+                        'turns:global.relay.metered.ca:443?transport=tcp'
+                    ],
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                }
+            ]
+        };
+
+        this.peerConnection = new RTCPeerConnection(configuration);
+
+        this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate && this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({ type: 'signal', candidate: event.candidate }));
+            }
+        };
+
+        this.peerConnection.onconnectionstatechange = () => {
+            console.log('[WebRTC] State:', this.peerConnection.connectionState);
+            if (this.peerConnection.connectionState === 'connected') {
+                this._addChatMessage('Conexión P2P (WebRTC) Establecida (Ultra-bajo lag)', '#8ED2AB');
+            } else if (this.peerConnection.connectionState === 'failed' || this.peerConnection.connectionState === 'closed') {
+                this._addChatMessage('P2P desconectado. Usando WebSocket de respaldo.', '#ffaaaa');
+            }
+        };
+
+        // Unordered + zero retransmits: a dropped input/state packet is simply gone —
+        // the next one (sent ~16ms later) supersedes it anyway. This avoids the
+        // WebSocket/TCP head-of-line-blocking failure mode (one lost packet stalling
+        // every packet queued behind it on the same connection) that a real-time,
+        // constantly-superseded stream like this doesn't need "guaranteed delivery" for.
+        const channelOptions = { ordered: false, maxRetransmits: 0 };
+
+        if (this.isHost) {
+            this.dataChannel = this.peerConnection.createDataChannel('physics', channelOptions);
+            this._setupDataChannel(this.dataChannel);
+
+            this.peerConnection.createOffer().then(offer => {
+                return this.peerConnection.setLocalDescription(offer);
+            }).then(() => {
+                if (this.ws && this.ws.readyState === 1) {
+                    this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
+                }
+            }).catch(err => console.error('[WebRTC] Offer error:', err));
+        } else {
+            this.peerConnection.ondatachannel = (event) => {
+                this.dataChannel = event.channel;
+                this._setupDataChannel(this.dataChannel);
+            };
+        }
+    }
+
+    _handleSignal(msg) {
+        if (!this.peerConnection) return;
+        if (msg.sdp) {
+            this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
+                if (msg.sdp.type === 'offer') {
+                    return this.peerConnection.createAnswer().then(answer => {
+                        return this.peerConnection.setLocalDescription(answer);
+                    }).then(() => {
+                        if (this.ws && this.ws.readyState === 1) {
+                            this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
+                        }
+                    });
+                }
+            }).catch(err => console.error('[WebRTC] remote sdp error:', err));
+        } else if (msg.candidate) {
+            this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
+                .catch(err => console.error('[WebRTC] add candidate error:', err));
+        }
+    }
+
+    _setupDataChannel(channel) {
+        channel.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'input') {
+                this._guestInputs = msg.keys;
+                this._lastGuestSeq = msg.seq;
+            } else if (msg.type === 'state') {
+                this._onStateReceived(msg.data);
+            } else if (msg.type === 'ping') {
+                if (this.isHost && this.dataChannel && this.dataChannel.readyState === 'open') {
+                    this.dataChannel.send(JSON.stringify({ type: 'pong', time: msg.time }));
+                }
+            } else if (msg.type === 'pong') {
+                const lat = Date.now() - msg.time;
+                this._updatePingGraph(lat);
             }
         };
     }
@@ -2460,7 +2582,9 @@ class GameScene extends Phaser.Scene {
             if (p) state.players[k] = { x: p.x, y: p.y, vx: p._vx, vy: p._vy };
         });
 
-        if (this.ws && this.ws.readyState === 1) {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({ type: 'state', data: state }));
+        } else if (this.ws && this.ws.readyState === 1) {
             this.ws.send(JSON.stringify({ type: 'state', data: state }));
         }
     }
@@ -3363,7 +3487,9 @@ class GameScene extends Phaser.Scene {
     _updateGuest() {
         const keys = this._getInputKeys();
         const seq = (this._inputSeq = (this._inputSeq || 0) + 1);
-        if (this.ws && this.ws.readyState === 1) {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({ type: 'input', keys, seq }));
+        } else if (this.ws && this.ws.readyState === 1) {
             this.ws.send(JSON.stringify({ type: 'input', keys, seq }));
         }
 
