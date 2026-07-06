@@ -2454,31 +2454,18 @@ class GameScene extends Phaser.Scene {
         };
     }
 
-    // WebRTC is used only as an optional fast path for the frequent, latency-sensitive
-    // input/state/ping traffic — chat, lobby, goals etc. always stay on the reliable
-    // WebSocket. Includes a TURN relay (not just STUN) so it still connects across
-    // NATs that STUN alone can't traverse; if it never connects (or disconnects),
-    // everything transparently falls back to the WebSocket relay, same as before.
     _initWebRTC() {
         console.log('[WebRTC] Initializing connection...');
-        const configuration = {
+        const config = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                {
-                    urls: [
-                        'turn:openrelay.metered.ca:80',
-                        'turn:openrelay.metered.ca:80?transport=tcp',
-                        'turn:openrelay.metered.ca:443',
-                        'turns:openrelay.metered.ca:443?transport=tcp'
-                    ],
-                    username: 'openrelayproject',
-                    credential: 'openrelayproject'
-                }
+                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
             ]
         };
-
-        this.peerConnection = new RTCPeerConnection(configuration);
+        this.peerConnection = new RTCPeerConnection(config);
 
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate && this.ws && this.ws.readyState === 1) {
@@ -2497,15 +2484,8 @@ class GameScene extends Phaser.Scene {
             }
         };
 
-        // Unordered + zero retransmits: a dropped input/state packet is simply gone —
-        // the next one (sent ~16ms later) supersedes it anyway. This avoids the
-        // WebSocket/TCP head-of-line-blocking failure mode (one lost packet stalling
-        // every packet queued behind it on the same connection) that a real-time,
-        // constantly-superseded stream like this doesn't need "guaranteed delivery" for.
-        const channelOptions = { ordered: false, maxRetransmits: 0 };
-
         if (this.isHost) {
-            this.dataChannel = this.peerConnection.createDataChannel('physics', channelOptions);
+            this.dataChannel = this.peerConnection.createDataChannel('physics');
             this._setupDataChannel(this.dataChannel);
 
             console.log('[WebRTC] Creating offer...');
