@@ -236,6 +236,14 @@ class GameScene extends Phaser.Scene {
 
         if (this.isOnline && !this.isHost) this._setupOnlineGuest();
         if (this.isOnline && this.isHost)  this._setupOnlineHost();
+        
+        if (this.isOnline && this.ws && this.ws._msgBuffer) {
+            const buffer = this.ws._msgBuffer;
+            this.ws._msgBuffer = null;
+            buffer.forEach(e => {
+                if (this.ws.onmessage) this.ws.onmessage(e);
+            });
+        }
 
         if (this.isOnline) {
             // Online: start in lobby — wait for "Start game"

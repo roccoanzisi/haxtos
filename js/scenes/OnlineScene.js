@@ -133,6 +133,14 @@ class OnlineScene extends Phaser.Scene {
             if (msg.type === 'joined') {
                 this.playerIndex = msg.index;
                 this.status.setText(`¡Conectado! Entrando a la sala...`);
+                
+                // Start buffering messages so we don't drop 'players_list' or 'signal' during scene transition
+                if (!this.ws._msgBuffer) this.ws._msgBuffer = [];
+                const originalOnMessage = this.ws.onmessage;
+                this.ws.onmessage = (e) => {
+                    if (this.ws._msgBuffer) this.ws._msgBuffer.push(e);
+                };
+                
                 this.time.delayedCall(150, () => {
                     this.scene.start('GameScene', {
                         mode: 'online',
