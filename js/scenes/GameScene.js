@@ -2462,7 +2462,8 @@ class GameScene extends Phaser.Scene {
                 { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
                 { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+                { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
             ]
         };
         this.peerConnection = new RTCPeerConnection(config);
@@ -2485,7 +2486,12 @@ class GameScene extends Phaser.Scene {
         };
 
         if (this.isHost) {
-            this.dataChannel = this.peerConnection.createDataChannel('physics');
+            // Unordered + zero retransmits: a dropped input/state packet is simply gone —
+            // the next one (sent ~16ms later) supersedes it anyway. This avoids reliable/
+            // ordered head-of-line blocking (one lost packet stalling every packet queued
+            // behind it) on a real-time, constantly-superseded stream that doesn't need
+            // "guaranteed delivery".
+            this.dataChannel = this.peerConnection.createDataChannel('physics', { ordered: false, maxRetransmits: 0 });
             this._setupDataChannel(this.dataChannel);
 
             console.log('[WebRTC] Creating offer...');
