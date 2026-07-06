@@ -2535,6 +2535,7 @@ class GameScene extends Phaser.Scene {
         if (msg.sdp) {
             console.log('[WebRTC] Received SDP:', msg.sdp.type);
             this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
+                this._remoteDescriptionSet = true;
                 console.log('[WebRTC] Remote description set successfully.');
                 if (msg.sdp.type === 'offer') {
                     console.log('[WebRTC] Creating answer...');
@@ -2558,7 +2559,7 @@ class GameScene extends Phaser.Scene {
             }).catch(err => console.error('[WebRTC] remote sdp error:', err));
         } else if (msg.candidate) {
             console.log('[WebRTC] Received ICE candidate.');
-            if (!this.peerConnection.remoteDescription || !this.peerConnection.remoteDescription.type) {
+            if (!this._remoteDescriptionSet) {
                 console.log('[WebRTC] Buffering ICE candidate (no remote desc yet).');
                 this._iceCandidatesBuffer.push(msg.candidate);
             } else {
