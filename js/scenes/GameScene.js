@@ -2508,15 +2508,20 @@ class GameScene extends Phaser.Scene {
             this.dataChannel = this.peerConnection.createDataChannel('physics', channelOptions);
             this._setupDataChannel(this.dataChannel);
 
+            console.log('[WebRTC] Creating offer...');
             this.peerConnection.createOffer().then(offer => {
+                console.log('[WebRTC] Setting local description (offer)...');
                 return this.peerConnection.setLocalDescription(offer);
             }).then(() => {
+                console.log('[WebRTC] Offer created and set. Sending to guest.');
                 if (this.ws && this.ws.readyState === 1) {
                     this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
                 }
             }).catch(err => console.error('[WebRTC] Offer error:', err));
         } else {
+            console.log('[WebRTC] Guest waiting for datachannel...');
             this.peerConnection.ondatachannel = (event) => {
+                console.log('[WebRTC] Datachannel received by guest.');
                 this.dataChannel = event.channel;
                 this._setupDataChannel(this.dataChannel);
             };
@@ -2528,17 +2533,23 @@ class GameScene extends Phaser.Scene {
         if (!this._iceCandidatesBuffer) this._iceCandidatesBuffer = [];
         
         if (msg.sdp) {
+            console.log('[WebRTC] Received SDP:', msg.sdp.type);
             this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
+                console.log('[WebRTC] Remote description set successfully.');
                 if (msg.sdp.type === 'offer') {
+                    console.log('[WebRTC] Creating answer...');
                     return this.peerConnection.createAnswer().then(answer => {
+                        console.log('[WebRTC] Setting local description (answer)...');
                         return this.peerConnection.setLocalDescription(answer);
                     }).then(() => {
+                        console.log('[WebRTC] Answer created and set. Sending to host.');
                         if (this.ws && this.ws.readyState === 1) {
                             this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
                         }
                     });
                 }
             }).then(() => {
+                console.log('[WebRTC] Processing', this._iceCandidatesBuffer.length, 'buffered candidates.');
                 while (this._iceCandidatesBuffer.length > 0) {
                     const candidate = this._iceCandidatesBuffer.shift();
                     this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
@@ -2546,7 +2557,9 @@ class GameScene extends Phaser.Scene {
                 }
             }).catch(err => console.error('[WebRTC] remote sdp error:', err));
         } else if (msg.candidate) {
+            console.log('[WebRTC] Received ICE candidate.');
             if (!this.peerConnection.remoteDescription || !this.peerConnection.remoteDescription.type) {
+                console.log('[WebRTC] Buffering ICE candidate (no remote desc yet).');
                 this._iceCandidatesBuffer.push(msg.candidate);
             } else {
                 this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
