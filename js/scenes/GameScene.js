@@ -2528,6 +2528,16 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    _processIceBuffer() {
+        if (!this.peerConnection || !this._remoteDescriptionSet || !this._iceCandidatesBuffer) return;
+        while (this._iceCandidatesBuffer.length > 0) {
+            const candidate = this._iceCandidatesBuffer.shift();
+            console.log('[WebRTC] Processing buffered candidate.');
+            this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+                .catch(err => console.error('[WebRTC] add buffered candidate error:', err));
+        }
+    }
+
     _handleSignal(msg) {
         if (!this.peerConnection) return;
         if (!this._iceCandidatesBuffer) this._iceCandidatesBuffer = [];
@@ -2537,6 +2547,8 @@ class GameScene extends Phaser.Scene {
             this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).then(() => {
                 this._remoteDescriptionSet = true;
                 console.log('[WebRTC] Remote description set successfully.');
+                this._processIceBuffer(); // Process immediately
+                
                 if (msg.sdp.type === 'offer') {
                     console.log('[WebRTC] Creating answer...');
                     return this.peerConnection.createAnswer().then(answer => {
@@ -2548,13 +2560,6 @@ class GameScene extends Phaser.Scene {
                             this.ws.send(JSON.stringify({ type: 'signal', sdp: this.peerConnection.localDescription }));
                         }
                     });
-                }
-            }).then(() => {
-                console.log('[WebRTC] Processing', this._iceCandidatesBuffer.length, 'buffered candidates.');
-                while (this._iceCandidatesBuffer.length > 0) {
-                    const candidate = this._iceCandidatesBuffer.shift();
-                    this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-                        .catch(err => console.error('[WebRTC] add buffered candidate error:', err));
                 }
             }).catch(err => console.error('[WebRTC] remote sdp error:', err));
         } else if (msg.candidate) {
