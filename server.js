@@ -9,6 +9,34 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.static(path.join(__dirname)));
 
+// Cached so every host/guest pairing doesn't hit metered.ca's API individually —
+// credentials stay valid for a while, no need to refetch more than hourly.
+let _turnCredsCache = null;
+let _turnCredsCacheAt = 0;
+const TURN_CACHE_TTL_MS = 60 * 60 * 1000;
+
+app.get('/api/turn-credentials', async (req, res) => {
+    const apiKey = process.env.METERED_API_KEY;
+    if (!apiKey) {
+        res.json([]); // no key configured — client falls back to STUN-only / WS relay
+        return;
+    }
+    if (_turnCredsCache && (Date.now() - _turnCredsCacheAt) < TURN_CACHE_TTL_MS) {
+        res.json(_turnCredsCache);
+        return;
+    }
+    try {
+        const r = await fetch(`https://haxtos.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`);
+        const iceServers = await r.json();
+        _turnCredsCache = iceServers;
+        _turnCredsCacheAt = Date.now();
+        res.json(iceServers);
+    } catch (err) {
+        console.error('[TURN] Failed to fetch credentials from metered.ca:', err);
+        res.json(_turnCredsCache || []);
+    }
+});
+
 const rooms = new Map();
 const bannedIps = new Set();
 const EXTRAPOLATION_LIMIT_MS = 250;

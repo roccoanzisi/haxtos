@@ -2321,7 +2321,7 @@ class GameScene extends Phaser.Scene {
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 this._updatePlayerAvatarsFromNames();
-                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                if (this.roomPlayers.length === 2 && !this.peerConnection && !this._webrtcInitStarted) {
                     this._initWebRTC();
                 }
             }
@@ -2415,7 +2415,7 @@ class GameScene extends Phaser.Scene {
                 this._applyMidGameTeamChanges(prevList, msg.list);
                 this._updateLobbyPlayers();
                 this._updatePlayerAvatarsFromNames();
-                if (this.roomPlayers.length === 2 && !this.peerConnection) {
+                if (this.roomPlayers.length === 2 && !this.peerConnection && !this._webrtcInitStarted) {
                     this._initWebRTC();
                 }
             }
@@ -2454,16 +2454,29 @@ class GameScene extends Phaser.Scene {
         };
     }
 
-    _initWebRTC() {
+    async _initWebRTC() {
         console.log('[WebRTC] Initializing connection...');
+        this._webrtcInitStarted = true;
+
+        // TURN credentials are fetched from our own server (server.js) instead of
+        // embedded here — that keeps the metered.ca API key server-side only, and
+        // lets us rotate/refresh credentials without a client redeploy.
+        let turnServers = [];
+        try {
+            const proto = location.protocol === 'https:' ? 'https:' : 'http:';
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            const apiHost = isLocal ? location.host : 'haxtos.onrender.com';
+            const r = await fetch(`${proto}//${apiHost}/api/turn-credentials`);
+            turnServers = await r.json();
+        } catch (err) {
+            console.error('[WebRTC] Failed to fetch TURN credentials:', err);
+        }
+
         const config = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-                { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+                ...turnServers
             ]
         };
         this.peerConnection = new RTCPeerConnection(config);
