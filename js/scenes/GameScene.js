@@ -2614,6 +2614,8 @@ class GameScene extends Phaser.Scene {
     // rate). Reconciliation always uses the freshest entry (this.serverState); the
     // buffer itself exists for desync auditing/debugging of the netcode.
     _onStateReceived(data) {
+        this._stateRecvCount = (this._stateRecvCount || 0) + 1;
+        if (this._stateRecvCount % 60 === 0) console.log('[DEBUG] _onStateReceived', this._stateRecvCount, data);
         if (!this._stateHistory) this._stateHistory = [];
         this._stateHistory.push({ receivedAt: Date.now(), ...data });
         if (this._stateHistory.length > 60) this._stateHistory.shift();
@@ -2635,10 +2637,15 @@ class GameScene extends Phaser.Scene {
             if (p) state.players[k] = { x: p.x, y: p.y, vx: p._vx, vy: p._vy };
         });
 
+        this._sendStateCount = (this._sendStateCount || 0) + 1;
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState vía DataChannel', this._sendStateCount, state);
             this.dataChannel.send(JSON.stringify({ type: 'state', data: state }));
         } else if (this.ws && this.ws.readyState === 1) {
+            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState vía WebSocket', this._sendStateCount, state);
             this.ws.send(JSON.stringify({ type: 'state', data: state }));
+        } else {
+            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState: NI datachannel NI ws disponibles para enviar', 'dataChannel', this.dataChannel, 'ws.readyState', this.ws && this.ws.readyState);
         }
     }
 
@@ -3757,6 +3764,9 @@ class GameScene extends Phaser.Scene {
 
         // Use HBS spawnDistance if available, otherwise use default 150px
         const sd = (this._hbsField && this._hbsField.spawnDist) ? this._hbsField.spawnDist : 150;
+        if (this.isOnline) {
+            console.log('[DEBUG] _reset:', 'isHost', this.isHost, 'F.CX', F.CX, 'F.CY', F.CY, 'sd', sd);
+        }
 
         if (this.is2v2) {
             place(this.players.red,   F.CX - sd, F.CY - 55);
