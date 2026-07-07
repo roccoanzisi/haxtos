@@ -8,6 +8,14 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.static(path.join(__dirname)));
+app.use(express.json());
+
+// Temporary: lets the client ship [DEBUG] logs here so they show up in one place
+// (Render's log viewer) instead of needing console access on every test device.
+app.post('/api/debug-log', (req, res) => {
+    console.log(`[CLIENT ${req.body.role || '?'}]`, req.body.msg, req.body.data !== undefined ? JSON.stringify(req.body.data) : '');
+    res.sendStatus(204);
+});
 
 // Cached so every host/guest pairing doesn't hit metered.ca's API individually —
 // credentials stay valid for a while, no need to refetch more than hourly.

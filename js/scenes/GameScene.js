@@ -2454,6 +2454,23 @@ class GameScene extends Phaser.Scene {
         };
     }
 
+    // Temporary: mirrors console.log to the server so logs from two separate test
+    // devices land in one place (Render's log viewer) instead of two consoles.
+    _remoteLog(msg, data) {
+        console.log(msg, data);
+        try {
+            const proto = location.protocol === 'https:' ? 'https:' : 'http:';
+            const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            const apiHost = isLocal ? location.host : 'haxtos.onrender.com';
+            const role = this.isHost ? 'HOST' : 'GUEST';
+            fetch(`${proto}//${apiHost}/api/debug-log`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role, msg, data })
+            }).catch(() => {});
+        } catch (err) { /* best-effort only */ }
+    }
+
     async _initWebRTC() {
         console.log('[WebRTC] Initializing connection...');
         this._webrtcInitStarted = true;
@@ -2488,7 +2505,7 @@ class GameScene extends Phaser.Scene {
         };
 
         this.peerConnection.onconnectionstatechange = () => {
-            console.log('[WebRTC] State:', this.peerConnection.connectionState);
+            this._remoteLog('[WebRTC] State: ' + this.peerConnection.connectionState);
             if (this.peerConnection.connectionState === 'connected') {
                 this._addChatMessage('Conexión P2P (WebRTC) Establecida (Ultra-bajo lag)', '#8ED2AB');
                 if (this._connTypeText) this._connTypeText.setText('P2P').setColor('#33cc33');
@@ -2615,7 +2632,7 @@ class GameScene extends Phaser.Scene {
     // buffer itself exists for desync auditing/debugging of the netcode.
     _onStateReceived(data) {
         this._stateRecvCount = (this._stateRecvCount || 0) + 1;
-        if (this._stateRecvCount % 60 === 0) console.log('[DEBUG] _onStateReceived', this._stateRecvCount, data);
+        if (this._stateRecvCount % 60 === 0) this._remoteLog('[DEBUG] _onStateReceived ' + this._stateRecvCount, data);
         if (!this._stateHistory) this._stateHistory = [];
         this._stateHistory.push({ receivedAt: Date.now(), ...data });
         if (this._stateHistory.length > 60) this._stateHistory.shift();
@@ -2639,13 +2656,13 @@ class GameScene extends Phaser.Scene {
 
         this._sendStateCount = (this._sendStateCount || 0) + 1;
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
-            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState vía DataChannel', this._sendStateCount, state);
+            if (this._sendStateCount % 60 === 0) this._remoteLog('[DEBUG] _sendState vía DataChannel ' + this._sendStateCount, state);
             this.dataChannel.send(JSON.stringify({ type: 'state', data: state }));
         } else if (this.ws && this.ws.readyState === 1) {
-            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState vía WebSocket', this._sendStateCount, state);
+            if (this._sendStateCount % 60 === 0) this._remoteLog('[DEBUG] _sendState vía WebSocket ' + this._sendStateCount, state);
             this.ws.send(JSON.stringify({ type: 'state', data: state }));
         } else {
-            if (this._sendStateCount % 60 === 0) console.log('[DEBUG] _sendState: NI datachannel NI ws disponibles para enviar', 'dataChannel', this.dataChannel, 'ws.readyState', this.ws && this.ws.readyState);
+            if (this._sendStateCount % 60 === 0) this._remoteLog('[DEBUG] _sendState: sin transporte disponible, ws.readyState=' + (this.ws && this.ws.readyState));
         }
     }
 
@@ -3765,7 +3782,7 @@ class GameScene extends Phaser.Scene {
         // Use HBS spawnDistance if available, otherwise use default 150px
         const sd = (this._hbsField && this._hbsField.spawnDist) ? this._hbsField.spawnDist : 150;
         if (this.isOnline) {
-            console.log('[DEBUG] _reset:', 'isHost', this.isHost, 'F.CX', F.CX, 'F.CY', F.CY, 'sd', sd);
+            this._remoteLog('[DEBUG] _reset', { isHost: this.isHost, CX: F.CX, CY: F.CY, sd });
         }
 
         if (this.is2v2) {
